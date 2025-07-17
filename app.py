@@ -13,6 +13,7 @@ import csv
 from sqlalchemy.inspection import inspect
 from dateutil.parser import parse as parse_date
 import sqlite3
+from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
 
@@ -49,8 +50,24 @@ login_manager.login_view = 'login'
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
+    active = db.Column(db.Boolean, default=True)
+    permissions = db.relationship('UserPermission', backref='user', lazy=True, cascade='all, delete-orphan')
+    
+    def set_password(self, password):
+        """Définit le mot de passe hashé"""
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        """Vérifie si le mot de passe fourni correspond au hash"""
+        return check_password_hash(self.password_hash, password)
+
+class UserPermission(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    page = db.Column(db.String(50), nullable=False)  # sites, localisations, equipements, etc.
+    can_access = db.Column(db.Boolean, default=False)
+    __table_args__ = (db.UniqueConstraint('user_id', 'page', name='_user_page_uc'),)
 
 class Site(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -143,6 +160,61 @@ class Parametre(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# Fonctions de gestion des permissions
+def get_user_permissions(user_id):
+    """Récupère toutes les permissions d'un utilisateur"""
+    permissions = UserPermission.query.filter_by(user_id=user_id).all()
+    return {p.page: p for p in permissions}
+
+def has_permission(user_id, page, action='view'):
+    """Vérifie si un utilisateur a une permission spécifique"""
+    if not user_id:
+        return False
+    
+    permission = UserPermission.query.filter_by(user_id=user_id, page=page).first()
+    if not permission:
+        return False
+    
+    if action == 'view':
+        return permission.can_access
+    elif action == 'create':
+        return permission.can_access
+    elif action == 'edit':
+        return permission.can_access
+    elif action == 'delete':
+        return permission.can_access
+    return False
+
+def create_user_permissions(user_id):
+    """Crée les permissions par défaut (aucune) pour un nouvel utilisateur"""
+    pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
+             'maintenances', 'calendrier', 'mouvements', 'parametres']
+    
+    for page in pages:
+        permission = UserPermission(
+            user_id=user_id,
+            page=page,
+            can_access=False
+        )
+        db.session.add(permission)
+    
+    db.session.commit()
+
+def update_user_permissions(user_id, permissions_data):
+    """Met à jour les permissions d'un utilisateur"""
+    for page, actions in permissions_data.items():
+        permission = UserPermission.query.filter_by(user_id=user_id, page=page).first()
+        if permission:
+            permission.can_access = actions.get('access', False)
+    
+    db.session.commit()
+
+# Rendre la fonction has_permission accessible dans les templates
+@app.context_processor
+def inject_permissions():
+    """Injecte la fonction has_permission dans le contexte des templates"""
+    return dict(has_permission=has_permission)
 
 # Routes principales
 @app.route('/')
@@ -509,7 +581,7 @@ def envoyer_email_maintenance(intervention):
         )
         mail.send(msg)
     except Exception as e:
-        print(f"Erreur lors de l'envoi de l'email: {e}")
+        print(f"Erreur lors de l\'envoi de l\'email: {e}")
 
 @app.route('/mouvements')
 @login_required
@@ -584,21 +656,23 @@ def reapprovisionner_piece(piece_id):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # Pour la démo, on accepte n'importe quel utilisateur
-        # En production, il faudrait vérifier les identifiants
-        user = User.query.first()
-        if not user:
-            # Créer un utilisateur par défaut
-            user = User(
-                username='admin',
-                email='admin@example.com',
-                password_hash='demo'
-            )
-            db.session.add(user)
-            db.session.commit()
+        username = request.form.get('username')
+        password = request.form.get('password')
         
-        login_user(user)
-        return redirect(url_for('index'))
+        if not username or not password:
+            flash('Veuillez saisir votre identifiant et mot de passe', 'danger')
+            return render_template('login.html')
+        
+        # Rechercher l'utilisateur par son nom d'utilisateur
+        user = User.query.filter_by(username=username, active=True).first()
+        
+        if user and user.check_password(password):
+            login_user(user)
+            flash(f'Bienvenue {user.username}!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Identifiant ou mot de passe incorrect', 'danger')
+            return render_template('login.html')
     
     return render_template('login.html')
 
@@ -727,56 +801,129 @@ def definir_date_maintenance(maintenance_id):
 @app.route('/parametres', methods=['GET', 'POST'])
 @login_required
 def parametres():
+    # Charger la configuration SMTP actuelle
+    smtp_config = charger_config_smtp()
+    
     if request.method == 'POST':
-        # Sauvegarder les paramètres email
-        parametres_email = {
-            'email_rapport': request.form.get('email_rapport'),
-            'smtp_server': request.form.get('smtp_server'),
-            'smtp_port': request.form.get('smtp_port'),
-            'smtp_user': request.form.get('smtp_user'),
-            'smtp_password': request.form.get('smtp_password')
-        }
+        # Mise à jour de la configuration SMTP
+        smtp_user = request.form.get('smtp_user')
+        smtp_password = request.form.get('smtp_password')
+        email_rapport = request.form.get('email_rapport')
         
-        for cle, valeur in parametres_email.items():
-            if valeur:  # Ne sauvegarder que si la valeur n'est pas vide
-                param = Parametre.query.filter_by(cle=cle).first()
+        # Mettre à jour ou créer les paramètres
+        for key, value in [('smtp_user', smtp_user), ('smtp_password', smtp_password), ('email_rapport', email_rapport)]:
+            if value:
+                param = Parametre.query.filter_by(cle=key).first()
                 if param:
-                    param.valeur = valeur
+                    param.valeur = value
                 else:
-                    param = Parametre(cle=cle, valeur=valeur)
+                    param = Parametre(cle=key, valeur=value)
                     db.session.add(param)
         
-        try:
-            db.session.commit()
-            flash('Configuration email sauvegardée avec succès !', 'success')
-        except Exception as e:
-            db.session.rollback()
-            flash(f'Erreur lors de la sauvegarde : {str(e)}', 'danger')
+        db.session.commit()
+        flash('Configuration mise à jour avec succès!', 'success')
+        return redirect(url_for('parametres'))
     
-    # Récupérer les paramètres existants pour les afficher
-    params = {p.cle: p.valeur for p in Parametre.query.all()}
-    email_rapport = params.get('email_rapport', '')
-    smtp_server = params.get('smtp_server', 'smtp.gmail.com')
-    smtp_port = params.get('smtp_port', '587')
-    smtp_user = params.get('smtp_user', '')
-    smtp_password = params.get('smtp_password', '')
+    return render_template('parametres.html', smtp_config=smtp_config)
+
+@app.route('/parametres/utilisateurs')
+@login_required
+def gestion_utilisateurs():
+    """Page de gestion des utilisateurs et permissions"""
+    users = User.query.filter_by(active=True).all()
+    pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
+             'maintenances', 'calendrier', 'mouvements', 'parametres']
     
-    # Récupérer tous les paramètres
-    sites = Site.query.all()
-    localisations = Localisation.query.all()
-    lieux_stockage = LieuStockage.query.all()
-    equipements = Equipement.query.all()
+    # Récupérer les permissions pour chaque utilisateur
+    users_permissions = {}
+    for user in users:
+        permissions = get_user_permissions(user.id)
+        users_permissions[user.id] = permissions
     
-    return render_template('parametres.html', 
-                         sites=sites, 
-                         localisations=localisations, 
-                         lieux_stockage=lieux_stockage, 
-                         equipements=equipements,
-                         email_rapport=email_rapport,
-                         smtp_server=smtp_server,
-                         smtp_port=smtp_port,
-                         smtp_user=smtp_user,
-                         smtp_password=smtp_password)
+    return render_template('gestion_utilisateurs.html', 
+                         users=users, 
+                         pages=pages, 
+                         users_permissions=users_permissions)
+
+@app.route('/parametres/utilisateur/creer', methods=['POST'])
+@login_required
+def creer_utilisateur():
+    """Créer un nouvel utilisateur"""
+    username = request.form.get('username')
+    password = request.form.get('password')
+    
+    if not username or not password:
+        flash('Tous les champs sont obligatoires', 'danger')
+        return redirect(url_for('gestion_utilisateurs'))
+    
+    # Vérifier si l'utilisateur existe déjà
+    if User.query.filter_by(username=username).first():
+        flash('Ce nom d\'utilisateur existe déjà', 'danger')
+        return redirect(url_for('gestion_utilisateurs'))
+    
+    # Créer l'utilisateur
+    user = User(username=username)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    
+    # Créer les permissions par défaut (aucune)
+    create_user_permissions(user.id)
+    
+    flash(f'Utilisateur {username} créé avec succès', 'success')
+    return redirect(url_for('gestion_utilisateurs'))
+
+@app.route('/parametres/utilisateur/<int:user_id>/permissions', methods=['POST'])
+@login_required
+def modifier_permissions(user_id):
+    """Modifier les permissions d'un utilisateur"""
+    user = User.query.get_or_404(user_id)
+    pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
+             'maintenances', 'calendrier', 'mouvements', 'parametres']
+    
+    permissions_data = {}
+    for page in pages:
+        permissions_data[page] = {
+            'access': request.form.get(f'{page}_access') == 'on'
+        }
+    
+    update_user_permissions(user_id, permissions_data)
+    flash(f'Permissions de {user.username} mises à jour', 'success')
+    return redirect(url_for('gestion_utilisateurs'))
+
+@app.route('/parametres/utilisateur/<int:user_id>/supprimer', methods=['POST'])
+@login_required
+def supprimer_utilisateur(user_id):
+    """Supprimer un utilisateur (désactiver)"""
+    user = User.query.get_or_404(user_id)
+    
+    # Empêcher la suppression de son propre compte
+    if user.id == current_user.id:
+        flash('Vous ne pouvez pas supprimer votre propre compte', 'danger')
+        return redirect(url_for('gestion_utilisateurs'))
+    
+    user.active = False
+    db.session.commit()
+    
+    flash(f'Utilisateur {user.username} supprimé', 'success')
+    return redirect(url_for('gestion_utilisateurs'))
+
+@app.route('/parametres/utilisateur/<int:user_id>/reset-password', methods=['POST'])
+@login_required
+def reset_password_utilisateur(user_id):
+    """Réinitialiser le mot de passe d'un utilisateur"""
+    user = User.query.get_or_404(user_id)
+    new_password = request.form.get('new_password')
+    
+    if not new_password:
+        flash('Le nouveau mot de passe est obligatoire', 'danger')
+        return redirect(url_for('gestion_utilisateurs'))
+    
+    user.set_password(new_password)
+    db.session.commit()
+    
+    flash(f'Mot de passe de {user.username} réinitialisé', 'success')
+    return redirect(url_for('gestion_utilisateurs'))
 
 def charger_config_smtp():
     params = {p.cle: p.valeur for p in Parametre.query.all()}
@@ -822,11 +969,11 @@ def test_email():
     )
     mail = Mail(app)
     try:
-        msg = Message('Test de configuration email', recipients=[email_rapport], body='Ceci est un test de la configuration SMTP de l'application de maintenance.', sender=smtp_user)
+        msg = Message('Test de configuration email', recipients=[email_rapport], body='Ceci est un test de la configuration SMTP de l\'application de maintenance.', sender=smtp_user)
         mail.send(msg)
         flash('Email de test envoyé avec succès !', 'success')
     except Exception as e:
-        flash(f'Erreur lors de l'envoi : {e}', 'danger')
+        flash(f'Erreur lors de l\'envoi : {e}', 'danger')
     return redirect(url_for('parametres'))
 
 @app.route('/calendrier/envoyer_rapport', methods=['POST'])
@@ -1618,7 +1765,7 @@ def import_maintenances():
                 
                 # Vérifier que l'équipement est dans la bonne localisation
                 if equipement.localisation.nom != localisation_nom:
-                    erreurs.append(f"Ligne {int(idx)+2}: L'équipement '{equipement_nom}' n'est pas dans la localisation '{localisation_nom}'")
+                    erreurs.append(f"Ligne {int(idx)+2}: L\'équipement '{equipement_nom}' n\'est pas dans la localisation '{localisation_nom}'")
                     continue
                 
                 # Vérifier la périodicité

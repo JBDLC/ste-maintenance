@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Gestion des Utilisateurs{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">Gestion des Utilisateurs</h1>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#creerUtilisateurModal">
+                    <i class="fas fa-plus"></i> Nouvel Utilisateur
+                </button>
+            </div>
+
+            <!-- Tableau des utilisateurs et permissions -->
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th class="align-middle">Utilisateur</th>
+                                    {% for page in pages %}
+                                        <th class="text-center">{{ page|capitalize }}</th>
+                                    {% endfor %}
+                                    <th class="align-middle">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td><strong>{{ user.username }}</strong></td>
+                                    {% for page in pages %}
+                                        {% set user_perms = users_permissions.get(user.id, {}) %}
+                                        {% set page_perms = user_perms.get(page, None) %}
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input"
+                                                   name="{{ page }}_access"
+                                                   {% if page_perms and page_perms.can_access %}checked{% endif %}
+                                                   onchange="updatePermission({{ user.id }}, '{{ page }}', 'access', this.checked)">
+                                        </td>
+                                    {% endfor %}
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-warning" 
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#resetPasswordModal{{ user.id }}">
+                                                <i class="fas fa-key"></i>
+                                            </button>
+                                            {% if user.id != current_user.id %}
+                                            <button type="button" class="btn btn-sm btn-danger" 
+                                                    onclick="supprimerUtilisateur({{ user.id }}, '{{ user.username }}')">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Créer Utilisateur -->
+<div class="modal fade" id="creerUtilisateurModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Créer un nouvel utilisateur</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('creer_utilisateur') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Nom d'utilisateur</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Mot de passe</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Créer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modals Reset Password pour chaque utilisateur -->
+{% for user in users %}
+<div class="modal fade" id="resetPasswordModal{{ user.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Réinitialiser le mot de passe de {{ user.username }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('reset_password_utilisateur', user_id=user.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="new_password{{ user.id }}" class="form-label">Nouveau mot de passe</label>
+                        <input type="password" class="form-control" id="new_password{{ user.id }}" name="new_password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-warning">Réinitialiser</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<script>
+function updatePermission(userId, page, action, checked) {
+    // Créer un formulaire temporaire pour envoyer la mise à jour
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/parametres/utilisateur/${userId}/permissions`;
+    
+    // Ajouter tous les champs de permission actuels
+    const checkboxes = document.querySelectorAll(`input[name^="${page}_"]`);
+    checkboxes.forEach(checkbox => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = checkbox.name;
+        input.value = checkbox.checked ? 'on' : '';
+        form.appendChild(input);
+    });
+    
+    // Mettre à jour la valeur actuelle
+    const currentInput = form.querySelector(`input[name="${page}_${action}"]`);
+    if (currentInput) {
+        currentInput.value = checked ? 'on' : '';
+    }
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function supprimerUtilisateur(userId, username) {
+    if (confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur ${username} ?`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/parametres/utilisateur/${userId}/supprimer`;
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+
+<style>
+.table th {
+    font-size: 0.8rem;
+    padding: 0.5rem;
+}
+.table td {
+    padding: 0.5rem;
+    vertical-align: middle;
+}
+.form-check-input {
+    margin: 0;
+}
+.btn-group .btn {
+    margin: 0 2px;
+}
+</style>
+{% endblock %} 
