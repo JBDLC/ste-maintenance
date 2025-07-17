@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Maintenances - Gestion Maintenance Préventive{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Maintenances</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('ajouter_maintenance') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Ajouter une maintenance
+        </a>
+    </div>
+</div>
+
+<!-- Tableau CO6 -->
+<h3 class="mb-3">CO6</h3>
+<div class="table-responsive mb-4">
+    <table class="table table-hover table-sm align-middle" style="font-size: 70%;">
+        <thead class="table-dark">
+            <tr>
+                <th>Localisation</th>
+                <th>Équipement</th>
+                <th>Description équipement</th>
+                <th>Action de maintenance</th>
+                <th>Périodicité</th>
+                <th>1ère maintenance</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if maintenances_co6 %}
+                {% for maintenance in maintenances_co6 %}
+                <tr class="{{ 'table-warning' if maintenance.date_importee and not maintenance.date_premiere else '' }}">
+                    <td>{{ maintenance.equipement.localisation.nom if maintenance.equipement and maintenance.equipement.localisation else '-' }}</td>
+                    <td>{{ maintenance.equipement.nom if maintenance.equipement else '-' }}</td>
+                    <td>{{ maintenance.equipement.description if maintenance.equipement and maintenance.equipement.description else 'Aucune description' }}</td>
+                    <td>{{ maintenance.titre }}</td>
+                    <td>{{ maintenance.periodicite or '-' }}</td>
+                    <td>
+                        {% if maintenance.date_premiere %}
+                            {{ maintenance.date_premiere.strftime('%d/%m/%Y') }}
+                        {% elif maintenance.date_importee %}
+                            <span class="badge bg-warning">Date à définir</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                            {% if maintenance.date_importee and not maintenance.date_premiere %}
+                                <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#dateMaintenanceModal{{ maintenance.id }}" title="Définir la date">
+                                    <i class="fas fa-calendar"></i>
+                                </button>
+                            {% endif %}
+                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#maintenanceModal{{ maintenance.id }}">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <a href="{{ url_for('modifier_maintenance', maintenance_id=maintenance.id) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#supprimerMaintenanceModal{{ maintenance.id }}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+            <tr>
+                <td colspan="7" class="text-center">
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle"></i> Aucune maintenance CO6 pour le moment.
+                    </div>
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Tableau CO7 -->
+<h3 class="mb-3">CO7</h3>
+<div class="table-responsive">
+    <table class="table table-hover table-sm align-middle" style="font-size: 70%;">
+        <thead class="table-dark">
+            <tr>
+                <th>Localisation</th>
+                <th>Équipement</th>
+                <th>Description équipement</th>
+                <th>Action de maintenance</th>
+                <th>Périodicité</th>
+                <th>1ère maintenance</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if maintenances_co7 %}
+                {% for maintenance in maintenances_co7 %}
+                <tr class="{{ 'table-warning' if maintenance.date_importee and not maintenance.date_premiere else '' }}">
+                    <td>{{ maintenance.equipement.localisation.nom if maintenance.equipement and maintenance.equipement.localisation else '-' }}</td>
+                    <td>{{ maintenance.equipement.nom if maintenance.equipement else '-' }}</td>
+                    <td>{{ maintenance.equipement.description if maintenance.equipement and maintenance.equipement.description else 'Aucune description' }}</td>
+                    <td>{{ maintenance.titre }}</td>
+                    <td>{{ maintenance.periodicite or '-' }}</td>
+                    <td>
+                        {% if maintenance.date_premiere %}
+                            {{ maintenance.date_premiere.strftime('%d/%m/%Y') }}
+                        {% elif maintenance.date_importee %}
+                            <span class="badge bg-warning">Date à définir</span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm" role="group">
+                            {% if maintenance.date_importee and not maintenance.date_premiere %}
+                                <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#dateMaintenanceModal{{ maintenance.id }}" title="Définir la date">
+                                    <i class="fas fa-calendar"></i>
+                                </button>
+                            {% endif %}
+                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#maintenanceModal{{ maintenance.id }}">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <a href="{{ url_for('modifier_maintenance', maintenance_id=maintenance.id) }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#supprimerMaintenanceModal{{ maintenance.id }}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+            <tr>
+                <td colspan="7" class="text-center">
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle"></i> Aucune maintenance CO7 pour le moment.
+                    </div>
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modales pour chaque maintenance -->
+{% for maintenance in maintenances_co6 + maintenances_co7 %}
+    <!-- Modal pour définir la date de première maintenance -->
+    {% if maintenance.date_importee and not maintenance.date_premiere %}
+    <div class="modal fade" id="dateMaintenanceModal{{ maintenance.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Définir la date de première maintenance</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form method="POST" action="{{ url_for('definir_date_maintenance', maintenance_id=maintenance.id) }}">
+                    <div class="modal-body">
+                        <p><strong>Maintenance:</strong> {{ maintenance.titre }}</p>
+                        <p><strong>Équipement:</strong> {{ maintenance.equipement.nom }}</p>
+                        <p><strong>Périodicité:</strong> {{ maintenance.periodicite }}</p>
+                        
+                        <div class="mb-3">
+                            <label for="date_premiere{{ maintenance.id }}" class="form-label">Date de première maintenance *</label>
+                            <input type="date" class="form-control" id="date_premiere{{ maintenance.id }}" name="date_premiere" required>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-calendar-check"></i> Définir la date
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Modal pour les détails de la maintenance -->
+    <div class="modal fade" id="maintenanceModal{{ maintenance.id }}" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ maintenance.titre }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Équipement:</strong> {{ maintenance.equipement.nom }}</p>
+                    <p><strong>1ère maintenance:</strong> {{ maintenance.date_premiere.strftime('%d/%m/%Y') if maintenance.date_premiere else '-' }}</p>
+                    <p><strong>Périodicité:</strong> {{ maintenance.periodicite or '-' }}</p>
+                    <p><strong>Description:</strong> {{ maintenance.description or 'Aucune description' }}</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmation de suppression -->
+    <div class="modal fade" id="supprimerMaintenanceModal{{ maintenance.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-trash"></i> Supprimer la maintenance</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Voulez-vous vraiment supprimer la maintenance <strong>{{ maintenance.titre }}</strong> ?</p>
+                    <p class="text-danger"><small>Cette action est irréversible.</small></p>
+                </div>
+                <div class="modal-footer">
+                    <form method="POST" action="{{ url_for('supprimer_maintenance', maintenance_id=maintenance.id) }}">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-danger">Supprimer</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+{% endblock %} 

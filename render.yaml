@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: maintenance-ste
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.7
+      - key: SECRET_KEY
+        generateValue: true
+      - key: MAIL_SERVER
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: 587
+      - key: MAIL_USE_TLS
+        value: true
+      - key: MAIL_USERNAME
+        value: your-email@gmail.com
+      - key: MAIL_PASSWORD
+        value: your-app-password
+      - key: MAIL_DEFAULT_SENDER
+        value: your-email@gmail.com
+    healthCheckPath: /
+
+databases:
+  - name: maintenance-db
+    databaseName: maintenance
+    user: maintenance_user
+    plan: free 

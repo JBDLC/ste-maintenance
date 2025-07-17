@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+
+{% block title %}Paramètres - Gestion Maintenance Préventive{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Paramètres</h1>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-envelope"></i> Configuration Email</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="email_rapport" class="form-label">Adresse email de réception</label>
+                        <input type="email" class="form-control" id="email_rapport" name="email_rapport" value="{{ email_rapport }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="smtp_server" class="form-label">Serveur SMTP</label>
+                        <input type="text" class="form-control" id="smtp_server" name="smtp_server" value="{{ smtp_server }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="smtp_port" class="form-label">Port SMTP</label>
+                        <input type="number" class="form-control" id="smtp_port" name="smtp_port" value="{{ smtp_port or 587 }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="smtp_user" class="form-label">Nom d'utilisateur SMTP</label>
+                        <input type="text" class="form-control" id="smtp_user" name="smtp_user" value="{{ smtp_user }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="smtp_password" class="form-label">Mot de passe SMTP</label>
+                        <input type="password" class="form-control" id="smtp_password" name="smtp_password" value="{{ smtp_password }}" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Sauvegarder</button>
+                    <button type="submit" formaction="{{ url_for('test_email') }}" formmethod="post" class="btn btn-info ms-2">Test</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mt-4 mt-md-0">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-database"></i> Taille des données en temps réel</h5>
+            </div>
+            <div class="card-body">
+                <div id="taille-tables-loading">Chargement...</div>
+                <div id="taille-fichier" class="mb-2 d-none"></div>
+                <table class="table table-sm d-none" id="taille-tables-table" style="font-size: 70%;">
+                    <thead><tr><th>Table</th><th>Nombre de lignes</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/parametres/taille-tables')
+        .then(r => r.json())
+        .then(data => {
+            const table = document.getElementById('taille-tables-table');
+            const loading = document.getElementById('taille-tables-loading');
+            const tailleFichier = document.getElementById('taille-fichier');
+            const tbody = table.querySelector('tbody');
+            tbody.innerHTML = '';
+            let totalLignes = 0;
+            for (const [nom, nb] of Object.entries(data.lignes)) {
+                totalLignes += nb;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td>${nom}</td><td>${nb}</td>`;
+                tbody.appendChild(tr);
+            }
+            const trTotal = document.createElement('tr');
+            trTotal.innerHTML = `<th>Total</th><th>${totalLignes}</th>`;
+            tbody.appendChild(trTotal);
+            // Affichage taille fichier
+            tailleFichier.textContent = `Taille totale du fichier .db : ${(data.taille_fichier/1024).toFixed(2)} Ko`;
+            tailleFichier.classList.remove('d-none');
+            loading.classList.add('d-none');
+            table.classList.remove('d-none');
+        })
+        .catch(() => {
+            document.getElementById('taille-tables-loading').textContent = 'Erreur lors du chargement.';
+        });
+});
+</script>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header bg-light"><strong>Import/Export Données</strong></div>
+            <div class="card-body">
+                {% for entite in ['site', 'localisation', 'equipement', 'lieu_stockage', 'piece', 'maintenance'] %}
+                <div class="mb-4 border-bottom pb-3">
+                    <h5 class="mb-3 text-capitalize">{{ entite.replace('_', ' ') }}s</h5>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <a href="{{ url_for('download_modele', entite=entite, format='xlsx') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-download"></i> Modèle Excel
+                        </a>
+                        <a href="{{ url_for('download_modele', entite=entite, format='csv') }}" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-download"></i> Modèle CSV
+                        </a>
+                        <a href="{{ url_for('export_donnees', entite=entite, format='xlsx') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-file-excel"></i> Exporter Excel
+                        </a>
+                        <a href="{{ url_for('export_donnees', entite=entite, format='csv') }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-file-csv"></i> Exporter CSV
+                        </a>
+                    </div>
+                    <form action="{{ url_for('import_donnees', entite=entite) }}" method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                        <input type="file" name="fichier" accept=".xlsx,.csv" class="form-control form-control-sm w-auto" required>
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="fas fa-upload"></i> Importer / Mettre à jour
+                        </button>
+                    </form>
+                    {% if entite == 'localisation' %}
+                        {# Tableau de correspondance supprimé #}
+                    {% elif entite == 'equipement' %}
+                        {# Tableau de correspondance supprimé #}
+                    {% elif entite == 'piece' %}
+                        {# Tableau de correspondance supprimé #}
+                    {% elif entite == 'maintenance' %}
+                        {# Tableau de correspondance supprimé #}
+                    {% endif %}
+                </div>
+                {% endfor %}
+                
+                <!-- Section spéciale pour l'import des maintenances -->
+                <div class="mb-4 border-bottom pb-3">
+                    <h5 class="mb-3 text-success">
+                        <i class="fas fa-tools"></i> Import spécial - Maintenances
+                    </h5>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Import simplifié :</strong> Utilisez ce modèle pour importer des maintenances sans date de début. 
+                        Les maintenances importées seront marquées en jaune et vous devrez définir manuellement la date de première maintenance.
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <a href="{{ url_for('download_modele_maintenances') }}" class="btn btn-success btn-sm">
+                            <i class="fas fa-download"></i> Modèle Excel Maintenances
+                        </a>
+                    </div>
+                    <form action="{{ url_for('import_maintenances') }}" method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                        <input type="file" name="fichier" accept=".xlsx" class="form-control form-control-sm w-auto" required>
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="fas fa-upload"></i> Importer Maintenances
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

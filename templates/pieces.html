@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Pièces de rechange - Gestion Maintenance Préventive{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Pièces de rechange</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('ajouter_piece') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Ajouter une pièce
+        </a>
+        <button type="button" class="btn btn-danger ms-2" data-bs-toggle="modal" data-bs-target="#viderDonneesModal">
+            <i class="fas fa-trash-alt"></i> Vider les pièces
+        </button>
+    </div>
+</div>
+
+<!-- Modal de confirmation pour vider toutes les données -->
+<div class="modal fade" id="viderDonneesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Vider les pièces</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Attention !</strong> Cette action va supprimer uniquement les pièces et leurs données associées :
+                    <ul class="mb-0 mt-2">
+                        <li>Toutes les pièces</li>
+                        <li>Tous les mouvements de pièces</li>
+                        <li>Toutes les associations pièces-équipements</li>
+                        <li>Toutes les pièces utilisées dans les interventions</li>
+                    </ul>
+                    <p class="mb-0 mt-2"><strong>Note :</strong> Les sites, localisations, équipements et lieux de stockage ne seront pas supprimés.</p>
+                </div>
+                <p>Cette action est irréversible. Êtes-vous sûr de vouloir continuer ?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('vider_pieces') }}" method="post">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash-alt"></i> Vider les pièces
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover" style="font-size: 70%;">
+        <thead class="table-dark">
+            <tr>
+                <th>Référence STE</th>
+                <th>Item</th>
+                <th>Lieu</th>
+                <th>Stock</th>
+                <th>Min</th>
+                <th>Max</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if pieces %}
+                {% for piece in pieces %}
+                <tr class="{{ 'table-danger' if piece.quantite_stock <= piece.stock_mini else 'table-warning' if piece.quantite_stock <= piece.stock_mini + 2 else '' }} {{ 'table-secondary' if not piece.item or not piece.reference_ste }}">
+                    <td>{{ piece.reference_ste or '<span class="text-muted">Non renseigné</span>'|safe }}</td>
+                    <td>{{ piece.item or '<span class="text-muted">Non renseigné</span>'|safe }}</td>
+                    <td>{{ piece.lieu_stockage.nom if piece.lieu_stockage else '-' }}</td>
+                    <td>
+                        <span class="badge bg-{{ 'danger' if piece.quantite_stock <= piece.stock_mini else 'warning' if piece.quantite_stock <= piece.stock_mini + 2 else 'success' }}">
+                            {{ piece.quantite_stock }}
+                        </span>
+                    </td>
+                    <td>{{ piece.stock_mini }}</td>
+                    <td>{{ piece.stock_maxi }}</td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#reapprovisionnerModal{{ piece.id }}">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#modifierPieceModal{{ piece.id }}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ piece.id }}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+
+                <!-- Modal de réapprovisionnement -->
+                <div class="modal fade" id="reapprovisionnerModal{{ piece.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Réapprovisionner {{ piece.item or 'cette pièce' }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form method="POST" action="{{ url_for('reapprovisionner_piece', piece_id=piece.id) }}">
+                                <div class="modal-body">
+                                    <p><strong>Stock actuel:</strong> {{ piece.quantite_stock }}</p>
+                                    <p><strong>Stock maximum:</strong> {{ piece.stock_maxi }}</p>
+                                    
+                                    <div class="mb-3">
+                                        <label for="quantite" class="form-label">Quantité à ajouter *</label>
+                                        <input type="number" class="form-control" id="quantite" name="quantite" min="1" max="{{ piece.stock_maxi - piece.quantite_stock }}" required>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-plus"></i> Ajouter au stock
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de modification de la pièce -->
+                <div class="modal fade" id="modifierPieceModal{{ piece.id }}" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Modifier la pièce : {{ piece.item or 'Pièce sans nom' }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form method="POST" action="{{ url_for('modifier_piece', piece_id=piece.id) }}">
+                                <div class="modal-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="reference_ste{{ piece.id }}" class="form-label">Référence STE *</label>
+                                                <input type="text" class="form-control" id="reference_ste{{ piece.id }}" name="reference_ste" value="{{ piece.reference_ste }}" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="reference_magasin{{ piece.id }}" class="form-label">Référence Magasin</label>
+                                                <input type="text" class="form-control" id="reference_magasin{{ piece.id }}" name="reference_magasin" value="{{ piece.reference_magasin }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="item{{ piece.id }}" class="form-label">Item *</label>
+                                        <input type="text" class="form-control" id="item{{ piece.id }}" name="item" value="{{ piece.item }}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="description{{ piece.id }}" class="form-label">Description</label>
+                                        <textarea class="form-control" id="description{{ piece.id }}" name="description" rows="3">{{ piece.description }}</textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="lieu_stockage_id{{ piece.id }}" class="form-label">Lieu de stockage</label>
+                                        <select class="form-select" id="lieu_stockage_id{{ piece.id }}" name="lieu_stockage_id">
+                                            <option value="">Non défini</option>
+                                            {% for lieu in lieux_stockage %}
+                                                <option value="{{ lieu.id }}" {% if piece.lieu_stockage and piece.lieu_stockage.id == lieu.id %}selected{% endif %}>{{ lieu.nom }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="quantite_stock{{ piece.id }}" class="form-label">Quantité en stock *</label>
+                                                <input type="number" class="form-control" id="quantite_stock{{ piece.id }}" name="quantite_stock" min="0" value="{{ piece.quantite_stock }}" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="stock_mini{{ piece.id }}" class="form-label">Stock minimum *</label>
+                                                <input type="number" class="form-control" id="stock_mini{{ piece.id }}" name="stock_mini" min="0" value="{{ piece.stock_mini }}" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="stock_maxi{{ piece.id }}" class="form-label">Stock maximum *</label>
+                                                <input type="number" class="form-control" id="stock_maxi{{ piece.id }}" name="stock_maxi" min="1" value="{{ piece.stock_maxi }}" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Enregistrer les modifications
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal pour les détails de la pièce -->
+                <div class="modal fade" id="pieceModal{{ piece.id }}" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">{{ piece.item or 'Pièce sans nom' }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>Référence STE:</strong> {{ piece.reference_ste or '<span class="text-muted">Non renseignée</span>'|safe }}</p>
+                                        <p><strong>Référence Magasin:</strong> {{ piece.reference_magasin or 'Non définie' }}</p>
+                                        <p><strong>Description:</strong> {{ piece.description or 'Aucune description' }}</p>
+                                        <p><strong>Lieu de stockage:</strong> {{ piece.lieu_stockage.nom if piece.lieu_stockage else 'Non défini' }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Stock actuel:</strong> {{ piece.quantite_stock }}</p>
+                                        <p><strong>Stock minimum:</strong> {{ piece.stock_mini }}</p>
+                                        <p><strong>Stock maximum:</strong> {{ piece.stock_maxi }}</p>
+                                        <p><strong>Statut:</strong> 
+                                            <span class="badge bg-{{ 'danger' if piece.quantite_stock <= piece.stock_mini else 'warning' if piece.quantite_stock <= piece.stock_mini + 2 else 'success' }}">
+                                                {{ 'Rupture' if piece.quantite_stock <= piece.stock_mini else 'Faible' if piece.quantite_stock <= piece.stock_mini + 2 else 'Normal' }}
+                                            </span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal de confirmation de suppression -->
+                <div class="modal fade" id="deleteModal{{ piece.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title"><i class="fas fa-trash"></i> Supprimer la pièce</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Voulez-vous vraiment supprimer la pièce <strong>{{ piece.item or 'cette pièce' }}</strong> ?</p>
+                                <p class="text-danger"><small>Cette action est irréversible.</small></p>
+                            </div>
+                            <div class="modal-footer">
+                                <form method="POST" action="{{ url_for('supprimer_piece', piece_id=piece.id) }}">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <tr>
+                <td colspan="7" class="text-center">
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle"></i> Aucune pièce créée pour le moment. 
+                        <a href="{{ url_for('ajouter_piece') }}" class="alert-link">Créer la première pièce</a>
+                    </div>
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+{% endblock %} 

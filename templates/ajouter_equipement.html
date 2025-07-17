@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Ajouter un équipement - Gestion Maintenance Préventive{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Ajouter un équipement</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('equipements') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-cogs"></i> Informations de l'équipement</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="nom" class="form-label">Nom de l'équipement *</label>
+                        <input type="text" class="form-control" id="nom" name="nom" required value="{{ equipement.nom if edition else '' }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ equipement.description if edition else '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="localisation_id" class="form-label">Localisation *</label>
+                        <select class="form-select" id="localisation_id" name="localisation_id" required>
+                            <option value="">Sélectionner une localisation</option>
+                            {% for localisation in localisations %}
+                            <option value="{{ localisation.id }}" {% if edition and equipement.localisation_id == localisation.id %}selected{% endif %}>{{ localisation.nom }} ({{ localisation.site.nom }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Pièces de rechange associées</label>
+                        <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                            {% if pieces %}
+                                <div class="row">
+                                    {% for piece in pieces %}
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="pieces_ids" value="{{ piece.id }}" id="piece_{{ piece.id }}" {% if edition and piece.id in equipement.pieces_ids %}checked{% endif %}>
+                                            <label class="form-check-label" for="piece_{{ piece.id }}">
+                                                <strong>{{ piece.item }}</strong><br>
+                                                <small class="text-muted">{{ piece.reference_ste }} - Stock: {{ piece.quantite_stock }}</small>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted">Aucune pièce de rechange disponible. <a href="{{ url_for('ajouter_piece') }}">Ajouter des pièces</a></p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('equipements') }}" class="btn btn-secondary me-md-2">Annuler</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Enregistrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

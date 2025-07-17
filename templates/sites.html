@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Sites - Gestion Maintenance Préventive{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Sites</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('ajouter_site') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Ajouter un site
+        </a>
+        <button type="button" class="btn btn-danger ms-2" data-bs-toggle="modal" data-bs-target="#viderDonneesModal">
+            <i class="fas fa-trash-alt"></i> Vider les sites
+        </button>
+    </div>
+</div>
+
+<!-- Modal de confirmation pour vider toutes les données -->
+<div class="modal fade" id="viderDonneesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Vider les sites</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Attention !</strong> Cette action va supprimer uniquement les sites et leurs données associées :
+                    <ul class="mb-0 mt-2">
+                        <li>Tous les sites</li>
+                        <li>Toutes les localisations</li>
+                        <li>Tous les équipements</li>
+                        <li>Toutes les maintenances</li>
+                        <li>Toutes les interventions</li>
+                        <li>Tous les mouvements de pièces</li>
+                    </ul>
+                    <p class="mb-0 mt-2"><strong>Note :</strong> Les pièces et lieux de stockage ne seront pas supprimés.</p>
+                </div>
+                <p>Cette action est irréversible. Êtes-vous sûr de vouloir continuer ?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('vider_sites') }}" method="post">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash-alt"></i> Vider les sites
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover table-sm align-middle" style="font-size: 70%;">
+        <thead class="table-dark">
+            <tr>
+                <th>Nom</th>
+                <th>Description</th>
+                <th>Localisations</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for site in sites %}
+            <tr>
+                <td>{{ site.nom }}</td>
+                <td>{{ site.description or '-' }}</td>
+                <td>{{ site.localisations|length }}</td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#siteModal{{ site.id }}">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <a href="{{ url_for('modifier_site', site_id=site.id) }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{{ url_for('supprimer_site', site_id=site.id) }}" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ site.id }}">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+
+            <!-- Modal pour les détails du site -->
+            <div class="modal fade" id="siteModal{{ site.id }}" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">{{ site.nom }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong>Description:</strong> {{ site.description or 'Aucune description' }}</p>
+                            <h6>Localisations:</h6>
+                            {% if site.localisations %}
+                                <div class="list-group">
+                                    {% for localisation in site.localisations %}
+                                    <div class="list-group-item">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ localisation.nom }}</h6>
+                                            <small class="text-muted">{{ localisation.equipements|length }} équipement(s)</small>
+                                        </div>
+                                        <p class="mb-1">{{ localisation.description or 'Aucune description' }}</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted">Aucune localisation pour ce site.</p>
+                            {% endif %}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal de confirmation de suppression -->
+            <div class="modal fade" id="deleteModal{{ site.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Supprimer le site</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Êtes-vous sûr de vouloir supprimer le site "{{ site.nom }}"?</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <form action="{{ url_for('supprimer_site', site_id=site.id) }}" method="post">
+                                <button type="submit" class="btn btn-danger">Supprimer</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle"></i> Aucun site créé pour le moment. 
+                        <a href="{{ url_for('ajouter_site') }}" class="alert-link">Créer le premier site</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %} 

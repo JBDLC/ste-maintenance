@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Lieux de stockage - Gestion Maintenance Préventive{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Lieux de stockage</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('ajouter_lieu_stockage') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Ajouter un lieu de stockage
+        </a>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover table-sm align-middle" style="font-size: 70%;">
+        <thead class="table-dark">
+            <tr>
+                <th>Nom</th>
+                <th>Description</th>
+                <th>Pièces stockées</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for lieu in lieux_stockage %}
+            <tr>
+                <td>{{ lieu.nom }}</td>
+                <td>{{ lieu.description or '-' }}</td>
+                <td>{{ lieu.pieces|length }}</td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#lieuModal{{ lieu.id }}">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <a href="{{ url_for('modifier_lieu_stockage', lieu_stockage_id=lieu.id) }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="{{ url_for('supprimer_lieu_stockage', lieu_stockage_id=lieu.id) }}" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ lieu.id }}">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </div>
+                </td>
+            </tr>
+
+            <!-- Modal pour les détails du lieu de stockage -->
+            <div class="modal fade" id="lieuModal{{ lieu.id }}" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">{{ lieu.nom }}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p><strong>Description:</strong> {{ lieu.description or 'Aucune description' }}</p>
+                            <h6>Pièces stockées:</h6>
+                            {% if lieu.pieces %}
+                                <ul>
+                                    {% for piece in lieu.pieces %}
+                                    <li>{{ piece.nom }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted">Aucune pièce stockée ici.</p>
+                            {% endif %}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal de confirmation de suppression -->
+            <div class="modal fade" id="deleteModal{{ lieu.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Supprimer le lieu de stockage</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Êtes-vous sûr de vouloir supprimer le lieu de stockage "{{ lieu.nom }}"?</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <a href="{{ url_for('supprimer_lieu_stockage', lieu_stockage_id=lieu.id) }}" class="btn btn-danger">Supprimer</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <tr>
+                <td colspan="4" class="text-center">
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle"></i> Aucun lieu de stockage créé pour le moment. 
+                        <a href="{{ url_for('ajouter_lieu_stockage') }}" class="alert-link">Créer le premier lieu de stockage</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %} 

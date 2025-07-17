@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Gérer les pièces - {{ equipement.nom }} - Gestion Maintenance Préventive{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Gérer les pièces de rechange - {{ equipement.nom }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('equipements') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-boxes"></i> Pièces de rechange associées</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <p><strong>Équipement:</strong> {{ equipement.nom }}</p>
+                    <p><strong>Localisation:</strong> {{ equipement.localisation.nom }} ({{ equipement.localisation.site.nom }})</p>
+                </div>
+                
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Sélectionner les pièces à associer</label>
+                        <div class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                            {% if toutes_pieces %}
+                                <div class="row">
+                                    {% for piece in toutes_pieces %}
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="pieces_ids" 
+                                                   value="{{ piece.id }}" id="piece_{{ piece.id }}"
+                                                   {% if piece.id in pieces_associees %}checked{% endif %}>
+                                            <label class="form-check-label" for="piece_{{ piece.id }}">
+                                                <strong>{{ piece.item }}</strong><br>
+                                                <small class="text-muted">
+                                                    {{ piece.reference_ste }} - Stock: 
+                                                    <span class="badge bg-{{ 'danger' if piece.quantite_stock <= piece.stock_mini else 'warning' if piece.quantite_stock <= piece.stock_mini + 2 else 'success' }}">
+                                                        {{ piece.quantite_stock }}
+                                                    </span>
+                                                </small>
+                                                {% if piece.description %}
+                                                <br><small class="text-muted">{{ piece.description }}</small>
+                                                {% endif %}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted">Aucune pièce de rechange disponible. <a href="{{ url_for('ajouter_piece') }}">Ajouter des pièces</a></p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('equipements') }}" class="btn btn-secondary me-md-2">Annuler</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Enregistrer les associations
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Informations</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">
+                    <strong>Comment ça marche :</strong><br>
+                    • Cochez les pièces que vous souhaitez associer à cet équipement<br>
+                    • Décochez celles que vous voulez retirer<br>
+                    • Les pièces associées apparaîtront dans les détails de l'équipement<br>
+                    • Elles seront disponibles lors des interventions de maintenance
+                </p>
+                
+                <hr>
+                
+                <h6>Pièces actuellement associées :</h6>
+                {% if pieces_associees %}
+                    <ul class="list-unstyled">
+                        {% for piece in toutes_pieces %}
+                            {% if piece.id in pieces_associees %}
+                            <li class="mb-1">
+                                <i class="fas fa-check text-success"></i> {{ piece.item }}
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted small">Aucune pièce associée</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

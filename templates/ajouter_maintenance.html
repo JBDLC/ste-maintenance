@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% set is_edit = maintenance is defined %}
+{% set titre_page = 'Modifier une maintenance' if is_edit else 'Ajouter une maintenance' %}
+{% set titre_bouton = 'Enregistrer les modifications' if is_edit else 'Enregistrer' %}
+
+{% block title %}{{ titre_page }} - Gestion Maintenance Préventive{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">{{ titre_page }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('maintenances') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-clipboard-list"></i> Informations de la maintenance</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="localisation_id" class="form-label">Localisation *</label>
+                        <select class="form-select" id="localisation_id" name="localisation_id" required>
+                            <option value="">Sélectionner une localisation</option>
+                            {% for localisation in localisations %}
+                                {% set eq = (equipements|selectattr('id', 'equalto', maintenance.equipement_id)|first) if is_edit and maintenance.equipement_id else None %}
+                                <option value="{{ localisation.id }}"
+                                    {% if is_edit and maintenance.equipement and maintenance.equipement.localisation_id == localisation.id %}selected{% elif eq and eq.localisation_id == localisation.id %}selected{% endif %}
+                                >{{ localisation.nom }} ({{ localisation.site.nom }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="equipement_id" class="form-label">Équipement *</label>
+                        <select class="form-select" id="equipement_id" name="equipement_id" required>
+                            <option value="">Sélectionner un équipement</option>
+                            {% for equipement in equipements %}
+                            <option value="{{ equipement.id }}" data-localisation="{{ equipement.localisation_id }}" {% if is_edit and maintenance.equipement_id == equipement.id %}selected{% endif %}>
+                                {{ equipement.nom }} ({{ equipement.localisation.nom }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description de l'équipement</label>
+                        <div id="equipement-description" class="form-control-plaintext" style="min-height:2em;">{% if is_edit and maintenance.equipement %}{{ maintenance.equipement.description or 'Aucune description' }}{% endif %}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="titre" class="form-label">Action de maintenance à réaliser *</label>
+                        <input type="text" class="form-control" id="titre" name="titre" required value="{{ maintenance.titre if is_edit else '' }}">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="periodicite" class="form-label">Périodicité *</label>
+                                <select class="form-select" id="periodicite" name="periodicite" required>
+                                    <option value="">Sélectionner une périodicité</option>
+                                    <option value="semaine" {% if is_edit and maintenance.periodicite == 'semaine' %}selected{% endif %}>Semaine</option>
+                                    <option value="2_semaines" {% if is_edit and maintenance.periodicite == '2_semaines' %}selected{% endif %}>2 semaines</option>
+                                    <option value="mois" {% if is_edit and maintenance.periodicite == 'mois' %}selected{% endif %}>Mois</option>
+                                    <option value="2_mois" {% if is_edit and maintenance.periodicite == '2_mois' %}selected{% endif %}>2 mois</option>
+                                    <option value="6_mois" {% if is_edit and maintenance.periodicite == '6_mois' %}selected{% endif %}>6 mois</option>
+                                    <option value="1_an" {% if is_edit and maintenance.periodicite == '1_an' %}selected{% endif %}>1 an</option>
+                                    <option value="2_ans" {% if is_edit and maintenance.periodicite == '2_ans' %}selected{% endif %}>2 ans</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="date_premiere" class="form-label">Date de la première maintenance *</label>
+                                <input type="date" class="form-control" id="date_premiere" name="date_premiere" required value="{{ maintenance.date_premiere.strftime('%Y-%m-%d') if is_edit and maintenance.date_premiere else '' }}">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('maintenances') }}" class="btn btn-secondary me-md-2">Annuler</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> {{ titre_bouton }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Filtrage équipements selon localisation
+    var localisationSelect = document.getElementById('localisation_id');
+    var equipementSelect = document.getElementById('equipement_id');
+    var equipementDescription = document.getElementById('equipement-description');
+    var equipements = Array.from(equipementSelect.options);
+    localisationSelect.addEventListener('change', function() {
+        var locId = this.value;
+        equipementSelect.value = '';
+        equipementDescription.textContent = '';
+        equipementSelect.innerHTML = '';
+        var defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = 'Sélectionner un équipement';
+        equipementSelect.appendChild(defaultOpt);
+        equipements.forEach(function(opt) {
+            if (!opt.value) return;
+            if (opt.getAttribute('data-localisation') === locId) {
+                equipementSelect.appendChild(opt.cloneNode(true));
+            }
+        });
+    });
+    equipementSelect.addEventListener('change', function() {
+        var selected = this.options[this.selectedIndex];
+        var desc = selected && selected.value ? selected.text.match(/\(([^)]+)\)$/) : null;
+        // On récupère la description via un attribut data-description si dispo
+        var description = selected.getAttribute('data-description') || selected.getAttribute('data-desc') || '';
+        if (description) {
+            equipementDescription.textContent = description;
+        } else {
+            // Sinon, on peut faire un appel AJAX ici si besoin
+            equipementDescription.textContent = selected.dataset.fullDescription || '';
+        }
+    });
+    // Préremplir la description si édition
+    if (equipementSelect.value) {
+        var selected = equipementSelect.options[equipementSelect.selectedIndex];
+        var description = selected.getAttribute('data-description') || selected.getAttribute('data-desc') || '';
+        if (description) {
+            equipementDescription.textContent = description;
+        }
+    }
+});
+</script>
+{% endblock %} 

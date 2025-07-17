@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: 'DejaVu Sans', Arial, sans-serif; background: #f8f9fa; color: #222; }
+        h1, h2 { color: #23486b; }
+        .logo { width: 80px; margin-bottom: 10px; }
+        .table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        .table th, .table td { border: 1px solid #23486b; padding: 6px 10px; font-size: 13px; }
+        .table th { background: #23486b; color: #fff; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; color: #fff; }
+        .badge-success { background: #198754; }
+        .badge-warning { background: #ffc107; color: #222; }
+        .badge-secondary { background: #6c757d; }
+        .page-break { page-break-before: always; }
+        .small { font-size: 11px; color: #555; }
+    </style>
+</head>
+<body>
+    <div style="text-align:center;">
+        <img src="{{ url_for('static', filename='logo.png') }}" class="logo">
+        <h1>Rapport de maintenance<br>Semaine {{ date_debut.isocalendar()[1] }}</h1>
+        <div class="small">Période du {{ date_debut.strftime('%d/%m/%Y') }} au {{ date_fin.strftime('%d/%m/%Y') }}</div>
+    </div>
+    <h2>Maintenances de la semaine</h2>
+    <table class="table" style="font-size: 70%;">
+        <thead>
+            <tr>
+                <th>Titre</th>
+                <th>Équipement</th>
+                <th>Statut</th>
+                <th>Commentaire</th>
+                <th>Pièces utilisées</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for intervention in interventions %}
+            <tr>
+                <td>{{ intervention.maintenance.titre }}</td>
+                <td>{{ intervention.maintenance.equipement.nom }}</td>
+                <td>
+                    <span class="badge badge-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}">
+                        {{ intervention.statut|title }}
+                    </span>
+                </td>
+                <td>{{ intervention.commentaire or '-' }}</td>
+                <td>
+                    {% if intervention.pieces_utilisees %}
+                        <ul style="margin:0; padding-left:16px;">
+                        {% for piece in intervention.pieces_utilisees %}
+                            <li>{{ piece.piece.item }} ({{ piece.quantite }})</li>
+                        {% endfor %}
+                        </ul>
+                    {% else %}
+                        Aucune
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="page-break"></div>
+    <h2>Mouvements de stock de la semaine</h2>
+    <table class="table" style="font-size: 70%;">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Pièce</th>
+                <th>Type</th>
+                <th>Quantité</th>
+                <th>Motif</th>
+                <th>Intervention</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mouvement in mouvements %}
+            <tr>
+                <td>{{ mouvement.date.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td>{{ mouvement.piece.item }}</td>
+                <td>
+                    <span class="badge badge-{{ 'success' if mouvement.type_mouvement == 'entree' else 'secondary' }}">
+                        {{ mouvement.type_mouvement|title }}
+                    </span>
+                </td>
+                <td>{{ mouvement.quantite }}</td>
+                <td>{{ mouvement.motif }}</td>
+                <td>
+                    {% if mouvement.intervention %}
+                        {{ mouvement.intervention.maintenance.titre }}<br>
+                        <span class="small">{{ mouvement.intervention.maintenance.equipement.nom }}</span>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html> 

@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Gérer les doublons - Gestion Maintenance Préventive{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Gérer les doublons de pièces</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('parametres') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour aux paramètres
+        </a>
+    </div>
+</div>
+
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>Attention :</strong> Des doublons ont été détectés lors de l'import. 
+    Veuillez examiner chaque doublon et choisir l'action appropriée.
+</div>
+
+<form method="POST">
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <button type="submit" name="action" value="fusionner_tout" class="btn btn-success btn-lg w-100">
+                <i class="fas fa-merge"></i> Fusionner tous les doublons
+            </button>
+        </div>
+        <div class="col-md-6">
+            <button type="submit" name="action" value="ignorer_tout" class="btn btn-warning btn-lg w-100">
+                <i class="fas fa-times"></i> Ignorer tous les doublons
+            </button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-list"></i> Liste des doublons détectés</h5>
+        </div>
+        <div class="card-body">
+            {% for doublon in doublons %}
+            {% set i = loop.index0 %}
+            <div class="card mb-3 border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="fusionner" value="{{ i }}" id="fusionner_{{ i }}">
+                        <label class="form-check-label fw-bold" for="fusionner_{{ i }}">
+                            Doublon #{{ i + 1 }} - {{ doublon.type|upper }}
+                        </label>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">
+                                <i class="fas fa-plus-circle"></i> Nouvelle pièce (à importer)
+                            </h6>
+                            <table class="table table-sm" style="font-size: 70%;">
+                                <tr><td><strong>Réf. STE:</strong></td><td>{{ doublon.nouvelle.reference_ste or 'Non renseignée' }}</td></tr>
+                                <tr><td><strong>Réf. Magasin:</strong></td><td>{{ doublon.nouvelle.reference_magasin or 'Non renseignée' }}</td></tr>
+                                <tr><td><strong>Item:</strong></td><td>{{ doublon.nouvelle.item or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Description:</strong></td><td>{{ doublon.nouvelle.description or 'Non renseignée' }}</td></tr>
+                                <tr><td><strong>Stock:</strong></td><td>{{ doublon.nouvelle.quantite_stock }}</td></tr>
+                                <tr><td><strong>Stock Min:</strong></td><td>{{ doublon.nouvelle.stock_mini }}</td></tr>
+                                <tr><td><strong>Stock Max:</strong></td><td>{{ doublon.nouvelle.stock_maxi }}</td></tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-success">
+                                <i class="fas fa-database"></i> Pièce existante (en base)
+                            </h6>
+                            <table class="table table-sm" style="font-size: 70%;">
+                                <tr><td><strong>ID:</strong></td><td>{{ doublon.existante.id }}</td></tr>
+                                <tr><td><strong>Réf. STE:</strong></td><td>{{ doublon.existante.reference_ste or 'Non renseignée' }}</td></tr>
+                                <tr><td><strong>Réf. Magasin:</strong></td><td>{{ doublon.existante.reference_magasin or 'Non renseignée' }}</td></tr>
+                                <tr><td><strong>Item:</strong></td><td>{{ doublon.existante.item or 'Non renseigné' }}</td></tr>
+                                <tr><td><strong>Description:</strong></td><td>{{ doublon.existante.description or 'Non renseignée' }}</td></tr>
+                                <tr><td><strong>Stock:</strong></td><td>{{ doublon.existante.quantite_stock }}</td></tr>
+                                <tr><td><strong>Stock Min:</strong></td><td>{{ doublon.existante.stock_mini }}</td></tr>
+                                <tr><td><strong>Stock Max:</strong></td><td>{{ doublon.existante.stock_maxi }}</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Action de fusion :</strong> Les données de la nouvelle pièce remplaceront celles de la pièce existante.
+                        Les champs vides de la nouvelle pièce ne modifieront pas les champs existants.
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-md-6">
+            <button type="submit" name="action" value="fusionner_selection" class="btn btn-primary btn-lg w-100">
+                <i class="fas fa-check"></i> Fusionner la sélection
+            </button>
+        </div>
+        <div class="col-md-6">
+            <a href="{{ url_for('parametres') }}" class="btn btn-secondary btn-lg w-100">
+                <i class="fas fa-times"></i> Annuler
+            </a>
+        </div>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Sélectionner/désélectionner tous les doublons
+    const selectAllBtn = document.createElement('button');
+    selectAllBtn.type = 'button';
+    selectAllBtn.className = 'btn btn-outline-primary btn-sm';
+    selectAllBtn.innerHTML = '<i class="fas fa-check-square"></i> Tout sélectionner';
+    selectAllBtn.onclick = function() {
+        document.querySelectorAll('input[name="fusionner"]').forEach(cb => cb.checked = true);
+    };
+    
+    const deselectAllBtn = document.createElement('button');
+    deselectAllBtn.type = 'button';
+    deselectAllBtn.className = 'btn btn-outline-secondary btn-sm ms-2';
+    deselectAllBtn.innerHTML = '<i class="fas fa-square"></i> Tout désélectionner';
+    deselectAllBtn.onclick = function() {
+        document.querySelectorAll('input[name="fusionner"]').forEach(cb => cb.checked = false);
+    };
+    
+    document.querySelector('.card-header h5').appendChild(selectAllBtn);
+    document.querySelector('.card-header h5').appendChild(deselectAllBtn);
+});
+</script>
+{% endblock %} 

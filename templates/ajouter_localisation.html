@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Ajouter une localisation - Gestion Maintenance Préventive{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Ajouter une localisation</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('localisations') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-map-marker-alt"></i> Informations de la localisation</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="nom" class="form-label">Nom de la localisation *</label>
+                        <input type="text" class="form-control" id="nom" name="nom" required value="{{ localisation.nom if edition else '' }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ localisation.description if edition else '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="site_id" class="form-label">Site *</label>
+                        <select class="form-select" id="site_id" name="site_id" required>
+                            <option value="">Sélectionner un site</option>
+                            {% for site in sites %}
+                            <option value="{{ site.id }}" {% if edition and localisation.site_id == site.id %}selected{% endif %}>{{ site.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('localisations') }}" class="btn btn-secondary me-md-2">Annuler</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Enregistrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

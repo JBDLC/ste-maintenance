@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}Équipements - Gestion Maintenance Préventive{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Équipements</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('ajouter_equipement') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Ajouter un équipement
+        </a>
+        <button type="button" class="btn btn-danger ms-2" data-bs-toggle="modal" data-bs-target="#viderDonneesModal">
+            <i class="fas fa-trash-alt"></i> Vider les équipements
+        </button>
+    </div>
+</div>
+
+<!-- Modal de confirmation pour vider toutes les données -->
+<div class="modal fade" id="viderDonneesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Vider les équipements</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Attention !</strong> Cette action va supprimer uniquement les équipements et leurs données associées :
+                    <ul class="mb-0 mt-2">
+                        <li>Tous les équipements</li>
+                        <li>Toutes les maintenances</li>
+                        <li>Toutes les interventions</li>
+                        <li>Tous les mouvements de pièces</li>
+                        <li>Toutes les associations pièces-équipements</li>
+                    </ul>
+                    <p class="mb-0 mt-2"><strong>Note :</strong> Les sites, localisations, pièces et lieux de stockage ne seront pas supprimés.</p>
+                </div>
+                <p>Cette action est irréversible. Êtes-vous sûr de vouloir continuer ?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('vider_equipements') }}" method="post">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash-alt"></i> Vider les équipements
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-hover table-sm align-middle" style="font-size: 70%;">
+        <thead class="table-dark">
+            <tr>
+                <th>Nom</th>
+                <th>Description</th>
+                <th>Localisation</th>
+                <th>Pièces associées</th>
+                <th>Maintenances</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for equipement in equipements %}
+            <tr>
+                <td><strong>{{ equipement.nom }}</strong></td>
+                <td>{{ equipement.description or '-' }}</td>
+                <td>{{ equipement.localisation.nom }}</td>
+                <td>
+                    <span class="badge bg-info">{{ equipement.pieces|length }}</span>
+                </td>
+                <td>
+                    <span class="badge bg-warning">{{ equipement.maintenances|length }}</span>
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#equipementModal{{ equipement.id }}" title="Voir les détails">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <a href="{{ url_for('modifier_equipement', equipement_id=equipement.id) }}" class="btn btn-outline-secondary" title="Modifier">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ equipement.id }}" title="Supprimer">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#historiqueModal{{ equipement.id }}" title="Historique">
+                            <i class="fas fa-history"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+            {% if equipements|length == 0 %}
+            <tr>
+                <td colspan="6" class="text-center">
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle"></i> Aucun équipement créé pour le moment. 
+                        <a href="{{ url_for('ajouter_equipement') }}" class="alert-link">Créer le premier équipement</a>
+                    </div>
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Modales pour chaque équipement, en dehors du tableau -->
+{% for equipement in equipements %}
+    <!-- Modal pour les détails de l'équipement -->
+    <div class="modal fade" id="equipementModal{{ equipement.id }}" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">{{ equipement.nom }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Description:</strong> {{ equipement.description or 'Aucune description' }}</p>
+                            <p><strong>Localisation:</strong> {{ equipement.localisation.nom }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Pièces associées:</strong> {{ equipement.pieces|length }}</p>
+                            <p><strong>Maintenances:</strong> {{ equipement.maintenances|length }}</p>
+                        </div>
+                    </div>
+                    
+                    <h6 class="mt-3">Pièces associées:</h6>
+                    {% if equipement.pieces %}
+                        <div class="table-responsive">
+                            <table class="table table-sm" style="font-size: 70%;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Pièce</th>
+                                        <th>Stock</th>
+                                        <th>Statut</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for piece_assoc in equipement.pieces %}
+                                    <tr>
+                                        <td>{{ piece_assoc.piece.item if piece_assoc.piece else 'Pièce supprimée' }}</td>
+                                        <td>{{ piece_assoc.piece.quantite_stock if piece_assoc.piece else '-' }}</td>
+                                        <td>
+                                            {% if piece_assoc.piece %}
+                                                <span class="badge bg-{{ 'danger' if piece_assoc.piece.quantite_stock <= piece_assoc.piece.stock_mini else 'warning' if piece_assoc.piece.quantite_stock <= piece_assoc.piece.stock_mini + 2 else 'success' }}">
+                                                    {{ 'Rupture' if piece_assoc.piece.quantite_stock <= piece_assoc.piece.stock_mini else 'Faible' if piece_assoc.piece.quantite_stock <= piece_assoc.piece.stock_mini + 2 else 'Normal' }}
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Supprimée</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Aucune pièce associée.</p>
+                    {% endif %}
+                    
+                    <h6 class="mt-3">Maintenances:</h6>
+                    {% if equipement.maintenances %}
+                        <div class="table-responsive">
+                            <table class="table table-sm" style="font-size: 70%;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Titre</th>
+                                        <th>Périodicité</th>
+                                        <th>Prochaine</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for maintenance in equipement.maintenances %}
+                                    <tr>
+                                        <td>{{ maintenance.titre }}</td>
+                                        <td>{{ maintenance.periodicite or '-' }}</td>
+                                        <td>
+                                            {% if maintenance.prochaine_intervention %}
+                                                {{ maintenance.prochaine_intervention.date_planifiee.strftime('%d/%m/%Y') }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Aucune maintenance programmée.</p>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de confirmation de suppression -->
+    <div class="modal fade" id="deleteModal{{ equipement.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title"><i class="fas fa-trash"></i> Supprimer l'équipement</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Êtes-vous sûr de vouloir supprimer l'équipement <strong>"{{ equipement.nom }}"</strong> ?</p>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>Attention :</strong> Cette action supprimera également toutes les maintenances associées à cet équipement.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <form action="{{ url_for('supprimer_equipement', equipement_id=equipement.id) }}" method="post">
+                        <button type="submit" class="btn btn-danger">Supprimer</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal historique des maintenances réalisées -->
+    <div class="modal fade" id="historiqueModal{{ equipement.id }}" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Historique des maintenances réalisées - {{ equipement.nom }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    {% set maints = [] %}
+                    {% for m in equipement.maintenances %}
+                        {% for interv in m.interventions if interv.statut == 'realisee' %}
+                            {% set _ = maints.append({'titre': m.titre, 'description': m.description, 'date': interv.date_realisee, 'commentaire': interv.commentaire, 'pieces': interv.pieces_utilisees}) %}
+                        {% endfor %}
+                    {% endfor %}
+                    {% if maints %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-sm" style="font-size: 70%;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Titre</th>
+                                    <th>Description</th>
+                                    <th>Commentaire</th>
+                                    <th>Pièces utilisées</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in maints|sort(attribute='date', reverse=True) %}
+                                <tr>
+                                    <td>{{ m.date.strftime('%d/%m/%Y') if m.date else '-' }}</td>
+                                    <td>{{ m.titre }}</td>
+                                    <td>{{ m.description or '-' }}</td>
+                                    <td>{{ m.commentaire or '-' }}</td>
+                                    <td>
+                                        {% if m.pieces %}
+                                            <ul class="mb-0">
+                                            {% for pu in m.pieces %}
+                                                <li>{{ pu.piece.item if pu.piece else '' }} ({{ pu.quantite }})</li>
+                                            {% endfor %}
+                                            </ul>
+                                        {% else %}
+                                            <span class="text-muted">Aucune</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle"></i> Aucune maintenance réalisée pour cet équipement.
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endfor %}
+{% endblock %} 
