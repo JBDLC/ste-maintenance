@@ -13,7 +13,7 @@ ImportError: /opt/render/project/src/.venv/lib/python3.13/site-packages/psycopg2
 **Migration vers `psycopg3`** qui est compatible avec Python 3.13 :
 
 ### Modifications apportées :
-1. **`requirements.txt`** : Remplacé `psycopg2-binary==2.9.9` par `psycopg[binary]==3.1.13`
+1. **`requirements.txt`** : Remplacé `psycopg2-binary==2.9.9` par `psycopg[binary]`
 2. **Code** : Aucune modification nécessaire car SQLAlchemy gère automatiquement le dialecte
 
 ### Avantages de psycopg3 :
@@ -39,7 +39,7 @@ Assurez-vous d'avoir configuré :
 
 ```bash
 # Test local avec psycopg3
-pip install psycopg[binary]==3.1.13
+pip install psycopg[binary]
 python -c "import psycopg; print('✅ psycopg3 installé avec succès')"
 
 # Vérifier la version de Python
