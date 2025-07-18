@@ -2131,4 +2131,10 @@ def modifier_piece(piece_id):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        # Initialiser les données de base si nécessaire
+        try:
+            from render_init import init_render_database
+            init_render_database()
+        except Exception as e:
+            print(f"⚠️ Erreur lors de l'initialisation: {e}")
     app.run(debug=True) 
