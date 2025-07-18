@@ -16,51 +16,68 @@
             <!-- Tableau des utilisateurs et permissions -->
             <div class="card">
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-bordered table-hover">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th class="align-middle">Utilisateur</th>
-                                    {% for page in pages %}
-                                        <th class="text-center">{{ page|capitalize }}</th>
-                                    {% endfor %}
-                                    <th class="align-middle">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for user in users %}
-                                <tr>
-                                    <td><strong>{{ user.username }}</strong></td>
-                                    {% for page in pages %}
-                                        {% set user_perms = users_permissions.get(user.id, {}) %}
-                                        {% set page_perms = user_perms.get(page, None) %}
-                                        <td class="text-center">
-                                            <input type="checkbox" class="form-check-input"
-                                                   name="{{ page }}_access"
-                                                   {% if page_perms and page_perms.can_access %}checked{% endif %}
-                                                   onchange="updatePermission({{ user.id }}, '{{ page }}', 'access', this.checked)">
+                    <form id="permissionsForm" method="POST">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th class="align-middle">Utilisateur</th>
+                                        {% for page in pages %}
+                                            <th class="text-center">{{ page|capitalize }}</th>
+                                        {% endfor %}
+                                        <th class="align-middle">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for user in users %}
+                                    <tr>
+                                        <td><strong>{{ user.username }}</strong></td>
+                                        {% for page in pages %}
+                                            {% set user_perms = users_permissions.get(user.id, {}) %}
+                                            {% set page_perms = user_perms.get(page, None) %}
+                                            <td class="text-center">
+                                                <input type="checkbox" class="form-check-input permission-checkbox"
+                                                       name="permissions[{{ user.id }}][{{ page }}]"
+                                                       value="1"
+                                                       {% if page_perms and page_perms.can_access %}checked{% endif %}>
+                                            </td>
+                                        {% endfor %}
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button type="button" class="btn btn-sm btn-warning" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#resetPasswordModal{{ user.id }}">
+                                                    <i class="fas fa-key"></i>
+                                                </button>
+                                                {% if user.id != current_user.id %}
+                                                <button type="button" class="btn btn-sm btn-danger" 
+                                                        onclick="supprimerUtilisateur({{ user.id }}, '{{ user.username }}')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                                {% endif %}
+                                            </div>
                                         </td>
+                                    </tr>
                                     {% endfor %}
-                                    <td>
-                                        <div class="btn-group" role="group">
-                                            <button type="button" class="btn btn-sm btn-warning" 
-                                                    data-bs-toggle="modal" 
-                                                    data-bs-target="#resetPasswordModal{{ user.id }}">
-                                                <i class="fas fa-key"></i>
-                                            </button>
-                                            {% if user.id != current_user.id %}
-                                            <button type="button" class="btn btn-sm btn-danger" 
-                                                    onclick="supprimerUtilisateur({{ user.id }}, '{{ user.username }}')">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Boutons d'action -->
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="selectAll()">
+                                    <i class="fas fa-check-square"></i> Tout sélectionner
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="deselectAll()">
+                                    <i class="fas fa-square"></i> Tout désélectionner
+                                </button>
+                            </div>
+                            <button type="submit" class="btn btn-success" formaction="{{ url_for('modifier_permissions_bulk') }}">
+                                <i class="fas fa-save"></i> Sauvegarder les permissions
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -122,30 +139,16 @@
 {% endfor %}
 
 <script>
-function updatePermission(userId, page, action, checked) {
-    // Créer un formulaire temporaire pour envoyer la mise à jour
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = `/parametres/utilisateur/${userId}/permissions`;
-    
-    // Ajouter tous les champs de permission actuels
-    const checkboxes = document.querySelectorAll(`input[name^="${page}_"]`);
-    checkboxes.forEach(checkbox => {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = checkbox.name;
-        input.value = checkbox.checked ? 'on' : '';
-        form.appendChild(input);
+function selectAll() {
+    document.querySelectorAll('.permission-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
     });
-    
-    // Mettre à jour la valeur actuelle
-    const currentInput = form.querySelector(`input[name="${page}_${action}"]`);
-    if (currentInput) {
-        currentInput.value = checked ? 'on' : '';
-    }
-    
-    document.body.appendChild(form);
-    form.submit();
+}
+
+function deselectAll() {
+    document.querySelectorAll('.permission-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
 }
 
 function supprimerUtilisateur(userId, username) {

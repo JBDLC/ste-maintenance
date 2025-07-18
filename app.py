@@ -986,6 +986,42 @@ def modifier_permissions(user_id):
     flash(f'Permissions de {user.username} mises à jour', 'success')
     return redirect(url_for('gestion_utilisateurs'))
 
+@app.route('/parametres/utilisateur/permissions-bulk', methods=['POST'])
+@login_required
+def modifier_permissions_bulk():
+    """Modifier les permissions de tous les utilisateurs en lot"""
+    pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
+             'maintenances', 'calendrier', 'mouvements', 'parametres']
+    
+    # Récupérer toutes les permissions du formulaire
+    permissions_form = request.form.getlist('permissions')
+    
+    # Traiter chaque utilisateur
+    for user_id_str in request.form:
+        if user_id_str.startswith('permissions[') and user_id_str.endswith(']'):
+            # Extraire l'ID utilisateur et la page
+            # Format: permissions[user_id][page]
+            parts = user_id_str.replace('permissions[', '').replace(']', '').split('[')
+            if len(parts) == 2:
+                user_id = int(parts[0])
+                page = parts[1]
+                
+                # Vérifier si cette permission est cochée
+                is_checked = request.form.get(user_id_str) == '1'
+                
+                # Mettre à jour la permission
+                permission = UserPermission.query.filter_by(user_id=user_id, page=page).first()
+                if permission:
+                    permission.can_access = is_checked
+                else:
+                    # Créer une nouvelle permission si elle n'existe pas
+                    permission = UserPermission(user_id=user_id, page=page, can_access=is_checked)
+                    db.session.add(permission)
+    
+    db.session.commit()
+    flash('Toutes les permissions ont été mises à jour', 'success')
+    return redirect(url_for('gestion_utilisateurs'))
+
 @app.route('/parametres/utilisateur/<int:user_id>/supprimer', methods=['POST'])
 @login_required
 def supprimer_utilisateur(user_id):
