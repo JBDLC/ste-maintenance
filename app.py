@@ -2135,8 +2135,14 @@ if __name__ == '__main__':
         db.create_all()
         # Initialiser les données de base si nécessaire
         try:
-            from render_init import init_render_database
+            from init_render import init_render_database
             init_render_database()
         except Exception as e:
             print(f"⚠️ Erreur lors de l'initialisation: {e}")
+            # Fallback: créer juste les tables
+            try:
+                db.create_all()
+                print("✅ Tables créées avec fallback")
+            except Exception as e2:
+                print(f"❌ Erreur critique: {e2}")
     app.run(debug=True) 
