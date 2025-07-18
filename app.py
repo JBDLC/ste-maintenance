@@ -7,13 +7,108 @@ import os
 from dotenv import load_dotenv
 from fpdf import FPDF
 import io
-import pandas as pd
+import csv
+import json
 import tempfile
 import csv
 from sqlalchemy.inspection import inspect
 from dateutil.parser import parse as parse_date
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
+
+# Fonctions utilitaires pour remplacer pandas
+def create_dataframe(data, columns=None):
+    """Crée une structure de données similaire à un DataFrame pandas"""
+    if not data:
+        return {'data': [], 'columns': columns or []}
+    if columns is None:
+        columns = list(data[0].keys()) if data else []
+    return {'data': data, 'columns': columns}
+
+def is_na(value):
+    """Vérifie si une valeur est NaN (équivalent à pd.isna)"""
+    return value is None or (isinstance(value, float) and str(value).lower() == 'nan')
+
+def read_excel_simple(file_path, sheet_name=None):
+    """Lit un fichier Excel de manière simple (remplace pd.read_excel)"""
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(file_path, data_only=True)
+        
+        if sheet_name:
+            ws = wb[sheet_name]
+        else:
+            ws = wb.active
+            
+        data = []
+        for row in ws.iter_rows(values_only=True):
+            if any(cell is not None for cell in row):
+                data.append(list(row))
+        
+        if not data:
+            return {'data': [], 'columns': []}
+            
+        # Première ligne comme en-têtes
+        headers = data[0]
+        rows = data[1:]
+        
+        # Convertir en liste de dictionnaires
+        result = []
+        for row in rows:
+            row_dict = {}
+            for i, header in enumerate(headers):
+                if i < len(row):
+                    row_dict[header] = row[i]
+                else:
+                    row_dict[header] = None
+            result.append(row_dict)
+            
+        return {'data': result, 'columns': headers}
+    except Exception as e:
+        print(f"Erreur lors de la lecture du fichier Excel: {e}")
+        return {'data': [], 'columns': []}
+
+def write_excel_simple(data, file_path, sheet_name='Sheet1'):
+    """Écrit des données dans un fichier Excel (remplace pd.ExcelWriter)"""
+    try:
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = sheet_name
+        
+        if not data:
+            wb.save(file_path)
+            return
+            
+        # Écrire les en-têtes
+        if data and len(data) > 0:
+            headers = list(data[0].keys())
+            for col, header in enumerate(headers, 1):
+                ws.cell(row=1, column=col, value=header)
+            
+            # Écrire les données
+            for row_idx, row_data in enumerate(data, 2):
+                for col_idx, header in enumerate(headers, 1):
+                    ws.cell(row=row_idx, column=col_idx, value=row_data.get(header))
+        
+        wb.save(file_path)
+    except Exception as e:
+        print(f"Erreur lors de l'écriture du fichier Excel: {e}")
+
+def read_csv_simple(content):
+    """Lit du contenu CSV (remplace pd.read_csv)"""
+    try:
+        if isinstance(content, str):
+            content = io.StringIO(content)
+        
+        reader = csv.DictReader(content)
+        data = list(reader)
+        columns = reader.fieldnames or []
+        
+        return {'data': data, 'columns': columns}
+    except Exception as e:
+        print(f"Erreur lors de la lecture du CSV: {e}")
+        return {'data': [], 'columns': []}
 
 load_dotenv()
 
@@ -1363,12 +1458,14 @@ def download_modele(entite, format):
     if entite in ENTITES_AIDES:
         for fk, (col_aide, _, _) in ENTITES_AIDES[entite].items():
             colonnes.append(col_aide)
-    df = pd.DataFrame({col: [] for col in colonnes})
+    data = []
     with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{format}') as tmp:
         if format == 'xlsx':
-            df.to_excel(tmp.name, index=False)
+            write_excel_simple(data, tmp.name, 'Sheet1')
         elif format == 'csv':
-            df.to_csv(tmp.name, index=False)
+            with open(tmp.name, 'w', newline='', encoding='utf-8') as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=colonnes)
+                writer.writeheader()
         else:
             return 'Format non supporté', 400
         tmp.flush()
@@ -1380,48 +1477,79 @@ def download_modele_maintenances():
     """Génère un modèle Excel spécial pour l'import des maintenances avec onglets de référence"""
     
     # Onglet principal Maintenances
-    df_maintenances = pd.DataFrame({
-        'id': [],
-        'titre': [],
-        'equipement_nom': [],
-        'localisation_nom': [],
-        'periodicite': []
-    })
+    data_maintenances = []
     
     # Onglet Équipements
     equipements = Equipement.query.all()
-    df_equipements = pd.DataFrame([
+    data_equipements = [
         {'Nom': e.nom, 'Localisation': e.localisation.nom, 'Description': e.description or ''}
         for e in equipements
-    ])
+    ]
     
     # Onglet Localisations
     localisations = Localisation.query.all()
-    df_localisations = pd.DataFrame([
+    data_localisations = [
         {'Nom': l.nom, 'Site': l.site.nom, 'Description': l.description or ''}
         for l in localisations
-    ])
+    ]
     
     # Onglet Périodicités
-    df_periodicites = pd.DataFrame({
-        'Périodicité': ['semaine', '2_semaines', 'mois', '2_mois', '6_mois', '1_an', '2_ans'],
-        'Description': [
-            'Toutes les semaines',
-            'Toutes les 2 semaines', 
-            'Tous les mois',
-            'Tous les 2 mois',
-            'Tous les 6 mois',
-            'Tous les ans',
-            'Tous les 2 ans'
-        ]
-    })
+    data_periodicites = [
+        {'Périodicité': 'semaine', 'Description': 'Toutes les semaines'},
+        {'Périodicité': '2_semaines', 'Description': 'Toutes les 2 semaines'},
+        {'Périodicité': 'mois', 'Description': 'Tous les mois'},
+        {'Périodicité': '2_mois', 'Description': 'Tous les 2 mois'},
+        {'Périodicité': '6_mois', 'Description': 'Tous les 6 mois'},
+        {'Périodicité': '1_an', 'Description': 'Tous les ans'},
+        {'Périodicité': '2_ans', 'Description': 'Tous les 2 ans'}
+    ]
     
     with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
-        with pd.ExcelWriter(tmp.name, engine='openpyxl') as writer:
-            df_maintenances.to_excel(writer, index=False, sheet_name='Maintenances')
-            df_equipements.to_excel(writer, index=False, sheet_name='Équipements')
-            df_localisations.to_excel(writer, index=False, sheet_name='Localisations')
-            df_periodicites.to_excel(writer, index=False, sheet_name='Périodicités')
+        from openpyxl import Workbook
+        wb = Workbook()
+        
+        # Supprimer la feuille par défaut
+        wb.remove(wb.active)
+        
+        # Créer les onglets
+        ws_maintenances = wb.create_sheet('Maintenances')
+        ws_equipements = wb.create_sheet('Équipements')
+        ws_localisations = wb.create_sheet('Localisations')
+        ws_periodicites = wb.create_sheet('Périodicités')
+        
+        # Écrire les données
+        # Maintenances
+        headers_maintenances = ['id', 'titre', 'equipement_nom', 'localisation_nom', 'periodicite']
+        for col, header in enumerate(headers_maintenances, 1):
+            ws_maintenances.cell(row=1, column=col, value=header)
+        
+        # Équipements
+        if data_equipements:
+            headers_equipements = list(data_equipements[0].keys())
+            for col, header in enumerate(headers_equipements, 1):
+                ws_equipements.cell(row=1, column=col, value=header)
+            for row_idx, row_data in enumerate(data_equipements, 2):
+                for col_idx, header in enumerate(headers_equipements, 1):
+                    ws_equipements.cell(row=row_idx, column=col_idx, value=row_data.get(header))
+        
+        # Localisations
+        if data_localisations:
+            headers_localisations = list(data_localisations[0].keys())
+            for col, header in enumerate(headers_localisations, 1):
+                ws_localisations.cell(row=1, column=col, value=header)
+            for row_idx, row_data in enumerate(data_localisations, 2):
+                for col_idx, header in enumerate(headers_localisations, 1):
+                    ws_localisations.cell(row=row_idx, column=col_idx, value=row_data.get(header))
+        
+        # Périodicités
+        headers_periodicites = ['Périodicité', 'Description']
+        for col, header in enumerate(headers_periodicites, 1):
+            ws_periodicites.cell(row=1, column=col, value=header)
+        for row_idx, row_data in enumerate(data_periodicites, 2):
+            for col_idx, header in enumerate(headers_periodicites, 1):
+                ws_periodicites.cell(row=row_idx, column=col_idx, value=row_data.get(header))
+        
+        wb.save(tmp.name)
         tmp.flush()
         return send_file(tmp.name, as_attachment=True, download_name='modele_maintenances.xlsx')
 
@@ -1447,22 +1575,48 @@ def export_donnees(entite):
                         aide_val = getattr(fk_obj, champ)
                 data[i][col_aide] = aide_val
         colonnes += [str(v[0]) for v in ENTITES_AIDES[entite].values()]
-    df = pd.DataFrame(data, columns=list(colonnes))
     # Génération du deuxième onglet de correspondance
     correspondances = {}
     if entite == 'localisation':
-        correspondances['Sites'] = pd.DataFrame([{ 'ID': s.id, 'Nom': s.nom } for s in Site.query.all()])
+        correspondances['Sites'] = [{'ID': s.id, 'Nom': s.nom} for s in Site.query.all()]
     elif entite == 'equipement':
-        correspondances['Localisations'] = pd.DataFrame([{ 'ID': l.id, 'Nom': l.nom } for l in Localisation.query.all()])
+        correspondances['Localisations'] = [{'ID': l.id, 'Nom': l.nom} for l in Localisation.query.all()]
     elif entite == 'piece':
-        correspondances['Lieux de stockage'] = pd.DataFrame([{ 'ID': l.id, 'Nom': l.nom } for l in LieuStockage.query.all()])
+        correspondances['Lieux de stockage'] = [{'ID': l.id, 'Nom': l.nom} for l in LieuStockage.query.all()]
     elif entite == 'maintenance':
-        correspondances['Équipements'] = pd.DataFrame([{ 'ID': e.id, 'Nom': e.nom } for e in Equipement.query.all()])
+        correspondances['Équipements'] = [{'ID': e.id, 'Nom': e.nom} for e in Equipement.query.all()]
+    
     with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
-        with pd.ExcelWriter(tmp.name, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Données')
-            for nom, df_corresp in correspondances.items():
-                df_corresp.to_excel(writer, index=False, sheet_name=nom)
+        from openpyxl import Workbook
+        wb = Workbook()
+        
+        # Supprimer la feuille par défaut
+        wb.remove(wb.active)
+        
+        # Créer l'onglet Données
+        ws_donnees = wb.create_sheet('Données')
+        
+        # Écrire les en-têtes
+        for col, header in enumerate(colonnes, 1):
+            ws_donnees.cell(row=1, column=col, value=header)
+        
+        # Écrire les données
+        for row_idx, row_data in enumerate(data, 2):
+            for col_idx, header in enumerate(colonnes, 1):
+                ws_donnees.cell(row=row_idx, column=col_idx, value=row_data.get(header))
+        
+        # Créer les onglets de correspondance
+        for nom, data_corresp in correspondances.items():
+            ws_corresp = wb.create_sheet(nom)
+            if data_corresp:
+                headers_corresp = list(data_corresp[0].keys())
+                for col, header in enumerate(headers_corresp, 1):
+                    ws_corresp.cell(row=1, column=col, value=header)
+                for row_idx, row_data in enumerate(data_corresp, 2):
+                    for col_idx, header in enumerate(headers_corresp, 1):
+                        ws_corresp.cell(row=row_idx, column=col_idx, value=row_data.get(header))
+        
+        wb.save(tmp.name)
         tmp.flush()
         return send_file(tmp.name, as_attachment=True, download_name=f'{entite}_export.xlsx')
 
@@ -1480,32 +1634,41 @@ def import_donnees(entite):
     try:
         filename = file.filename.lower()
         if filename.endswith('.xlsx'):
-            df = pd.read_excel(file)
+            # Sauvegarder le fichier temporairement
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+                file.save(tmp.name)
+                result = read_excel_simple(tmp.name)
+                data = result['data']
+                colonnes = result['columns']
         elif filename.endswith('.csv'):
             file.seek(0)
             content = file.read().decode('utf-8')
-            df = pd.read_csv(io.StringIO(content))
+            result = read_csv_simple(content)
+            data = result['data']
+            colonnes = result['columns']
         else:
             flash('Format de fichier non supporté', 'danger')
             return redirect(url_for('parametres'))
-        colonnes = [c.key for c in inspect(Model).columns]
+        
+        model_columns = [c.key for c in inspect(Model).columns]
         erreurs = []
         lignes_a_importer = []
         # Gestion des colonnes d'aide pour foreign keys
         aides = ENTITES_AIDES.get(entite, {})
-        for idx, row in df.iterrows():
+        
+        for idx, row in enumerate(data):
             obj = None
             row_id = row.get('id', None)
-            if row_id is not None and not (isinstance(row_id, float) and pd.isna(row_id)):
+            if row_id is not None and not (isinstance(row_id, float) and is_na(row_id)):
                 obj = Model.query.get(int(row_id))
             data = {}
             fk_error = False
             champs_manquants = []
-            for col in colonnes:
+            for col in model_columns:
                 if col == 'id':
                     continue
                 val = row.get(col, None)
-                if val is None or (isinstance(val, float) and pd.isna(val)) or val == '':
+                if val is None or (isinstance(val, float) and is_na(val)) or val == '':
                     # Pour les pièces de rechange, on tolère les champs manquants sauf item et reference_ste
                     if entite == 'piece' and col not in ['item', 'reference_ste']:
                         champs_manquants.append(col)
@@ -1514,7 +1677,7 @@ def import_donnees(entite):
                     if col in aides:
                         col_aide, table, champ = aides[col]
                         val_aide = row.get(col_aide, None)
-                        if val_aide and not (isinstance(val_aide, float) and pd.isna(val_aide)):
+                        if val_aide and not (isinstance(val_aide, float) and is_na(val_aide)):
                             fk_model = ENTITES_MODELS[table]
                             fk_obj = fk_model.query.filter(getattr(fk_model, champ)==val_aide).first()
                             if fk_obj:
@@ -1569,7 +1732,7 @@ def import_donnees(entite):
                         break
                 if col in ['quantite_stock', 'stock_mini', 'stock_maxi']:
                     try:
-                        if val is None or (isinstance(val, float) and pd.isna(val)):
+                        if val is None or (isinstance(val, float) and is_na(val)):
                             # Valeurs par défaut pour les pièces
                             if col == 'quantite_stock':
                                 val = 0

@@ -6,7 +6,7 @@ Utilisez ce script pour migrer des données de SQLite vers PostgreSQL
 
 import os
 import sqlite3
-import pandas as pd
+import csv
 from dotenv import load_dotenv
 from app import app, db, Site, Localisation, Equipement, Piece, LieuStockage, Maintenance, User
 
@@ -30,10 +30,22 @@ def export_sqlite_data():
     
     for table in tables:
         try:
-            df = pd.read_sql_query(f"SELECT * FROM {table}", conn)
-            if not df.empty:
-                df.to_csv(f'export_{table}.csv', index=False)
-                print(f"✅ {table}: {len(df)} enregistrements exportés")
+            cursor = conn.cursor()
+            cursor.execute(f"SELECT * FROM {table}")
+            rows = cursor.fetchall()
+            
+            if rows:
+                # Récupérer les noms des colonnes
+                cursor.execute(f"PRAGMA table_info({table})")
+                columns = [col[1] for col in cursor.fetchall()]
+                
+                # Écrire le CSV
+                with open(f'export_{table}.csv', 'w', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerow(columns)
+                    writer.writerows(rows)
+                
+                print(f"✅ {table}: {len(rows)} enregistrements exportés")
             else:
                 print(f"⚠️  {table}: Aucune donnée")
         except Exception as e:
@@ -66,12 +78,15 @@ def import_to_postgresql():
             
             if os.path.exists(csv_file):
                 try:
-                    df = pd.read_csv(csv_file)
-                    print(f"📊 Import {table_name}: {len(df)} enregistrements")
+                    with open(csv_file, 'r', encoding='utf-8') as csvfile:
+                        reader = csv.DictReader(csvfile)
+                        rows = list(reader)
                     
-                    for _, row in df.iterrows():
+                    print(f"📊 Import {table_name}: {len(rows)} enregistrements")
+                    
+                    for row in rows:
                         # Créer l'objet sans l'ID (sera auto-généré)
-                        data = row.to_dict()
+                        data = row.copy()
                         if 'id' in data:
                             del data['id']
                         
