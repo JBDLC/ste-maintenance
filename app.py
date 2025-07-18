@@ -2132,19 +2132,46 @@ def modifier_piece(piece_id):
     lieux_stockage = LieuStockage.query.all()
     return render_template('ajouter_piece.html', piece=piece, lieux_stockage=lieux_stockage, edition=True)
 
-if __name__ == '__main__':
-    with app.app_context():
+# Initialisation automatique au démarrage de l'application
+with app.app_context():
+    try:
+        print("🔍 Initialisation de la base de données...")
         db.create_all()
-        # Initialiser les données de base si nécessaire
-        try:
-            from init_render import init_render_database
-            init_render_database()
-        except Exception as e:
-            print(f"⚠️ Erreur lors de l'initialisation: {e}")
-            # Fallback: créer juste les tables
-            try:
-                db.create_all()
-                print("✅ Tables créées avec fallback")
-            except Exception as e2:
-                print(f"❌ Erreur critique: {e2}")
+        print("✅ Tables créées avec succès!")
+        
+        # Créer un utilisateur admin par défaut si aucun n'existe
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            print("🔍 Création de l'utilisateur admin...")
+            admin = User(
+                username='admin',
+                password_hash=generate_password_hash('admin123')
+            )
+            db.session.add(admin)
+            db.session.commit()
+            
+            # Créer les permissions pour l'admin
+            pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
+                     'maintenances', 'calendrier', 'mouvements', 'parametres']
+            
+            for page in pages:
+                permission = UserPermission(
+                    user_id=admin.id,
+                    page=page,
+                    can_access=True
+                )
+                db.session.add(permission)
+            
+            db.session.commit()
+            print("✅ Utilisateur admin créé avec succès!")
+            print("📋 Identifiants: admin / admin123")
+        else:
+            print("✅ Utilisateur admin existe déjà")
+            
+    except Exception as e:
+        print(f"⚠️ Erreur lors de l'initialisation: {e}")
+        import traceback
+        traceback.print_exc()
+
+if __name__ == '__main__':
     app.run(debug=True) 
