@@ -2044,87 +2044,139 @@ def import_donnees(entite):
 @login_required
 def import_maintenances():
     """Import spécial pour les maintenances sans date de début"""
-    print("🔍 Début import_maintenances()")
+    print("🔍 === DÉBUT IMPORT MAINTENANCES ===")
     print(f"🔍 Méthode: {request.method}")
     print(f"🔍 Fichiers reçus: {list(request.files.keys())}")
     print(f"🔍 URL: {request.url}")
     print(f"🔍 User: {current_user.username if current_user.is_authenticated else 'Non connecté'}")
     
-    file = request.files.get('fichier')
-    if not file or not file.filename:
-        print("❌ Aucun fichier envoyé")
+    # Vérifier si un fichier a été envoyé
+    if 'fichier' not in request.files:
+        print("❌ Aucun fichier dans request.files")
+        flash('Aucun fichier envoyé', 'danger')
+        return redirect(url_for('parametres'))
+    
+    file = request.files['fichier']
+    if not file or file.filename == '':
+        print("❌ Fichier vide ou nom vide")
         flash('Aucun fichier envoyé', 'danger')
         return redirect(url_for('parametres'))
     
     print(f"📁 Fichier reçu: {file.filename}")
-    print(f"📁 Taille fichier: {len(file.read())} bytes")
-    file.seek(0)  # Remettre le curseur au début
     
     try:
+        # Lire le contenu du fichier
+        file_content = file.read()
+        print(f"📁 Taille fichier: {len(file_content)} bytes")
+        
+        # Remettre le curseur au début
+        file.seek(0)
+        
         filename = file.filename.lower()
-        if filename.endswith('.xlsx'):
-            # Lire le fichier Excel avec openpyxl
-            from openpyxl import load_workbook
-            wb = load_workbook(file, data_only=True)
-            
-            # Lire l'onglet Maintenances
-            if 'Maintenances' not in wb.sheetnames:
-                flash('Onglet "Maintenances" introuvable dans le fichier Excel', 'danger')
-                return redirect(url_for('parametres'))
-            
-            ws_maintenances = wb['Maintenances']
-            maintenances_data = []
-            
-            # Lire les données (en-têtes + données)
-            for row in ws_maintenances.iter_rows(min_row=2, values_only=True):
-                if any(cell for cell in row):  # Ignorer les lignes vides
-                    maintenances_data.append(row)
-            
-            # Convertir en format plus facile à traiter
-            df_maintenances = []
-            for row in maintenances_data:
-                if len(row) >= 4:  # Au moins titre, equipement_nom, localisation_nom, periodicite
-                    df_maintenances.append({
-                        'titre': row[1] if len(row) > 1 else '',
-                        'equipement_nom': row[2] if len(row) > 2 else '',
-                        'localisation_nom': row[3] if len(row) > 3 else '',
-                        'periodicite': row[4] if len(row) > 4 else ''
-                    })
-            
-        else:
+        if not filename.endswith('.xlsx'):
+            print("❌ Format de fichier non supporté")
             flash('Format de fichier non supporté. Utilisez un fichier Excel (.xlsx)', 'danger')
             return redirect(url_for('parametres'))
+        
+        print("📊 Lecture du fichier Excel...")
+        
+        # Lire le fichier Excel avec openpyxl
+        from openpyxl import load_workbook
+        wb = load_workbook(file, data_only=True)
+        
+        print(f"📊 Onglets disponibles: {wb.sheetnames}")
+        
+        # Lire l'onglet Maintenances
+        if 'Maintenances' not in wb.sheetnames:
+            print("❌ Onglet 'Maintenances' introuvable")
+            flash('Onglet "Maintenances" introuvable dans le fichier Excel', 'danger')
+            return redirect(url_for('parametres'))
+        
+        ws_maintenances = wb['Maintenances']
+        print(f"📊 Dimensions de l'onglet: {ws_maintenances.max_row} lignes, {ws_maintenances.max_column} colonnes")
+        
+        # Lire les en-têtes
+        headers = []
+        for col in range(1, ws_maintenances.max_column + 1):
+            cell_value = ws_maintenances.cell(row=1, column=col).value
+            headers.append(cell_value)
+        print(f"📊 En-têtes: {headers}")
+        
+        # Lire les données (à partir de la ligne 2)
+        maintenances_data = []
+        for row in range(2, ws_maintenances.max_row + 1):
+            row_data = []
+            for col in range(1, ws_maintenances.max_column + 1):
+                cell_value = ws_maintenances.cell(row=row, column=col).value
+                row_data.append(cell_value)
+            
+            # Ignorer les lignes vides
+            if any(cell is not None for cell in row_data):
+                maintenances_data.append(row_data)
+        
+        print(f"📊 Données lues: {len(maintenances_data)} lignes")
+        
+        # Convertir en format plus facile à traiter
+        df_maintenances = []
+        for i, row in enumerate(maintenances_data):
+            if len(row) >= 5:  # Au moins id, titre, equipement_nom, localisation_nom, periodicite
+                maintenance_dict = {
+                    'titre': str(row[1]) if row[1] else '',
+                    'equipement_nom': str(row[2]) if row[2] else '',
+                    'localisation_nom': str(row[3]) if row[3] else '',
+                    'periodicite': str(row[4]) if row[4] else ''
+                }
+                df_maintenances.append(maintenance_dict)
+                print(f"📊 Ligne {i+2}: {maintenance_dict}")
+        
+        print(f"📊 Maintenances à traiter: {len(df_maintenances)}")
         
         erreurs = []
         maintenances_importees = 0
         
         for idx, row in enumerate(df_maintenances):
             try:
-                titre = row.get('titre')
-                equipement_nom = row.get('equipement_nom')
-                localisation_nom = row.get('localisation_nom')
-                periodicite = row.get('periodicite')
+                titre = row.get('titre', '').strip()
+                equipement_nom = row.get('equipement_nom', '').strip()
+                localisation_nom = row.get('localisation_nom', '').strip()
+                periodicite = row.get('periodicite', '').strip()
+                
+                print(f"🔍 Traitement ligne {idx+2}: titre='{titre}', equipement='{equipement_nom}', localisation='{localisation_nom}', periodicite='{periodicite}'")
                 
                 if not titre or not equipement_nom or not localisation_nom or not periodicite:
-                    erreurs.append(f"Ligne {int(idx)+2}: Champs obligatoires manquants")
+                    erreur = f"Ligne {idx+2}: Champs obligatoires manquants (titre='{titre}', equipement='{equipement_nom}', localisation='{localisation_nom}', periodicite='{periodicite}')"
+                    print(f"❌ {erreur}")
+                    erreurs.append(erreur)
                     continue
                 
                 # Trouver l'équipement
                 equipement = Equipement.query.filter_by(nom=equipement_nom).first()
                 if not equipement:
-                    erreurs.append(f"Ligne {int(idx)+2}: Équipement '{equipement_nom}' introuvable")
+                    erreur = f"Ligne {idx+2}: Équipement '{equipement_nom}' introuvable"
+                    print(f"❌ {erreur}")
+                    erreurs.append(erreur)
                     continue
+                
+                print(f"✅ Équipement trouvé: {equipement.nom} (ID: {equipement.id})")
                 
                 # Vérifier que l'équipement est dans la bonne localisation
                 if equipement.localisation.nom != localisation_nom:
-                    erreurs.append(f"Ligne {int(idx)+2}: L\'équipement '{equipement_nom}' n\'est pas dans la localisation '{localisation_nom}'")
+                    erreur = f"Ligne {idx+2}: L'équipement '{equipement_nom}' n'est pas dans la localisation '{localisation_nom}' (il est dans '{equipement.localisation.nom}')"
+                    print(f"❌ {erreur}")
+                    erreurs.append(erreur)
                     continue
+                
+                print(f"✅ Localisation vérifiée: {equipement.localisation.nom}")
                 
                 # Vérifier la périodicité
                 periodicites_valides = ['semaine', '2_semaines', 'mois', '2_mois', '6_mois', '1_an', '2_ans']
                 if periodicite not in periodicites_valides:
-                    erreurs.append(f"Ligne {int(idx)+2}: Périodicité '{periodicite}' invalide. Valeurs autorisées: {', '.join(periodicites_valides)}")
+                    erreur = f"Ligne {idx+2}: Périodicité '{periodicite}' invalide. Valeurs autorisées: {', '.join(periodicites_valides)}"
+                    print(f"❌ {erreur}")
+                    erreurs.append(erreur)
                     continue
+                
+                print(f"✅ Périodicité valide: {periodicite}")
                 
                 # Créer la maintenance sans date
                 maintenance = Maintenance(
@@ -2138,18 +2190,24 @@ def import_maintenances():
                 
                 db.session.add(maintenance)
                 maintenances_importees += 1
+                print(f"✅ Maintenance ajoutée: {titre}")
                 
             except Exception as e:
-                erreurs.append(f"Ligne {int(idx)+2}: Erreur - {str(e)}")
+                erreur = f"Ligne {idx+2}: Erreur - {str(e)}"
+                print(f"❌ {erreur}")
+                erreurs.append(erreur)
                 continue
+        
+        print(f"📊 Traitement terminé: {maintenances_importees} maintenances à importer, {len(erreurs)} erreurs")
         
         if erreurs:
             db.session.rollback()
+            print("❌ Rollback à cause des erreurs")
             flash('Erreurs lors de l\'import :<br>' + '<br>'.join(erreurs), 'danger')
             return redirect(url_for('parametres'))
         
         db.session.commit()
-        print(f"✅ Import réussi: {maintenances_importees} maintenances importées")
+        print(f"✅ Commit réussi: {maintenances_importees} maintenances importées")
         flash(f'Importation réussie ! {maintenances_importees} maintenances importées sans date de début.', 'success')
         
     except Exception as e:
@@ -2159,7 +2217,7 @@ def import_maintenances():
         traceback.print_exc()
         flash(f'Erreur lors de l\'import : {e}', 'danger')
     
-    print("🏁 Fin import_maintenances()")
+    print("🏁 === FIN IMPORT MAINTENANCES ===")
     return redirect(url_for('parametres'))
 
 # Test route pour vérifier que la fonction est accessible
@@ -2167,6 +2225,21 @@ def import_maintenances():
 @login_required
 def test_import_maintenances():
     return "Route import_maintenances accessible !"
+
+# Route de test pour vérifier les données
+@app.route('/test-maintenances-data')
+@login_required
+def test_maintenances_data():
+    equipements = Equipement.query.all()
+    localisations = Localisation.query.all()
+    
+    result = {
+        'equipements': [{'id': e.id, 'nom': e.nom, 'localisation': e.localisation.nom} for e in equipements],
+        'localisations': [{'id': l.id, 'nom': l.nom, 'site': l.site.nom} for l in localisations],
+        'maintenances_count': Maintenance.query.count()
+    }
+    
+    return result
 
 @app.route('/parametres/gerer-doublons-pieces', methods=['GET', 'POST'])
 @login_required
