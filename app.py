@@ -1860,22 +1860,35 @@ def import_donnees(entite):
                     if col == 'localisation_id': fk_model = ENTITES_MODELS['localisation']
                     if col == 'equipement_id': fk_model = ENTITES_MODELS['equipement']
                     if col == 'lieu_stockage_id': fk_model = ENTITES_MODELS['lieu_stockage']
-                    try:
-                        if fk_model and not fk_model.query.get(int(val)):
-                            erreurs.append(f"Ligne {int(idx)+2}: {col} {val} n'existe pas")
+                    
+                    # Gestion spéciale pour les maintenances
+                    if entite == 'maintenance' and col == 'equipement_id':
+                        # Pour les maintenances, on peut avoir equipement_nom au lieu de equipement_id
+                        equipement_nom = row.get('equipement_nom')
+                        if equipement_nom and not (isinstance(equipement_nom, float) and is_na(equipement_nom)):
+                            equipement = Equipement.query.filter_by(nom=equipement_nom).first()
+                            if equipement:
+                                val = equipement.id
+                            else:
+                                erreurs.append(f"Ligne {int(idx)+2}: Équipement '{equipement_nom}' introuvable")
+                                fk_error = True
+                                break
+                        else:
+                            erreurs.append(f"Ligne {int(idx)+2}: equipement_nom non renseigné")
                             fk_error = True
                             break
+                    else:
                         try:
+                            if fk_model and not fk_model.query.get(int(val)):
+                                erreurs.append(f"Ligne {int(idx)+2}: {col} {val} n'existe pas")
+                                fk_error = True
+                                break
                             if isinstance(val, (str, float, int)) and not isinstance(val, bool):
                                 val = int(val)
                         except Exception:
                             erreurs.append(f"Ligne {int(idx)+2}: {col} valeur non convertible : {val}")
                             fk_error = True
                             break
-                    except Exception:
-                        erreurs.append(f"Ligne {int(idx)+2}: {col} valeur non valide : {val}")
-                        fk_error = True
-                        break
                 if col in ['quantite_stock', 'stock_mini', 'stock_maxi']:
                     try:
                         if val is None or (isinstance(val, float) and is_na(val)):
@@ -2031,10 +2044,14 @@ def import_donnees(entite):
 @login_required
 def import_maintenances():
     """Import spécial pour les maintenances sans date de début"""
+    print("🔍 Début import_maintenances()")
     file = request.files.get('fichier')
     if not file or not file.filename:
+        print("❌ Aucun fichier envoyé")
         flash('Aucun fichier envoyé', 'danger')
         return redirect(url_for('parametres'))
+    
+    print(f"📁 Fichier reçu: {file.filename}")
     
     try:
         filename = file.filename.lower()
@@ -2125,12 +2142,17 @@ def import_maintenances():
             return redirect(url_for('parametres'))
         
         db.session.commit()
+        print(f"✅ Import réussi: {maintenances_importees} maintenances importées")
         flash(f'Importation réussie ! {maintenances_importees} maintenances importées sans date de début.', 'success')
         
     except Exception as e:
         db.session.rollback()
+        print(f"❌ Erreur lors de l'import: {e}")
+        import traceback
+        traceback.print_exc()
         flash(f'Erreur lors de l\'import : {e}', 'danger')
     
+    print("🏁 Fin import_maintenances()")
     return redirect(url_for('parametres'))
 
 @app.route('/parametres/gerer-doublons-pieces', methods=['GET', 'POST'])
