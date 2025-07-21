@@ -1504,7 +1504,7 @@ ENTITES_MODELES = {
     'equipement': ['id', 'nom', 'description', 'localisation_id'],
     'lieu_stockage': ['id', 'nom', 'description'],
     'piece': ['id', 'reference_ste', 'reference_magasin', 'item', 'description', 'lieu_stockage_id', 'quantite_stock', 'stock_mini', 'stock_maxi'],
-    'maintenance': ['id', 'titre', 'equipement_nom', 'localisation_nom', 'periodicite']
+    'maintenance': ['id', 'titre', 'equipement_id', 'localisation_id', 'periodicite']
 }
 ENTITES_MODELS = {
     'site': Site,
@@ -1569,6 +1569,11 @@ def download_modele(entite, format):
                     {'id': '', 'reference_ste': 'REF001', 'reference_magasin': 'Marque A', 'item': 'Pièce 1', 'description': 'Description', 'lieu_stockage_id': '1', 'lieu_stockage_nom': 'Entrepôt', 'quantite_stock': '10', 'stock_mini': '5', 'stock_maxi': '20'},
                     {'id': '', 'reference_ste': 'REF002', 'reference_magasin': 'Marque B', 'item': 'Pièce 2', 'description': 'Description', 'lieu_stockage_id': '1', 'lieu_stockage_nom': 'Entrepôt', 'quantite_stock': '15', 'stock_mini': '3', 'stock_maxi': '25'}
                 ]
+            elif entite == 'maintenance':
+                exemples = [
+                    {'id': '', 'titre': 'Maintenance préventive', 'equipement_id': '1', 'equipement_nom': 'Équipement 1', 'localisation_id': '1', 'localisation_nom': 'Localisation 1', 'periodicite': 'mois'},
+                    {'id': '', 'titre': 'Maintenance corrective', 'equipement_id': '2', 'equipement_nom': 'Équipement 2', 'localisation_id': '1', 'localisation_nom': 'Localisation 1', 'periodicite': 'semaine'}
+                ]
             elif entite == 'lieu_stockage':
                 exemples = [
                     {'id': '', 'nom': 'Entrepôt principal', 'description': 'Entrepôt principal du site'},
@@ -1601,6 +1606,9 @@ def download_modele(entite, format):
                 elif entite == 'piece':
                     writer.writerow({'id': '', 'reference_ste': 'REF001', 'reference_magasin': 'Marque A', 'item': 'Pièce 1', 'description': 'Description', 'lieu_stockage_id': '1', 'lieu_stockage_nom': 'Entrepôt', 'quantite_stock': '10', 'stock_mini': '5', 'stock_maxi': '20'})
                     writer.writerow({'id': '', 'reference_ste': 'REF002', 'reference_magasin': 'Marque B', 'item': 'Pièce 2', 'description': 'Description', 'lieu_stockage_id': '1', 'lieu_stockage_nom': 'Entrepôt', 'quantite_stock': '15', 'stock_mini': '3', 'stock_maxi': '25'})
+                elif entite == 'maintenance':
+                    writer.writerow({'id': '', 'titre': 'Maintenance préventive', 'equipement_id': '1', 'equipement_nom': 'Équipement 1', 'localisation_id': '1', 'localisation_nom': 'Localisation 1', 'periodicite': 'mois'})
+                    writer.writerow({'id': '', 'titre': 'Maintenance corrective', 'equipement_id': '2', 'equipement_nom': 'Équipement 2', 'localisation_id': '1', 'localisation_nom': 'Localisation 1', 'periodicite': 'semaine'})
                 elif entite == 'lieu_stockage':
                     writer.writerow({'id': '', 'nom': 'Entrepôt principal', 'description': 'Entrepôt principal du site'})
                     writer.writerow({'id': '', 'nom': 'Entrepôt secondaire', 'description': 'Entrepôt secondaire'})
