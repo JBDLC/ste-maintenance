@@ -2272,58 +2272,89 @@ def import_maintenances():
     return redirect(url_for('parametres'))
 
 def migrate_maintenance_titre():
-    """Migration pour augmenter la taille du champ titre de 100 à 500 caractères"""
+    """Migration pour augmenter la taille du champ titre et ajouter les nouveaux champs"""
     try:
         with db.engine.connect() as conn:
-            # Vérifier la taille actuelle du champ titre
-            result = conn.execute(text("""
-                SELECT character_maximum_length 
-                FROM information_schema.columns 
-                WHERE table_name = 'maintenance' AND column_name = 'titre';
-            """))
+            # Détecter le type de base de données
+            is_sqlite = 'sqlite' in str(db.engine.url)
+            print(f"🔍 Type de base détecté: {'SQLite' if is_sqlite else 'PostgreSQL'}")
             
-            current_length = result.scalar()
-            print(f"📊 Taille actuelle du champ titre: {current_length}")
-            
-            if current_length == 500:
-                print("✅ Le champ titre est déjà à la bonne taille (500)")
+            if is_sqlite:
+                # Migration SQLite
+                print("🔧 Migration SQLite...")
+                
+                # Vérifier les colonnes existantes
+                result = conn.execute(text("PRAGMA table_info(maintenance)"))
+                columns = [row[1] for row in result.fetchall()]
+                print(f"📊 Colonnes existantes: {columns}")
+                
+                # Ajouter les nouveaux champs s'ils n'existent pas
+                if 'equipement_nom_original' not in columns:
+                    print("🔧 Ajout du champ equipement_nom_original...")
+                    conn.execute(text("ALTER TABLE maintenance ADD COLUMN equipement_nom_original TEXT"))
+                
+                if 'localisation_nom_original' not in columns:
+                    print("🔧 Ajout du champ localisation_nom_original...")
+                    conn.execute(text("ALTER TABLE maintenance ADD COLUMN localisation_nom_original TEXT"))
+                
+                print("✅ Migration SQLite réussie !")
+                
             else:
-                # Modifier la taille du champ
-                print("🔧 Modification de la taille du champ titre...")
-                conn.execute(text("""
-                    ALTER TABLE maintenance 
-                    ALTER COLUMN titre TYPE VARCHAR(500);
+                # Migration PostgreSQL
+                print("🔧 Migration PostgreSQL...")
+                
+                # Vérifier la taille actuelle du champ titre
+                result = conn.execute(text("""
+                    SELECT character_maximum_length 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'maintenance' AND column_name = 'titre';
                 """))
-                print("✅ Migration du titre réussie !")
-            
-            # Vérifier si les nouveaux champs existent
-            result = conn.execute(text("""
-                SELECT column_name 
-                FROM information_schema.columns 
-                WHERE table_name = 'maintenance' AND column_name IN ('equipement_nom_original', 'localisation_nom_original');
-            """))
-            
-            existing_columns = [row[0] for row in result.fetchall()]
-            
-            if 'equipement_nom_original' not in existing_columns:
-                print("🔧 Ajout du champ equipement_nom_original...")
-                conn.execute(text("""
-                    ALTER TABLE maintenance 
-                    ADD COLUMN equipement_nom_original VARCHAR(200);
+                
+                current_length = result.scalar()
+                print(f"📊 Taille actuelle du champ titre: {current_length}")
+                
+                if current_length != 500:
+                    # Modifier la taille du champ
+                    print("🔧 Modification de la taille du champ titre...")
+                    conn.execute(text("""
+                        ALTER TABLE maintenance 
+                        ALTER COLUMN titre TYPE VARCHAR(500);
+                    """))
+                    print("✅ Migration du titre réussie !")
+                
+                # Vérifier si les nouveaux champs existent
+                result = conn.execute(text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'maintenance' AND column_name IN ('equipement_nom_original', 'localisation_nom_original');
                 """))
-            
-            if 'localisation_nom_original' not in existing_columns:
-                print("🔧 Ajout du champ localisation_nom_original...")
-                conn.execute(text("""
-                    ALTER TABLE maintenance 
-                    ADD COLUMN localisation_nom_original VARCHAR(200);
-                """))
-            
-            # Modifier equipement_id pour permettre NULL
-            conn.execute(text("""
-                ALTER TABLE maintenance 
-                ALTER COLUMN equipement_id DROP NOT NULL;
-            """))
+                
+                existing_columns = [row[0] for row in result.fetchall()]
+                
+                if 'equipement_nom_original' not in existing_columns:
+                    print("🔧 Ajout du champ equipement_nom_original...")
+                    conn.execute(text("""
+                        ALTER TABLE maintenance 
+                        ADD COLUMN equipement_nom_original VARCHAR(200);
+                    """))
+                
+                if 'localisation_nom_original' not in existing_columns:
+                    print("🔧 Ajout du champ localisation_nom_original...")
+                    conn.execute(text("""
+                        ALTER TABLE maintenance 
+                        ADD COLUMN localisation_nom_original VARCHAR(200);
+                    """))
+                
+                # Modifier equipement_id pour permettre NULL
+                try:
+                    conn.execute(text("""
+                        ALTER TABLE maintenance 
+                        ALTER COLUMN equipement_id DROP NOT NULL;
+                    """))
+                except Exception as e:
+                    print(f"⚠️ equipement_id peut déjà être NULL: {e}")
+                
+                print("✅ Migration PostgreSQL réussie !")
             
             conn.commit()
             print("✅ Migration complète réussie !")
