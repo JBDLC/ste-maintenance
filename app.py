@@ -2039,14 +2039,33 @@ def import_maintenances():
     try:
         filename = file.filename.lower()
         if filename.endswith('.xlsx'):
-            # Lire tous les onglets
-            excel_file = pd.ExcelFile(file)
-            df_maintenances = pd.read_excel(file, sheet_name='Maintenances')
+            # Lire le fichier Excel avec openpyxl
+            from openpyxl import load_workbook
+            wb = load_workbook(file, data_only=True)
             
-            # Lire les onglets de référence
-            df_equipements = pd.read_excel(file, sheet_name='Équipements') if 'Équipements' in excel_file.sheet_names else None
-            df_localisations = pd.read_excel(file, sheet_name='Localisations') if 'Localisations' in excel_file.sheet_names else None
-            df_periodicites = pd.read_excel(file, sheet_name='Périodicités') if 'Périodicités' in excel_file.sheet_names else None
+            # Lire l'onglet Maintenances
+            if 'Maintenances' not in wb.sheetnames:
+                flash('Onglet "Maintenances" introuvable dans le fichier Excel', 'danger')
+                return redirect(url_for('parametres'))
+            
+            ws_maintenances = wb['Maintenances']
+            maintenances_data = []
+            
+            # Lire les données (en-têtes + données)
+            for row in ws_maintenances.iter_rows(min_row=2, values_only=True):
+                if any(cell for cell in row):  # Ignorer les lignes vides
+                    maintenances_data.append(row)
+            
+            # Convertir en format plus facile à traiter
+            df_maintenances = []
+            for row in maintenances_data:
+                if len(row) >= 4:  # Au moins titre, equipement_nom, localisation_nom, periodicite
+                    df_maintenances.append({
+                        'titre': row[1] if len(row) > 1 else '',
+                        'equipement_nom': row[2] if len(row) > 2 else '',
+                        'localisation_nom': row[3] if len(row) > 3 else '',
+                        'periodicite': row[4] if len(row) > 4 else ''
+                    })
             
         else:
             flash('Format de fichier non supporté. Utilisez un fichier Excel (.xlsx)', 'danger')
@@ -2055,7 +2074,7 @@ def import_maintenances():
         erreurs = []
         maintenances_importees = 0
         
-        for idx, row in df_maintenances.iterrows():
+        for idx, row in enumerate(df_maintenances):
             try:
                 titre = row.get('titre')
                 equipement_nom = row.get('equipement_nom')
