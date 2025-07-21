@@ -1536,14 +1536,74 @@ def download_modele(entite, format):
     if entite in ENTITES_AIDES:
         for fk, (col_aide, _, _) in ENTITES_AIDES[entite].items():
             colonnes.append(col_aide)
-    data = []
+    
     with tempfile.NamedTemporaryFile(delete=False, suffix=f'.{format}') as tmp:
         if format == 'xlsx':
-            write_excel_simple(data, tmp.name, 'Sheet1')
+            from openpyxl import Workbook
+            wb = Workbook()
+            ws = wb.active
+            ws.title = 'Données'
+            
+            # Écrire les en-têtes
+            for col, header in enumerate(colonnes, 1):
+                ws.cell(row=1, column=col, value=header)
+            
+            # Ajouter quelques exemples de données selon l'entité
+            if entite == 'site':
+                exemples = [
+                    {'id': '', 'nom': 'Site A', 'description': 'Description du site A'},
+                    {'id': '', 'nom': 'Site B', 'description': 'Description du site B'}
+                ]
+            elif entite == 'localisation':
+                exemples = [
+                    {'id': '', 'nom': 'Localisation 1', 'description': 'Description', 'site_id': '1', 'site_nom': 'Site A'},
+                    {'id': '', 'nom': 'Localisation 2', 'description': 'Description', 'site_id': '1', 'site_nom': 'Site A'}
+                ]
+            elif entite == 'equipement':
+                exemples = [
+                    {'id': '', 'nom': 'Équipement 1', 'description': 'Description', 'localisation_id': '1', 'localisation_nom': 'Localisation 1'},
+                    {'id': '', 'nom': 'Équipement 2', 'description': 'Description', 'localisation_id': '1', 'localisation_nom': 'Localisation 1'}
+                ]
+            elif entite == 'piece':
+                exemples = [
+                    {'id': '', 'reference_ste': 'REF001', 'reference_magasin': 'Marque A', 'item': 'Pièce 1', 'description': 'Description', 'lieu_stockage_id': '1', 'lieu_stockage_nom': 'Entrepôt', 'quantite_stock': '10', 'stock_mini': '5', 'stock_maxi': '20'},
+                    {'id': '', 'reference_ste': 'REF002', 'reference_magasin': 'Marque B', 'item': 'Pièce 2', 'description': 'Description', 'lieu_stockage_id': '1', 'lieu_stockage_nom': 'Entrepôt', 'quantite_stock': '15', 'stock_mini': '3', 'stock_maxi': '25'}
+                ]
+            elif entite == 'lieu_stockage':
+                exemples = [
+                    {'id': '', 'nom': 'Entrepôt principal', 'description': 'Entrepôt principal du site'},
+                    {'id': '', 'nom': 'Entrepôt secondaire', 'description': 'Entrepôt secondaire'}
+                ]
+            else:
+                exemples = []
+            
+            # Écrire les exemples
+            for row_idx, exemple in enumerate(exemples, 2):
+                for col_idx, header in enumerate(colonnes, 1):
+                    ws.cell(row=row_idx, column=col_idx, value=exemple.get(header, ''))
+            
+            wb.save(tmp.name)
+            
         elif format == 'csv':
             with open(tmp.name, 'w', newline='', encoding='utf-8') as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=colonnes)
                 writer.writeheader()
+                # Ajouter les mêmes exemples pour CSV
+                if entite == 'site':
+                    writer.writerow({'id': '', 'nom': 'Site A', 'description': 'Description du site A'})
+                    writer.writerow({'id': '', 'nom': 'Site B', 'description': 'Description du site B'})
+                elif entite == 'localisation':
+                    writer.writerow({'id': '', 'nom': 'Localisation 1', 'description': 'Description', 'site_id': '1', 'site_nom': 'Site A'})
+                    writer.writerow({'id': '', 'nom': 'Localisation 2', 'description': 'Description', 'site_id': '1', 'site_nom': 'Site A'})
+                elif entite == 'equipement':
+                    writer.writerow({'id': '', 'nom': 'Équipement 1', 'description': 'Description', 'localisation_id': '1', 'localisation_nom': 'Localisation 1'})
+                    writer.writerow({'id': '', 'nom': 'Équipement 2', 'description': 'Description', 'localisation_id': '1', 'localisation_nom': 'Localisation 1'})
+                elif entite == 'piece':
+                    writer.writerow({'id': '', 'reference_ste': 'REF001', 'reference_magasin': 'Marque A', 'item': 'Pièce 1', 'description': 'Description', 'lieu_stockage_id': '1', 'lieu_stockage_nom': 'Entrepôt', 'quantite_stock': '10', 'stock_mini': '5', 'stock_maxi': '20'})
+                    writer.writerow({'id': '', 'reference_ste': 'REF002', 'reference_magasin': 'Marque B', 'item': 'Pièce 2', 'description': 'Description', 'lieu_stockage_id': '1', 'lieu_stockage_nom': 'Entrepôt', 'quantite_stock': '15', 'stock_mini': '3', 'stock_maxi': '25'})
+                elif entite == 'lieu_stockage':
+                    writer.writerow({'id': '', 'nom': 'Entrepôt principal', 'description': 'Entrepôt principal du site'})
+                    writer.writerow({'id': '', 'nom': 'Entrepôt secondaire', 'description': 'Entrepôt secondaire'})
         else:
             return 'Format non supporté', 400
         tmp.flush()
