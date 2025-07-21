@@ -210,7 +210,7 @@ class PieceEquipement(db.Model):
 class Maintenance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     equipement_id = db.Column(db.Integer, db.ForeignKey('equipement.id'), nullable=False)
-    titre = db.Column(db.String(100), nullable=False)
+    titre = db.Column(db.String(500), nullable=False)  # Augmenté de 100 à 500 caractères
     description = db.Column(db.Text)
     periodicite = db.Column(db.String(20), nullable=False)  # semaine, 2_semaines, mois, 2_mois, 6_mois, 1_an, 2_ans
     date_premiere = db.Column(db.Date, nullable=True)  # Peut être NULL pour les maintenances importées
@@ -2149,6 +2149,13 @@ def import_maintenances():
                     erreurs.append(erreur)
                     continue
                 
+                # Vérifier la longueur du titre
+                if len(titre) > 500:
+                    erreur = f"Ligne {idx+2}: Titre trop long ({len(titre)} caractères, max 500): {titre[:50]}..."
+                    print(f"❌ {erreur}")
+                    erreurs.append(erreur)
+                    continue
+                
                 # Trouver l'équipement
                 equipement = Equipement.query.filter_by(nom=equipement_nom).first()
                 if not equipement:
@@ -2196,6 +2203,11 @@ def import_maintenances():
                 erreur = f"Ligne {idx+2}: Erreur - {str(e)}"
                 print(f"❌ {erreur}")
                 erreurs.append(erreur)
+                # Rollback et recréer la session si nécessaire
+                try:
+                    db.session.rollback()
+                except:
+                    pass
                 continue
         
         print(f"📊 Traitement terminé: {maintenances_importees} maintenances à importer, {len(erreurs)} erreurs")
@@ -2219,6 +2231,39 @@ def import_maintenances():
     
     print("🏁 === FIN IMPORT MAINTENANCES ===")
     return redirect(url_for('parametres'))
+
+def migrate_maintenance_titre():
+    """Migration pour augmenter la taille du champ titre de 100 à 500 caractères"""
+    try:
+        with db.engine.connect() as conn:
+            # Vérifier la taille actuelle du champ titre
+            result = conn.execute(text("""
+                SELECT character_maximum_length 
+                FROM information_schema.columns 
+                WHERE table_name = 'maintenance' AND column_name = 'titre';
+            """))
+            
+            current_length = result.scalar()
+            print(f"📊 Taille actuelle du champ titre: {current_length}")
+            
+            if current_length == 500:
+                print("✅ Le champ titre est déjà à la bonne taille (500)")
+                return True
+            
+            # Modifier la taille du champ
+            print("🔧 Modification de la taille du champ titre...")
+            conn.execute(text("""
+                ALTER TABLE maintenance 
+                ALTER COLUMN titre TYPE VARCHAR(500);
+            """))
+            
+            conn.commit()
+            print("✅ Migration réussie ! Le champ titre peut maintenant contenir jusqu'à 500 caractères")
+            return True
+            
+    except Exception as e:
+        print(f"❌ Erreur lors de la migration: {e}")
+        return False
 
 # Test route pour vérifier que la fonction est accessible
 @app.route('/test-import-maintenances')
@@ -2372,6 +2417,10 @@ with app.app_context():
         print("🔍 Initialisation de la base de données...")
         db.create_all()
         print("✅ Tables créées avec succès!")
+        
+        # Migration du champ titre de maintenance
+        print("🔧 Vérification de la migration du champ titre...")
+        migrate_maintenance_titre()
         
         # Créer un utilisateur admin par défaut si aucun n'existe
         admin = User.query.filter_by(username='admin').first()
