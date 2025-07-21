@@ -470,7 +470,7 @@ def ajouter_piece():
             lieu_stockage_id=lieu_stockage_id,
             quantite_stock=int(request.form.get('stock_actuel', 0)),
             stock_mini=int(request.form.get('stock_minimum', 0)),
-            stock_maxi=int(request.form.get('stock_actuel', 0))  # Utilise stock_actuel comme maxi par défaut
+            stock_maxi=int(request.form.get('stock_maxi', 0))
         )
         db.session.add(piece)
         db.session.commit()
