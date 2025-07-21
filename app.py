@@ -209,16 +209,14 @@ class PieceEquipement(db.Model):
 
 class Maintenance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    equipement_id = db.Column(db.Integer, db.ForeignKey('equipement.id'), nullable=True)  # Peut être NULL pour les maintenances temporaires
-    titre = db.Column(db.String(500), nullable=False)  # Augmenté de 100 à 500 caractères
+    equipement_id = db.Column(db.Integer, db.ForeignKey('equipement.id'), nullable=False)
+    titre = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     periodicite = db.Column(db.String(20), nullable=False)  # semaine, 2_semaines, mois, 2_mois, 6_mois, 1_an, 2_ans
     date_premiere = db.Column(db.Date, nullable=True)  # Peut être NULL pour les maintenances importées
     date_prochaine = db.Column(db.Date, nullable=True)  # Peut être NULL pour les maintenances importées
     active = db.Column(db.Boolean, default=True)
     date_importee = db.Column(db.Boolean, default=False)  # Marque les maintenances importées sans date
-    equipement_nom_original = db.Column(db.String(200), nullable=True)  # Nom original de l'équipement depuis l'import
-    localisation_nom_original = db.Column(db.String(200), nullable=True)  # Nom original de la localisation depuis l'import
     interventions = db.relationship('Intervention', backref='maintenance', lazy=True, cascade='all, delete-orphan')
 
 class Intervention(db.Model):
@@ -2046,181 +2044,87 @@ def import_donnees(entite):
 @login_required
 def import_maintenances():
     """Import spécial pour les maintenances sans date de début"""
-    print("🔍 === DÉBUT IMPORT MAINTENANCES ===")
+    print("🔍 Début import_maintenances()")
     print(f"🔍 Méthode: {request.method}")
     print(f"🔍 Fichiers reçus: {list(request.files.keys())}")
     print(f"🔍 URL: {request.url}")
     print(f"🔍 User: {current_user.username if current_user.is_authenticated else 'Non connecté'}")
     
-    # Vérifier si un fichier a été envoyé
-    if 'fichier' not in request.files:
-        print("❌ Aucun fichier dans request.files")
-        flash('Aucun fichier envoyé', 'danger')
-        return redirect(url_for('parametres'))
-    
-    file = request.files['fichier']
-    if not file or file.filename == '':
-        print("❌ Fichier vide ou nom vide")
+    file = request.files.get('fichier')
+    if not file or not file.filename:
+        print("❌ Aucun fichier envoyé")
         flash('Aucun fichier envoyé', 'danger')
         return redirect(url_for('parametres'))
     
     print(f"📁 Fichier reçu: {file.filename}")
+    print(f"📁 Taille fichier: {len(file.read())} bytes")
+    file.seek(0)  # Remettre le curseur au début
     
     try:
-        # Lire le contenu du fichier
-        file_content = file.read()
-        print(f"📁 Taille fichier: {len(file_content)} bytes")
-        
-        # Remettre le curseur au début
-        file.seek(0)
-        
         filename = file.filename.lower()
-        if not filename.endswith('.xlsx'):
-            print("❌ Format de fichier non supporté")
+        if filename.endswith('.xlsx'):
+            # Lire le fichier Excel avec openpyxl
+            from openpyxl import load_workbook
+            wb = load_workbook(file, data_only=True)
+            
+            # Lire l'onglet Maintenances
+            if 'Maintenances' not in wb.sheetnames:
+                flash('Onglet "Maintenances" introuvable dans le fichier Excel', 'danger')
+                return redirect(url_for('parametres'))
+            
+            ws_maintenances = wb['Maintenances']
+            maintenances_data = []
+            
+            # Lire les données (en-têtes + données)
+            for row in ws_maintenances.iter_rows(min_row=2, values_only=True):
+                if any(cell for cell in row):  # Ignorer les lignes vides
+                    maintenances_data.append(row)
+            
+            # Convertir en format plus facile à traiter
+            df_maintenances = []
+            for row in maintenances_data:
+                if len(row) >= 4:  # Au moins titre, equipement_nom, localisation_nom, periodicite
+                    df_maintenances.append({
+                        'titre': row[1] if len(row) > 1 else '',
+                        'equipement_nom': row[2] if len(row) > 2 else '',
+                        'localisation_nom': row[3] if len(row) > 3 else '',
+                        'periodicite': row[4] if len(row) > 4 else ''
+                    })
+            
+        else:
             flash('Format de fichier non supporté. Utilisez un fichier Excel (.xlsx)', 'danger')
             return redirect(url_for('parametres'))
-        
-        print("📊 Lecture du fichier Excel...")
-        
-        # Lire le fichier Excel avec openpyxl
-        from openpyxl import load_workbook
-        wb = load_workbook(file, data_only=True)
-        
-        print(f"📊 Onglets disponibles: {wb.sheetnames}")
-        
-        # Lire l'onglet Maintenances
-        if 'Maintenances' not in wb.sheetnames:
-            print("❌ Onglet 'Maintenances' introuvable")
-            flash('Onglet "Maintenances" introuvable dans le fichier Excel', 'danger')
-            return redirect(url_for('parametres'))
-        
-        ws_maintenances = wb['Maintenances']
-        print(f"📊 Dimensions de l'onglet: {ws_maintenances.max_row} lignes, {ws_maintenances.max_column} colonnes")
-        
-        # Lire les en-têtes
-        headers = []
-        for col in range(1, ws_maintenances.max_column + 1):
-            cell_value = ws_maintenances.cell(row=1, column=col).value
-            headers.append(cell_value)
-        print(f"📊 En-têtes: {headers}")
-        
-        # Lire les données (à partir de la ligne 2)
-        maintenances_data = []
-        for row in range(2, ws_maintenances.max_row + 1):
-            row_data = []
-            for col in range(1, ws_maintenances.max_column + 1):
-                cell_value = ws_maintenances.cell(row=row, column=col).value
-                row_data.append(cell_value)
-            
-            # Ignorer les lignes vides
-            if any(cell is not None for cell in row_data):
-                maintenances_data.append(row_data)
-        
-        print(f"📊 Données lues: {len(maintenances_data)} lignes")
-        
-        # Convertir en format plus facile à traiter
-        df_maintenances = []
-        for i, row in enumerate(maintenances_data):
-            if len(row) >= 5:  # Au moins id, titre, equipement_nom, localisation_nom, periodicite
-                maintenance_dict = {
-                    'titre': str(row[1]) if row[1] else '',
-                    'equipement_nom': str(row[2]) if row[2] else '',
-                    'localisation_nom': str(row[3]) if row[3] else '',
-                    'periodicite': str(row[4]) if row[4] else ''
-                }
-                df_maintenances.append(maintenance_dict)
-                print(f"📊 Ligne {i+2}: {maintenance_dict}")
-        
-        print(f"📊 Maintenances à traiter: {len(df_maintenances)}")
         
         erreurs = []
         maintenances_importees = 0
         
         for idx, row in enumerate(df_maintenances):
             try:
-                titre = row.get('titre', '').strip()
-                equipement_nom = row.get('equipement_nom', '').strip()
-                localisation_nom = row.get('localisation_nom', '').strip()
-                periodicite = row.get('periodicite', '').strip()
-                
-                print(f"🔍 Traitement ligne {idx+2}: titre='{titre}', equipement='{equipement_nom}', localisation='{localisation_nom}', periodicite='{periodicite}'")
+                titre = row.get('titre')
+                equipement_nom = row.get('equipement_nom')
+                localisation_nom = row.get('localisation_nom')
+                periodicite = row.get('periodicite')
                 
                 if not titre or not equipement_nom or not localisation_nom or not periodicite:
-                    erreur = f"Ligne {idx+2}: Champs obligatoires manquants (titre='{titre}', equipement='{equipement_nom}', localisation='{localisation_nom}', periodicite='{periodicite}')"
-                    print(f"❌ {erreur}")
-                    erreurs.append(erreur)
-                    continue
-                
-                # Vérifier la longueur du titre
-                if len(titre) > 500:
-                    erreur = f"Ligne {idx+2}: Titre trop long ({len(titre)} caractères, max 500): {titre[:50]}..."
-                    print(f"❌ {erreur}")
-                    erreurs.append(erreur)
+                    erreurs.append(f"Ligne {int(idx)+2}: Champs obligatoires manquants")
                     continue
                 
                 # Trouver l'équipement
                 equipement = Equipement.query.filter_by(nom=equipement_nom).first()
-                equipement_trouve_avec_correction = False
-                
                 if not equipement:
-                    # Essayer de trouver avec une recherche insensible à la casse
-                    equipements_tous = Equipement.query.all()
-                    equipement_trouve = None
-                    equipements_similaires = []
-                    
-                    for eq in equipements_tous:
-                        if eq.nom.lower().strip() == equipement_nom.lower().strip():
-                            equipement_trouve = eq
-                            break
-                        elif equipement_nom.lower().strip() in eq.nom.lower().strip():
-                            equipements_similaires.append(eq.nom)
-                    
-                    if equipement_trouve:
-                        equipement = equipement_trouve
-                        equipement_trouve_avec_correction = True
-                        print(f"✅ Équipement trouvé avec correction de casse: '{equipement_trouve.nom}' (recherché: '{equipement_nom}')")
-                    else:
-                        print(f"⚠️ Équipement '{equipement_nom}' introuvable - création d'une maintenance temporaire")
-                        if equipements_similaires:
-                            print(f"🔍 Similaires trouvés: {', '.join(equipements_similaires[:5])}")
-                        
-                        # Créer une maintenance temporaire sans équipement
-                        maintenance = Maintenance(
-                            equipement_id=None,  # Équipement temporairement NULL
-                            titre=titre,
-                            periodicite=periodicite,
-                            date_premiere=None,
-                            date_prochaine=None,
-                            date_importee=True,
-                            equipement_nom_original=equipement_nom,  # Garder le nom original
-                            localisation_nom_original=localisation_nom  # Garder la localisation originale
-                        )
-                        
-                        db.session.add(maintenance)
-                        maintenances_importees += 1
-                        print(f"⚠️ Maintenance temporaire créée: {titre} (équipement à assigner: {equipement_nom})")
-                        continue
-                
-                print(f"✅ Équipement trouvé: {equipement.nom} (ID: {equipement.id})")
+                    erreurs.append(f"Ligne {int(idx)+2}: Équipement '{equipement_nom}' introuvable")
+                    continue
                 
                 # Vérifier que l'équipement est dans la bonne localisation
                 if equipement.localisation.nom != localisation_nom:
-                    erreur = f"Ligne {idx+2}: L'équipement '{equipement_nom}' n'est pas dans la localisation '{localisation_nom}' (il est dans '{equipement.localisation.nom}')"
-                    print(f"❌ {erreur}")
-                    erreurs.append(erreur)
+                    erreurs.append(f"Ligne {int(idx)+2}: L\'équipement '{equipement_nom}' n\'est pas dans la localisation '{localisation_nom}'")
                     continue
-                
-                print(f"✅ Localisation vérifiée: {equipement.localisation.nom}")
                 
                 # Vérifier la périodicité
                 periodicites_valides = ['semaine', '2_semaines', 'mois', '2_mois', '6_mois', '1_an', '2_ans']
                 if periodicite not in periodicites_valides:
-                    erreur = f"Ligne {idx+2}: Périodicité '{periodicite}' invalide. Valeurs autorisées: {', '.join(periodicites_valides)}"
-                    print(f"❌ {erreur}")
-                    erreurs.append(erreur)
+                    erreurs.append(f"Ligne {int(idx)+2}: Périodicité '{periodicite}' invalide. Valeurs autorisées: {', '.join(periodicites_valides)}")
                     continue
-                
-                print(f"✅ Périodicité valide: {periodicite}")
                 
                 # Créer la maintenance sans date
                 maintenance = Maintenance(
@@ -2229,36 +2133,23 @@ def import_maintenances():
                     periodicite=periodicite,
                     date_premiere=None,
                     date_prochaine=None,
-                    date_importee=True,  # Marquer comme importée sans date
-                    equipement_nom_original=equipement_nom,  # Garder le nom original
-                    localisation_nom_original=localisation_nom  # Garder la localisation originale
+                    date_importee=True  # Marquer comme importée sans date
                 )
                 
                 db.session.add(maintenance)
                 maintenances_importees += 1
-                print(f"✅ Maintenance ajoutée: {titre}")
                 
             except Exception as e:
-                erreur = f"Ligne {idx+2}: Erreur - {str(e)}"
-                print(f"❌ {erreur}")
-                erreurs.append(erreur)
-                # Rollback et recréer la session si nécessaire
-                try:
-                    db.session.rollback()
-                except:
-                    pass
+                erreurs.append(f"Ligne {int(idx)+2}: Erreur - {str(e)}")
                 continue
-        
-        print(f"📊 Traitement terminé: {maintenances_importees} maintenances à importer, {len(erreurs)} erreurs")
         
         if erreurs:
             db.session.rollback()
-            print("❌ Rollback à cause des erreurs")
             flash('Erreurs lors de l\'import :<br>' + '<br>'.join(erreurs), 'danger')
             return redirect(url_for('parametres'))
         
         db.session.commit()
-        print(f"✅ Commit réussi: {maintenances_importees} maintenances importées")
+        print(f"✅ Import réussi: {maintenances_importees} maintenances importées")
         flash(f'Importation réussie ! {maintenances_importees} maintenances importées sans date de début.', 'success')
         
     except Exception as e:
@@ -2268,201 +2159,14 @@ def import_maintenances():
         traceback.print_exc()
         flash(f'Erreur lors de l\'import : {e}', 'danger')
     
-    print("🏁 === FIN IMPORT MAINTENANCES ===")
+    print("🏁 Fin import_maintenances()")
     return redirect(url_for('parametres'))
-
-def migrate_maintenance_titre():
-    """Migration pour augmenter la taille du champ titre et ajouter les nouveaux champs"""
-    try:
-        with db.engine.connect() as conn:
-            # Détecter le type de base de données
-            is_sqlite = 'sqlite' in str(db.engine.url)
-            print(f"🔍 Type de base détecté: {'SQLite' if is_sqlite else 'PostgreSQL'}")
-            
-            if is_sqlite:
-                # Migration SQLite
-                print("🔧 Migration SQLite...")
-                
-                # Vérifier les colonnes existantes
-                result = conn.execute(text("PRAGMA table_info(maintenance)"))
-                columns = [row[1] for row in result.fetchall()]
-                print(f"📊 Colonnes existantes: {columns}")
-                
-                # Ajouter les nouveaux champs s'ils n'existent pas
-                if 'equipement_nom_original' not in columns:
-                    print("🔧 Ajout du champ equipement_nom_original...")
-                    conn.execute(text("ALTER TABLE maintenance ADD COLUMN equipement_nom_original TEXT"))
-                
-                if 'localisation_nom_original' not in columns:
-                    print("🔧 Ajout du champ localisation_nom_original...")
-                    conn.execute(text("ALTER TABLE maintenance ADD COLUMN localisation_nom_original TEXT"))
-                
-                print("✅ Migration SQLite réussie !")
-                
-            else:
-                # Migration PostgreSQL
-                print("🔧 Migration PostgreSQL...")
-                
-                # Vérifier la taille actuelle du champ titre
-                result = conn.execute(text("""
-                    SELECT character_maximum_length 
-                    FROM information_schema.columns 
-                    WHERE table_name = 'maintenance' AND column_name = 'titre';
-                """))
-                
-                current_length = result.scalar()
-                print(f"📊 Taille actuelle du champ titre: {current_length}")
-                
-                if current_length != 500:
-                    # Modifier la taille du champ
-                    print("🔧 Modification de la taille du champ titre...")
-                    conn.execute(text("""
-                        ALTER TABLE maintenance 
-                        ALTER COLUMN titre TYPE VARCHAR(500);
-                    """))
-                    print("✅ Migration du titre réussie !")
-                
-                # Vérifier si les nouveaux champs existent
-                result = conn.execute(text("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = 'maintenance' AND column_name IN ('equipement_nom_original', 'localisation_nom_original');
-                """))
-                
-                existing_columns = [row[0] for row in result.fetchall()]
-                
-                if 'equipement_nom_original' not in existing_columns:
-                    print("🔧 Ajout du champ equipement_nom_original...")
-                    conn.execute(text("""
-                        ALTER TABLE maintenance 
-                        ADD COLUMN equipement_nom_original VARCHAR(200);
-                    """))
-                
-                if 'localisation_nom_original' not in existing_columns:
-                    print("🔧 Ajout du champ localisation_nom_original...")
-                    conn.execute(text("""
-                        ALTER TABLE maintenance 
-                        ADD COLUMN localisation_nom_original VARCHAR(200);
-                    """))
-                
-                # Modifier equipement_id pour permettre NULL
-                try:
-                    conn.execute(text("""
-                        ALTER TABLE maintenance 
-                        ALTER COLUMN equipement_id DROP NOT NULL;
-                    """))
-                except Exception as e:
-                    print(f"⚠️ equipement_id peut déjà être NULL: {e}")
-                
-                print("✅ Migration PostgreSQL réussie !")
-            
-            conn.commit()
-            print("✅ Migration complète réussie !")
-            return True
-            
-    except Exception as e:
-        print(f"❌ Erreur lors de la migration: {e}")
-        return False
 
 # Test route pour vérifier que la fonction est accessible
 @app.route('/test-import-maintenances')
 @login_required
 def test_import_maintenances():
     return "Route import_maintenances accessible !"
-
-# Route de test pour vérifier les données
-@app.route('/test-maintenances-data')
-@login_required
-def test_maintenances_data():
-    equipements = Equipement.query.all()
-    localisations = Localisation.query.all()
-    
-    result = {
-        'equipements': [{'id': e.id, 'nom': e.nom, 'localisation': e.localisation.nom} for e in equipements],
-        'localisations': [{'id': l.id, 'nom': l.nom, 'site': l.site.nom} for l in localisations],
-        'maintenances_count': Maintenance.query.count()
-    }
-    
-    return result
-
-# Route de diagnostic pour les équipements
-@app.route('/fix-database')
-@login_required
-def fix_database():
-    """Route temporaire pour corriger la base de données"""
-    try:
-        with db.engine.connect() as conn:
-            # Détecter le type de base de données
-            is_sqlite = 'sqlite' in str(db.engine.url)
-            print(f"🔍 Type de base détecté: {'SQLite' if is_sqlite else 'PostgreSQL'}")
-            
-            if is_sqlite:
-                # Migration SQLite
-                result = conn.execute(text("PRAGMA table_info(maintenance)"))
-                columns = [row[1] for row in result.fetchall()]
-                
-                if 'equipement_nom_original' not in columns:
-                    conn.execute(text("ALTER TABLE maintenance ADD COLUMN equipement_nom_original TEXT"))
-                
-                if 'localisation_nom_original' not in columns:
-                    conn.execute(text("ALTER TABLE maintenance ADD COLUMN localisation_nom_original TEXT"))
-                
-            else:
-                # Migration PostgreSQL
-                result = conn.execute(text("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = 'maintenance' AND column_name IN ('equipement_nom_original', 'localisation_nom_original');
-                """))
-                
-                existing_columns = [row[0] for row in result.fetchall()]
-                
-                if 'equipement_nom_original' not in existing_columns:
-                    conn.execute(text("""
-                        ALTER TABLE maintenance 
-                        ADD COLUMN equipement_nom_original VARCHAR(200);
-                    """))
-                
-                if 'localisation_nom_original' not in existing_columns:
-                    conn.execute(text("""
-                        ALTER TABLE maintenance 
-                        ADD COLUMN localisation_nom_original VARCHAR(200);
-                    """))
-                
-                # Modifier equipement_id pour permettre NULL
-                try:
-                    conn.execute(text("""
-                        ALTER TABLE maintenance 
-                        ALTER COLUMN equipement_id DROP NOT NULL;
-                    """))
-                except Exception as e:
-                    print(f"⚠️ equipement_id peut déjà être NULL: {e}")
-            
-            conn.commit()
-            return jsonify({"success": True, "message": "Base de données corrigée avec succès!"})
-            
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)})
-
-@app.route('/debug-equipements')
-@login_required
-def debug_equipements():
-    equipements = Equipement.query.all()
-    result = {
-        'total': len(equipements),
-        'equipements': []
-    }
-    
-    for eq in equipements:
-        result['equipements'].append({
-            'id': eq.id,
-            'nom': eq.nom,
-            'nom_lower': eq.nom.lower().strip(),
-            'localisation': eq.localisation.nom,
-            'localisation_lower': eq.localisation.nom.lower().strip()
-        })
-    
-    return result
 
 @app.route('/parametres/gerer-doublons-pieces', methods=['GET', 'POST'])
 @login_required
@@ -2595,10 +2299,6 @@ with app.app_context():
         print("🔍 Initialisation de la base de données...")
         db.create_all()
         print("✅ Tables créées avec succès!")
-        
-        # Migration du champ titre de maintenance
-        print("🔧 Vérification de la migration du champ titre...")
-        migrate_maintenance_titre()
         
         # Créer un utilisateur admin par défaut si aucun n'existe
         admin = User.query.filter_by(username='admin').first()
