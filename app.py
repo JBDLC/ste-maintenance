@@ -456,23 +456,40 @@ def ajouter_piece():
         else:
             lieu_stockage_id = int(lieu_stockage_id) if lieu_stockage_id else None
             
+        equipement_id = request.form.get('equipement_id')
+        if equipement_id == '':
+            equipement_id = None
+        else:
+            equipement_id = int(equipement_id) if equipement_id else None
+            
         piece = Piece(
-            reference_ste=request.form['reference_ste'],
-            reference_magasin=request.form['reference_magasin'],
-            item=request.form['item'],
-            description=request.form['description'],
+            reference_ste=request.form['reference'],
+            reference_magasin=request.form.get('marque', ''),
+            item=request.form['designation'],
+            description=request.form.get('description', ''),
             lieu_stockage_id=lieu_stockage_id,
-            quantite_stock=int(request.form['quantite_stock']),
-            stock_mini=int(request.form['stock_mini']),
-            stock_maxi=int(request.form['stock_maxi'])
+            quantite_stock=int(request.form.get('stock_actuel', 0)),
+            stock_mini=int(request.form.get('stock_minimum', 0)),
+            stock_maxi=int(request.form.get('stock_actuel', 0))  # Utilise stock_actuel comme maxi par défaut
         )
         db.session.add(piece)
         db.session.commit()
+        
+        # Si un équipement est sélectionné, créer la relation
+        if equipement_id:
+            piece_equipement = PieceEquipement(
+                equipement_id=equipement_id,
+                piece_id=piece.id
+            )
+            db.session.add(piece_equipement)
+            db.session.commit()
+        
         flash('Pièce ajoutée avec succès!', 'success')
         return redirect(url_for('pieces'))
     
     lieux_stockage = LieuStockage.query.all()
-    return render_template('ajouter_piece.html', lieux_stockage=lieux_stockage)
+    equipements = Equipement.query.all()
+    return render_template('ajouter_piece.html', lieux_stockage=lieux_stockage, equipements=equipements)
 
 @app.route('/maintenances')
 @login_required
@@ -2130,7 +2147,8 @@ def modifier_piece(piece_id):
         return redirect(url_for('pieces'))
     # GET: afficher le formulaire pré-rempli (optionnel)
     lieux_stockage = LieuStockage.query.all()
-    return render_template('ajouter_piece.html', piece=piece, lieux_stockage=lieux_stockage, edition=True)
+    equipements = Equipement.query.all()
+    return render_template('ajouter_piece.html', piece=piece, lieux_stockage=lieux_stockage, equipements=equipements, edition=True)
 
 # Initialisation automatique au démarrage de l'application
 with app.app_context():
