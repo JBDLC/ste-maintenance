@@ -2159,10 +2159,29 @@ def import_maintenances():
                 # Trouver l'équipement
                 equipement = Equipement.query.filter_by(nom=equipement_nom).first()
                 if not equipement:
-                    erreur = f"Ligne {idx+2}: Équipement '{equipement_nom}' introuvable"
-                    print(f"❌ {erreur}")
-                    erreurs.append(erreur)
-                    continue
+                    # Essayer de trouver avec une recherche insensible à la casse
+                    equipements_tous = Equipement.query.all()
+                    equipement_trouve = None
+                    equipements_similaires = []
+                    
+                    for eq in equipements_tous:
+                        if eq.nom.lower().strip() == equipement_nom.lower().strip():
+                            equipement_trouve = eq
+                            break
+                        elif equipement_nom.lower().strip() in eq.nom.lower().strip():
+                            equipements_similaires.append(eq.nom)
+                    
+                    if equipement_trouve:
+                        equipement = equipement_trouve
+                        print(f"✅ Équipement trouvé avec correction de casse: '{equipement_trouve.nom}' (recherché: '{equipement_nom}')")
+                    else:
+                        erreur = f"Ligne {idx+2}: Équipement '{equipement_nom}' introuvable"
+                        if equipements_similaires:
+                            erreur += f" (similaires trouvés: {', '.join(equipements_similaires[:5])})"
+                        print(f"❌ {erreur}")
+                        print(f"🔍 Équipements disponibles: {[eq.nom for eq in equipements_tous[:10]]}")
+                        erreurs.append(erreur)
+                        continue
                 
                 print(f"✅ Équipement trouvé: {equipement.nom} (ID: {equipement.id})")
                 
@@ -2283,6 +2302,27 @@ def test_maintenances_data():
         'localisations': [{'id': l.id, 'nom': l.nom, 'site': l.site.nom} for l in localisations],
         'maintenances_count': Maintenance.query.count()
     }
+    
+    return result
+
+# Route de diagnostic pour les équipements
+@app.route('/debug-equipements')
+@login_required
+def debug_equipements():
+    equipements = Equipement.query.all()
+    result = {
+        'total': len(equipements),
+        'equipements': []
+    }
+    
+    for eq in equipements:
+        result['equipements'].append({
+            'id': eq.id,
+            'nom': eq.nom,
+            'nom_lower': eq.nom.lower().strip(),
+            'localisation': eq.localisation.nom,
+            'localisation_lower': eq.localisation.nom.lower().strip()
+        })
     
     return result
 
