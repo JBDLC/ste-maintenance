@@ -1287,10 +1287,31 @@ def envoyer_rapport():
 @app.route('/piece/supprimer/<int:piece_id>', methods=['POST'])
 @login_required
 def supprimer_piece(piece_id):
-    piece = Piece.query.get_or_404(piece_id)
-    db.session.delete(piece)
-    db.session.commit()
-    flash('Pièce supprimée avec succès.', 'success')
+    try:
+        piece = Piece.query.get_or_404(piece_id)
+        
+        # Supprimer d'abord les relations pour éviter les erreurs de clés étrangères
+        
+        # 1. Supprimer les mouvements de pièces
+        MouvementPiece.query.filter_by(piece_id=piece_id).delete()
+        
+        # 2. Supprimer les pièces utilisées dans les interventions
+        PieceUtilisee.query.filter_by(piece_id=piece_id).delete()
+        
+        # 3. Supprimer les associations pièce-équipement
+        PieceEquipement.query.filter_by(piece_id=piece_id).delete()
+        
+        # 4. Maintenant on peut supprimer la pièce
+        db.session.delete(piece)
+        db.session.commit()
+        
+        flash('Pièce supprimée avec succès.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erreur lors de la suppression : {str(e)}', 'danger')
+        print(f"Erreur suppression pièce {piece_id}: {e}")
+    
     return redirect(url_for('pieces'))
 
 @app.route('/lieu_stockage/supprimer/<int:lieu_stockage_id>', methods=['POST'])
