@@ -2045,6 +2045,11 @@ def import_donnees(entite):
 def import_maintenances():
     """Import spécial pour les maintenances sans date de début"""
     print("🔍 Début import_maintenances()")
+    print(f"🔍 Méthode: {request.method}")
+    print(f"🔍 Fichiers reçus: {list(request.files.keys())}")
+    print(f"🔍 URL: {request.url}")
+    print(f"🔍 User: {current_user.username if current_user.is_authenticated else 'Non connecté'}")
+    
     file = request.files.get('fichier')
     if not file or not file.filename:
         print("❌ Aucun fichier envoyé")
@@ -2052,6 +2057,8 @@ def import_maintenances():
         return redirect(url_for('parametres'))
     
     print(f"📁 Fichier reçu: {file.filename}")
+    print(f"📁 Taille fichier: {len(file.read())} bytes")
+    file.seek(0)  # Remettre le curseur au début
     
     try:
         filename = file.filename.lower()
@@ -2154,6 +2161,12 @@ def import_maintenances():
     
     print("🏁 Fin import_maintenances()")
     return redirect(url_for('parametres'))
+
+# Test route pour vérifier que la fonction est accessible
+@app.route('/test-import-maintenances')
+@login_required
+def test_import_maintenances():
+    return "Route import_maintenances accessible !"
 
 @app.route('/parametres/gerer-doublons-pieces', methods=['GET', 'POST'])
 @login_required
