@@ -2386,6 +2386,64 @@ def test_maintenances_data():
     return result
 
 # Route de diagnostic pour les équipements
+@app.route('/fix-database')
+@login_required
+def fix_database():
+    """Route temporaire pour corriger la base de données"""
+    try:
+        with db.engine.connect() as conn:
+            # Détecter le type de base de données
+            is_sqlite = 'sqlite' in str(db.engine.url)
+            print(f"🔍 Type de base détecté: {'SQLite' if is_sqlite else 'PostgreSQL'}")
+            
+            if is_sqlite:
+                # Migration SQLite
+                result = conn.execute(text("PRAGMA table_info(maintenance)"))
+                columns = [row[1] for row in result.fetchall()]
+                
+                if 'equipement_nom_original' not in columns:
+                    conn.execute(text("ALTER TABLE maintenance ADD COLUMN equipement_nom_original TEXT"))
+                
+                if 'localisation_nom_original' not in columns:
+                    conn.execute(text("ALTER TABLE maintenance ADD COLUMN localisation_nom_original TEXT"))
+                
+            else:
+                # Migration PostgreSQL
+                result = conn.execute(text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'maintenance' AND column_name IN ('equipement_nom_original', 'localisation_nom_original');
+                """))
+                
+                existing_columns = [row[0] for row in result.fetchall()]
+                
+                if 'equipement_nom_original' not in existing_columns:
+                    conn.execute(text("""
+                        ALTER TABLE maintenance 
+                        ADD COLUMN equipement_nom_original VARCHAR(200);
+                    """))
+                
+                if 'localisation_nom_original' not in existing_columns:
+                    conn.execute(text("""
+                        ALTER TABLE maintenance 
+                        ADD COLUMN localisation_nom_original VARCHAR(200);
+                    """))
+                
+                # Modifier equipement_id pour permettre NULL
+                try:
+                    conn.execute(text("""
+                        ALTER TABLE maintenance 
+                        ALTER COLUMN equipement_id DROP NOT NULL;
+                    """))
+                except Exception as e:
+                    print(f"⚠️ equipement_id peut déjà être NULL: {e}")
+            
+            conn.commit()
+            return jsonify({"success": True, "message": "Base de données corrigée avec succès!"})
+            
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
 @app.route('/debug-equipements')
 @login_required
 def debug_equipements():
