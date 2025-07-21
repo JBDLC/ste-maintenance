@@ -30,10 +30,34 @@
         <tbody>
             {% if maintenances_co6 %}
                 {% for maintenance in maintenances_co6 %}
-                <tr class="{{ 'table-warning' if maintenance.date_importee and not maintenance.date_premiere else '' }}">
-                    <td>{{ maintenance.equipement.localisation.nom if maintenance.equipement and maintenance.equipement.localisation else '-' }}</td>
-                    <td>{{ maintenance.equipement.nom if maintenance.equipement else '-' }}</td>
-                    <td>{{ maintenance.equipement.description if maintenance.equipement and maintenance.equipement.description else 'Aucune description' }}</td>
+                <tr class="{{ 'table-danger' if not maintenance.equipement_id else 'table-warning' if maintenance.date_importee and not maintenance.date_premiere else '' }}">
+                    <td>
+                        {% if maintenance.equipement and maintenance.equipement.localisation %}
+                            {{ maintenance.equipement.localisation.nom }}
+                        {% elif maintenance.localisation_nom_original %}
+                            <span class="text-danger">{{ maintenance.localisation_nom_original }} <i class="fas fa-exclamation-triangle" title="Localisation non trouvée"></i></span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if maintenance.equipement %}
+                            {{ maintenance.equipement.nom }}
+                        {% elif maintenance.equipement_nom_original %}
+                            <span class="text-danger">{{ maintenance.equipement_nom_original }} <i class="fas fa-exclamation-triangle" title="Équipement non trouvé - à assigner"></i></span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if maintenance.equipement and maintenance.equipement.description %}
+                            {{ maintenance.equipement.description }}
+                        {% elif not maintenance.equipement_id %}
+                            <span class="text-muted">Équipement à assigner</span>
+                        {% else %}
+                            Aucune description
+                        {% endif %}
+                    </td>
                     <td>{{ maintenance.titre }}</td>
                     <td>{{ maintenance.periodicite or '-' }}</td>
                     <td>
@@ -96,10 +120,34 @@
         <tbody>
             {% if maintenances_co7 %}
                 {% for maintenance in maintenances_co7 %}
-                <tr class="{{ 'table-warning' if maintenance.date_importee and not maintenance.date_premiere else '' }}">
-                    <td>{{ maintenance.equipement.localisation.nom if maintenance.equipement and maintenance.equipement.localisation else '-' }}</td>
-                    <td>{{ maintenance.equipement.nom if maintenance.equipement else '-' }}</td>
-                    <td>{{ maintenance.equipement.description if maintenance.equipement and maintenance.equipement.description else 'Aucune description' }}</td>
+                <tr class="{{ 'table-danger' if not maintenance.equipement_id else 'table-warning' if maintenance.date_importee and not maintenance.date_premiere else '' }}">
+                    <td>
+                        {% if maintenance.equipement and maintenance.equipement.localisation %}
+                            {{ maintenance.equipement.localisation.nom }}
+                        {% elif maintenance.localisation_nom_original %}
+                            <span class="text-danger">{{ maintenance.localisation_nom_original }} <i class="fas fa-exclamation-triangle" title="Localisation non trouvée"></i></span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if maintenance.equipement %}
+                            {{ maintenance.equipement.nom }}
+                        {% elif maintenance.equipement_nom_original %}
+                            <span class="text-danger">{{ maintenance.equipement_nom_original }} <i class="fas fa-exclamation-triangle" title="Équipement non trouvé - à assigner"></i></span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if maintenance.equipement and maintenance.equipement.description %}
+                            {{ maintenance.equipement.description }}
+                        {% elif not maintenance.equipement_id %}
+                            <span class="text-muted">Équipement à assigner</span>
+                        {% else %}
+                            Aucune description
+                        {% endif %}
+                    </td>
                     <td>{{ maintenance.titre }}</td>
                     <td>{{ maintenance.periodicite or '-' }}</td>
                     <td>

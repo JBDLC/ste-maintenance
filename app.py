@@ -209,7 +209,7 @@ class PieceEquipement(db.Model):
 
 class Maintenance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    equipement_id = db.Column(db.Integer, db.ForeignKey('equipement.id'), nullable=False)
+    equipement_id = db.Column(db.Integer, db.ForeignKey('equipement.id'), nullable=True)  # Peut être NULL pour les maintenances temporaires
     titre = db.Column(db.String(500), nullable=False)  # Augmenté de 100 à 500 caractères
     description = db.Column(db.Text)
     periodicite = db.Column(db.String(20), nullable=False)  # semaine, 2_semaines, mois, 2_mois, 6_mois, 1_an, 2_ans
@@ -217,6 +217,8 @@ class Maintenance(db.Model):
     date_prochaine = db.Column(db.Date, nullable=True)  # Peut être NULL pour les maintenances importées
     active = db.Column(db.Boolean, default=True)
     date_importee = db.Column(db.Boolean, default=False)  # Marque les maintenances importées sans date
+    equipement_nom_original = db.Column(db.String(200), nullable=True)  # Nom original de l'équipement depuis l'import
+    localisation_nom_original = db.Column(db.String(200), nullable=True)  # Nom original de la localisation depuis l'import
     interventions = db.relationship('Intervention', backref='maintenance', lazy=True, cascade='all, delete-orphan')
 
 class Intervention(db.Model):
@@ -2158,6 +2160,8 @@ def import_maintenances():
                 
                 # Trouver l'équipement
                 equipement = Equipement.query.filter_by(nom=equipement_nom).first()
+                equipement_trouve_avec_correction = False
+                
                 if not equipement:
                     # Essayer de trouver avec une recherche insensible à la casse
                     equipements_tous = Equipement.query.all()
@@ -2173,14 +2177,28 @@ def import_maintenances():
                     
                     if equipement_trouve:
                         equipement = equipement_trouve
+                        equipement_trouve_avec_correction = True
                         print(f"✅ Équipement trouvé avec correction de casse: '{equipement_trouve.nom}' (recherché: '{equipement_nom}')")
                     else:
-                        erreur = f"Ligne {idx+2}: Équipement '{equipement_nom}' introuvable"
+                        print(f"⚠️ Équipement '{equipement_nom}' introuvable - création d'une maintenance temporaire")
                         if equipements_similaires:
-                            erreur += f" (similaires trouvés: {', '.join(equipements_similaires[:5])})"
-                        print(f"❌ {erreur}")
-                        print(f"🔍 Équipements disponibles: {[eq.nom for eq in equipements_tous[:10]]}")
-                        erreurs.append(erreur)
+                            print(f"🔍 Similaires trouvés: {', '.join(equipements_similaires[:5])}")
+                        
+                        # Créer une maintenance temporaire sans équipement
+                        maintenance = Maintenance(
+                            equipement_id=None,  # Équipement temporairement NULL
+                            titre=titre,
+                            periodicite=periodicite,
+                            date_premiere=None,
+                            date_prochaine=None,
+                            date_importee=True,
+                            equipement_nom_original=equipement_nom,  # Garder le nom original
+                            localisation_nom_original=localisation_nom  # Garder la localisation originale
+                        )
+                        
+                        db.session.add(maintenance)
+                        maintenances_importees += 1
+                        print(f"⚠️ Maintenance temporaire créée: {titre} (équipement à assigner: {equipement_nom})")
                         continue
                 
                 print(f"✅ Équipement trouvé: {equipement.nom} (ID: {equipement.id})")
@@ -2211,7 +2229,9 @@ def import_maintenances():
                     periodicite=periodicite,
                     date_premiere=None,
                     date_prochaine=None,
-                    date_importee=True  # Marquer comme importée sans date
+                    date_importee=True,  # Marquer comme importée sans date
+                    equipement_nom_original=equipement_nom,  # Garder le nom original
+                    localisation_nom_original=localisation_nom  # Garder la localisation originale
                 )
                 
                 db.session.add(maintenance)
@@ -2267,17 +2287,46 @@ def migrate_maintenance_titre():
             
             if current_length == 500:
                 print("✅ Le champ titre est déjà à la bonne taille (500)")
-                return True
+            else:
+                # Modifier la taille du champ
+                print("🔧 Modification de la taille du champ titre...")
+                conn.execute(text("""
+                    ALTER TABLE maintenance 
+                    ALTER COLUMN titre TYPE VARCHAR(500);
+                """))
+                print("✅ Migration du titre réussie !")
             
-            # Modifier la taille du champ
-            print("🔧 Modification de la taille du champ titre...")
+            # Vérifier si les nouveaux champs existent
+            result = conn.execute(text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name = 'maintenance' AND column_name IN ('equipement_nom_original', 'localisation_nom_original');
+            """))
+            
+            existing_columns = [row[0] for row in result.fetchall()]
+            
+            if 'equipement_nom_original' not in existing_columns:
+                print("🔧 Ajout du champ equipement_nom_original...")
+                conn.execute(text("""
+                    ALTER TABLE maintenance 
+                    ADD COLUMN equipement_nom_original VARCHAR(200);
+                """))
+            
+            if 'localisation_nom_original' not in existing_columns:
+                print("🔧 Ajout du champ localisation_nom_original...")
+                conn.execute(text("""
+                    ALTER TABLE maintenance 
+                    ADD COLUMN localisation_nom_original VARCHAR(200);
+                """))
+            
+            # Modifier equipement_id pour permettre NULL
             conn.execute(text("""
                 ALTER TABLE maintenance 
-                ALTER COLUMN titre TYPE VARCHAR(500);
+                ALTER COLUMN equipement_id DROP NOT NULL;
             """))
             
             conn.commit()
-            print("✅ Migration réussie ! Le champ titre peut maintenant contenir jusqu'à 500 caractères")
+            print("✅ Migration complète réussie !")
             return True
             
     except Exception as e:
