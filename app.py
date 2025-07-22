@@ -1156,13 +1156,13 @@ def envoyer_rapport():
             print(f"  - Intervention {interv.id}: {interv.maintenance.titre} le {interv.date_planifiee}")
         
         # Si pas d'interventions, récupérer les maintenances actives qui devraient avoir des interventions cette semaine
+        maintenances_semaine = []
         if not interventions:
             print("🔍 Aucune intervention trouvée, récupération des maintenances actives...")
             maintenances_actives = Maintenance.query.filter_by(active=True).all()
             print(f"🔍 {len(maintenances_actives)} maintenances actives trouvées")
             
             # Filtrer les maintenances qui devraient avoir des interventions cette semaine
-            maintenances_semaine = []
             for maintenance in maintenances_actives:
                 try:
                     # Si la maintenance a une date de première intervention
@@ -1247,7 +1247,7 @@ def envoyer_rapport():
         # Si pas d'interventions, utiliser les maintenances trouvées
         if not interventions:
             print("🔍 Aucune intervention trouvée, utilisation des maintenances calculées...")
-            maintenances_a_afficher = maintenances_semaine if 'maintenances_semaine' in locals() else []
+            maintenances_a_afficher = maintenances_semaine
             
             for maintenance in maintenances_a_afficher:
                 try:
