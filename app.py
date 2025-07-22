@@ -1133,158 +1133,213 @@ def test_email():
 @app.route('/calendrier/envoyer_rapport', methods=['POST'])
 @login_required
 def envoyer_rapport():
-    # Récupérer la semaine actuellement affichée dans le calendrier
-    date_str = request.args.get('date')
-    if date_str:
-        date_cible = datetime.strptime(date_str, '%Y-%m-%d').date()
-    else:
-        date_cible = datetime.now().date()
-    
-    # Calculer le lundi et dimanche de la semaine cible (même logique que le calendrier)
-    lundi = date_cible - timedelta(days=date_cible.weekday())
-    dimanche = lundi + timedelta(days=6)
-    
-    # Récupérer les interventions de la semaine
-    interventions = Intervention.query.filter(
-        Intervention.date_planifiee >= lundi,
-        Intervention.date_planifiee <= dimanche
-    ).all()
-    # Récupérer les mouvements de la semaine
-    mouvements = MouvementPiece.query.filter(
-        MouvementPiece.date >= datetime.combine(lundi, datetime.min.time()),
-        MouvementPiece.date <= datetime.combine(dimanche, datetime.max.time())
-    ).all()
-    # Récupérer l'email de destination
-    email_param = Parametre.query.filter_by(cle='email_rapport').first()
-    email_dest = email_param.valeur if email_param else None
-    if not email_dest:
-        flash("Aucune adresse email de rapport n'est configurée.", 'danger')
-        return redirect(url_for('calendrier'))
-    # Charger la config SMTP dynamique
-    smtp_user = charger_config_smtp()
-    # S'assurer que la configuration est appliquée
-    charger_config_smtp()
-    # Générer le PDF avec FPDF
-    pdf = FPDF()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    pdf.add_page()
-    # Logo si présent
     try:
-        pdf.image('static/logo.png', x=10, y=8, w=25)
-    except:
-        pass
-    pdf.set_font('Arial', 'B', 16)
-    pdf.cell(0, 10, f'Rapport de maintenance - Semaine {lundi.isocalendar()[1]}', ln=1, align='C')
-    pdf.set_font('Arial', '', 12)
-    pdf.cell(0, 8, f'Période du {lundi.strftime("%d/%m/%Y")} au {dimanche.strftime("%d/%m/%Y")}', ln=1, align='C')
-    pdf.ln(5)
-    pdf.set_font('Arial', 'B', 14)
-    pdf.cell(0, 10, 'Maintenances de la semaine', ln=1)
-    pdf.set_font('Arial', 'B', 10)
-    pdf.cell(50, 8, 'Titre', 1)
-    pdf.cell(35, 8, 'Équipement', 1)
-    pdf.cell(25, 8, 'Statut', 1)
-    pdf.cell(50, 8, 'Commentaire', 1)
-    pdf.cell(0, 8, 'Pièces utilisées', 1, ln=1)
-    pdf.set_font('Arial', '', 10)
-    for intervention in interventions:
-        # Préparer les contenus
-        titre = intervention.maintenance.titre or ''
-        equip = intervention.maintenance.equipement.nom or ''
-        statut = 'Réalisée' if intervention.statut == 'realisee' else 'Non réalisée'
-        commentaire = intervention.commentaire or '-'
-        if intervention.pieces_utilisees:
-            pieces = ', '.join([
-                f"{(pu.piece.item if hasattr(pu, 'piece') and pu.piece else Piece.query.get(pu.piece_id).item)} ({pu.quantite})"
-                for pu in intervention.pieces_utilisees
-            ])
+        # Récupérer la semaine actuellement affichée dans le calendrier
+        date_str = request.args.get('date')
+        if date_str:
+            date_cible = datetime.strptime(date_str, '%Y-%m-%d').date()
         else:
-            pieces = 'Aucune'
-        # Calculer la hauteur max de la ligne
-        y_before = pdf.get_y()
-        x = pdf.get_x()
-        w_titre, w_equip, w_statut, w_com, w_pieces = 50, 35, 25, 50, 40
-        h = 8
-        # multi_cell pour chaque champ, on retient la hauteur max
-        pdf.multi_cell(w_titre, h, titre, border=1, align='L', max_line_height=pdf.font_size)
-        y_after = pdf.get_y()
-        max_h = y_after - y_before
-        pdf.set_xy(x + w_titre, y_before)
-        pdf.multi_cell(w_equip, h, equip, border=1, align='L', max_line_height=pdf.font_size)
-        max_h = max(max_h, pdf.get_y() - y_before)
-        pdf.set_xy(x + w_titre + w_equip, y_before)
-        pdf.multi_cell(w_statut, h, statut, border=1, align='L', max_line_height=pdf.font_size)
-        max_h = max(max_h, pdf.get_y() - y_before)
-        pdf.set_xy(x + w_titre + w_equip + w_statut, y_before)
-        pdf.multi_cell(w_com, h, commentaire, border=1, align='L', max_line_height=pdf.font_size)
-        max_h = max(max_h, pdf.get_y() - y_before)
-        pdf.set_xy(x + w_titre + w_equip + w_statut + w_com, y_before)
-        pdf.multi_cell(w_pieces, h, pieces, border=1, align='L', max_line_height=pdf.font_size)
-        max_h = max(max_h, pdf.get_y() - y_before)
-        # Passer à la ligne suivante
-        pdf.set_y(y_before + max_h)
-    # Nouvelle page pour les mouvements de stock
-    pdf.add_page()
-    pdf.set_font('Arial', 'B', 14)
-    pdf.cell(0, 10, 'Mouvements de stock de la semaine', ln=1)
-    pdf.set_font('Arial', 'B', 10)
-    pdf.cell(30, 8, 'Date', 1)
-    pdf.cell(40, 8, 'Pièce', 1)
-    pdf.cell(20, 8, 'Type', 1)
-    pdf.cell(20, 8, 'Quantité', 1)
-    pdf.cell(40, 8, 'Motif', 1)
-    pdf.cell(0, 8, 'Intervention', 1, ln=1)
-    pdf.set_font('Arial', '', 10)
-    for mouvement in mouvements:
-        y_before = pdf.get_y()
-        x = pdf.get_x()
-        w_date, w_piece, w_type, w_qte, w_motif, w_interv = 30, 40, 20, 20, 40, 40
-        h = 8
-        date = mouvement.date.strftime('%d/%m/%Y')
-        piece = mouvement.piece.item[:40]
-        type_mv = mouvement.type_mouvement.title()
-        qte = str(mouvement.quantite)
-        motif = (mouvement.motif or '-')[:40]
-        interv = mouvement.intervention if hasattr(mouvement, 'intervention') and mouvement.intervention else (Intervention.query.get(mouvement.intervention_id) if mouvement.intervention_id else None)
-        txt = f"{interv.maintenance.titre[:15]}" if interv else '-'
-        # multi_cell pour chaque champ, on retient la hauteur max
-        pdf.multi_cell(w_date, h, date, border=1, align='L', max_line_height=pdf.font_size)
-        y_after = pdf.get_y()
-        max_h = y_after - y_before
-        pdf.set_xy(x + w_date, y_before)
-        pdf.multi_cell(w_piece, h, piece, border=1, align='L', max_line_height=pdf.font_size)
-        max_h = max(max_h, pdf.get_y() - y_before)
-        pdf.set_xy(x + w_date + w_piece, y_before)
-        pdf.multi_cell(w_type, h, type_mv, border=1, align='L', max_line_height=pdf.font_size)
-        max_h = max(max_h, pdf.get_y() - y_before)
-        pdf.set_xy(x + w_date + w_piece + w_type, y_before)
-        pdf.multi_cell(w_qte, h, qte, border=1, align='L', max_line_height=pdf.font_size)
-        max_h = max(max_h, pdf.get_y() - y_before)
-        pdf.set_xy(x + w_date + w_piece + w_type + w_qte, y_before)
-        pdf.multi_cell(w_motif, h, motif, border=1, align='L', max_line_height=pdf.font_size)
-        max_h = max(max_h, pdf.get_y() - y_before)
-        pdf.set_xy(x + w_date + w_piece + w_type + w_qte + w_motif, y_before)
-        pdf.multi_cell(w_interv, h, txt, border=1, align='L', max_line_height=pdf.font_size)
-        max_h = max(max_h, pdf.get_y() - y_before)
-        pdf.set_y(y_before + max_h)
-    # Sauvegarder le PDF en mémoire
-    pdf_data = pdf.output(dest='S')
-    if isinstance(pdf_data, str):
-        pdf_data = pdf_data.encode('latin1')
-    # Envoyer le mail avec le PDF en pièce jointe
-    msg = Message(
-        subject=f"Rapport de maintenance semaine {lundi.isocalendar()[1]}",
-        recipients=[email_dest],
-        body=f"Veuillez trouver ci-joint le rapport de maintenance de la semaine {lundi.strftime('%d/%m/%Y')} au {dimanche.strftime('%d/%m/%Y')}.",
-        sender=smtp_user
-    )
-    msg.attach(f"rapport_maintenance_semaine_{lundi.isocalendar()[1]}.pdf", "application/pdf", pdf_data)
-    try:
-        mail.send(msg)
-        flash('Rapport envoyé avec succès !', 'success')
+            date_cible = datetime.now().date()
+        
+        # Calculer le lundi et dimanche de la semaine cible (même logique que le calendrier)
+        lundi = date_cible - timedelta(days=date_cible.weekday())
+        dimanche = lundi + timedelta(days=6)
+        
+        # Récupérer les interventions de la semaine
+        interventions = Intervention.query.filter(
+            Intervention.date_planifiee >= lundi,
+            Intervention.date_planifiee <= dimanche
+        ).all()
+        
+        # Récupérer les mouvements de la semaine
+        mouvements = MouvementPiece.query.filter(
+            MouvementPiece.date >= datetime.combine(lundi, datetime.min.time()),
+            MouvementPiece.date <= datetime.combine(dimanche, datetime.max.time())
+        ).all()
+        
+        # Récupérer l'email de destination
+        email_param = Parametre.query.filter_by(cle='email_rapport').first()
+        email_dest = email_param.valeur if email_param else None
+        if not email_dest:
+            flash("Aucune adresse email de rapport n'est configurée.", 'danger')
+            return redirect(url_for('calendrier'))
+        
+        # Charger la config SMTP dynamique
+        charger_config_smtp()
+        
+        # Générer le PDF avec FPDF
+        pdf = FPDF()
+        pdf.set_auto_page_break(auto=True, margin=15)
+        pdf.add_page()
+        
+        # Logo si présent
+        try:
+            pdf.image('static/logo.png', x=10, y=8, w=25)
+        except:
+            pass
+        
+        pdf.set_font('Arial', 'B', 16)
+        pdf.cell(0, 10, f'Rapport de maintenance - Semaine {lundi.isocalendar()[1]}', ln=1, align='C')
+        pdf.set_font('Arial', '', 12)
+        pdf.cell(0, 8, f'Période du {lundi.strftime("%d/%m/%Y")} au {dimanche.strftime("%d/%m/%Y")}', ln=1, align='C')
+        pdf.ln(5)
+        
+        # Section maintenances
+        pdf.set_font('Arial', 'B', 14)
+        pdf.cell(0, 10, 'Maintenances de la semaine', ln=1)
+        pdf.set_font('Arial', 'B', 10)
+        pdf.cell(50, 8, 'Titre', 1)
+        pdf.cell(35, 8, 'Équipement', 1)
+        pdf.cell(25, 8, 'Statut', 1)
+        pdf.cell(50, 8, 'Commentaire', 1)
+        pdf.cell(0, 8, 'Pièces utilisées', 1, ln=1)
+        pdf.set_font('Arial', '', 10)
+        
+        for intervention in interventions:
+            try:
+                # Préparer les contenus avec gestion d'erreurs
+                titre = intervention.maintenance.titre or ''
+                equip = intervention.maintenance.equipement.nom if intervention.maintenance.equipement else 'N/A'
+                statut = 'Réalisée' if intervention.statut == 'realisee' else 'Non réalisée'
+                commentaire = intervention.commentaire or '-'
+                
+                # Gestion des pièces utilisées
+                pieces_list = []
+                for pu in intervention.pieces_utilisees:
+                    try:
+                        piece = pu.piece if hasattr(pu, 'piece') and pu.piece else Piece.query.get(pu.piece_id)
+                        if piece:
+                            piece_name = piece.item or piece.description or f"Pièce {piece.id}"
+                            pieces_list.append(f"{piece_name} ({pu.quantite})")
+                    except:
+                        pieces_list.append(f"Pièce {pu.piece_id} ({pu.quantite})")
+                
+                pieces = ', '.join(pieces_list) if pieces_list else 'Aucune'
+                
+                # Calculer la hauteur max de la ligne
+                y_before = pdf.get_y()
+                x = pdf.get_x()
+                w_titre, w_equip, w_statut, w_com, w_pieces = 50, 35, 25, 50, 40
+                h = 8
+                
+                # multi_cell pour chaque champ, on retient la hauteur max
+                pdf.multi_cell(w_titre, h, titre, border=1, align='L', max_line_height=pdf.font_size)
+                y_after = pdf.get_y()
+                max_h = y_after - y_before
+                
+                pdf.set_xy(x + w_titre, y_before)
+                pdf.multi_cell(w_equip, h, equip, border=1, align='L', max_line_height=pdf.font_size)
+                max_h = max(max_h, pdf.get_y() - y_before)
+                
+                pdf.set_xy(x + w_titre + w_equip, y_before)
+                pdf.multi_cell(w_statut, h, statut, border=1, align='L', max_line_height=pdf.font_size)
+                max_h = max(max_h, pdf.get_y() - y_before)
+                
+                pdf.set_xy(x + w_titre + w_equip + w_statut, y_before)
+                pdf.multi_cell(w_com, h, commentaire, border=1, align='L', max_line_height=pdf.font_size)
+                max_h = max(max_h, pdf.get_y() - y_before)
+                
+                pdf.set_xy(x + w_titre + w_equip + w_statut + w_com, y_before)
+                pdf.multi_cell(w_pieces, h, pieces, border=1, align='L', max_line_height=pdf.font_size)
+                max_h = max(max_h, pdf.get_y() - y_before)
+                
+                # Passer à la ligne suivante
+                pdf.set_y(y_before + max_h)
+            except Exception as e:
+                print(f"Erreur lors du traitement de l'intervention {intervention.id}: {e}")
+                continue
+        
+        # Nouvelle page pour les mouvements de stock
+        if mouvements:
+            pdf.add_page()
+            pdf.set_font('Arial', 'B', 14)
+            pdf.cell(0, 10, 'Mouvements de stock de la semaine', ln=1)
+            pdf.set_font('Arial', 'B', 10)
+            pdf.cell(30, 8, 'Date', 1)
+            pdf.cell(40, 8, 'Pièce', 1)
+            pdf.cell(20, 8, 'Type', 1)
+            pdf.cell(20, 8, 'Quantité', 1)
+            pdf.cell(40, 8, 'Motif', 1)
+            pdf.cell(0, 8, 'Intervention', 1, ln=1)
+            pdf.set_font('Arial', '', 10)
+            
+            for mouvement in mouvements:
+                try:
+                    y_before = pdf.get_y()
+                    x = pdf.get_x()
+                    w_date, w_piece, w_type, w_qte, w_motif, w_interv = 30, 40, 20, 20, 40, 40
+                    h = 8
+                    date = mouvement.date.strftime('%d/%m/%Y')
+                    piece = mouvement.piece.item[:40] if mouvement.piece and mouvement.piece.item else 'N/A'
+                    type_mv = mouvement.type_mouvement.title()
+                    qte = str(mouvement.quantite)
+                    motif = (mouvement.motif or '-')[:40]
+                    
+                    # Gestion de l'intervention
+                    interv = None
+                    if hasattr(mouvement, 'intervention') and mouvement.intervention:
+                        interv = mouvement.intervention
+                    elif mouvement.intervention_id:
+                        interv = Intervention.query.get(mouvement.intervention_id)
+                    
+                    txt = f"{interv.maintenance.titre[:15]}" if interv and interv.maintenance else '-'
+                    
+                    # multi_cell pour chaque champ, on retient la hauteur max
+                    pdf.multi_cell(w_date, h, date, border=1, align='L', max_line_height=pdf.font_size)
+                    y_after = pdf.get_y()
+                    max_h = y_after - y_before
+                    
+                    pdf.set_xy(x + w_date, y_before)
+                    pdf.multi_cell(w_piece, h, piece, border=1, align='L', max_line_height=pdf.font_size)
+                    max_h = max(max_h, pdf.get_y() - y_before)
+                    
+                    pdf.set_xy(x + w_date + w_piece, y_before)
+                    pdf.multi_cell(w_type, h, type_mv, border=1, align='L', max_line_height=pdf.font_size)
+                    max_h = max(max_h, pdf.get_y() - y_before)
+                    
+                    pdf.set_xy(x + w_date + w_piece + w_type, y_before)
+                    pdf.multi_cell(w_qte, h, qte, border=1, align='L', max_line_height=pdf.font_size)
+                    max_h = max(max_h, pdf.get_y() - y_before)
+                    
+                    pdf.set_xy(x + w_date + w_piece + w_type + w_qte, y_before)
+                    pdf.multi_cell(w_motif, h, motif, border=1, align='L', max_line_height=pdf.font_size)
+                    max_h = max(max_h, pdf.get_y() - y_before)
+                    
+                    pdf.set_xy(x + w_date + w_piece + w_type + w_qte + w_motif, y_before)
+                    pdf.multi_cell(w_interv, h, txt, border=1, align='L', max_line_height=pdf.font_size)
+                    max_h = max(max_h, pdf.get_y() - y_before)
+                    
+                    pdf.set_y(y_before + max_h)
+                except Exception as e:
+                    print(f"Erreur lors du traitement du mouvement {mouvement.id}: {e}")
+                    continue
+        
+        # Sauvegarder le PDF en mémoire
+        pdf_data = pdf.output(dest='S')
+        if isinstance(pdf_data, str):
+            pdf_data = pdf_data.encode('latin1')
+        
+        # Envoyer le mail avec le PDF en pièce jointe
+        msg = Message(
+            subject=f"Rapport de maintenance semaine {lundi.isocalendar()[1]}",
+            recipients=[email_dest],
+            body=f"Veuillez trouver ci-joint le rapport de maintenance de la semaine {lundi.strftime('%d/%m/%Y')} au {dimanche.strftime('%d/%m/%Y')}.",
+            sender=app.config.get('MAIL_USERNAME')
+        )
+        msg.attach(f"rapport_maintenance_semaine_{lundi.isocalendar()[1]}.pdf", "application/pdf", pdf_data)
+        
+        try:
+            mail.send(msg)
+            flash('Rapport envoyé avec succès !', 'success')
+        except Exception as e:
+            flash(f'Erreur lors de l\'envoi du rapport : {str(e)}', 'danger')
+        
+        return redirect(url_for('calendrier'))
+        
     except Exception as e:
-        flash(f'Erreur lors de l\'envoi du rapport : {str(e)}', 'danger')
-    return redirect(url_for('calendrier'))
+        print(f"Erreur lors de la génération du rapport: {e}")
+        flash(f'Erreur lors de la génération du rapport : {str(e)}', 'danger')
+        return redirect(url_for('calendrier'))
 
 @app.route('/piece/supprimer/<int:piece_id>', methods=['POST'])
 @login_required
