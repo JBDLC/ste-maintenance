@@ -48,6 +48,7 @@
                 data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
                 data-statut="{{ intervention.statut }}"
                 data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
+                data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
                 onclick="showMaintenanceDetails(this)">
                 <td>{{ intervention.maintenance.equipement.localisation.nom }}</td>
                 <td>{{ intervention.maintenance.equipement.nom }}</td>
@@ -168,7 +169,6 @@
     <i class="fas fa-info-circle"></i> Aucune maintenance prévue cette semaine.
 </div>
 {% endif %}
-{% endblock %}
 
 <!-- Modal pour les détails de maintenance -->
 <div class="modal fade" id="maintenanceDetailsModal" tabindex="-1">
@@ -196,6 +196,12 @@
                         <p><strong>Commentaire:</strong> <span id="modal-commentaire"></span></p>
                     </div>
                 </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6><i class="fas fa-cogs"></i> Pièces utilisées</h6>
+                        <p><strong>Pièces:</strong> <span id="modal-pieces-utilisees"></span></p>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
@@ -204,9 +210,10 @@
     </div>
 </div>
 
-{% block scripts %}
 <script>
 function showMaintenanceDetails(element) {
+    console.log("Clic sur une ligne de maintenance !", element); // DEBUG
+    
     // Récupérer les données depuis les data attributes
     const titre = element.getAttribute('data-titre');
     const equipement = element.getAttribute('data-equipement');
@@ -217,6 +224,9 @@ function showMaintenanceDetails(element) {
     const datePlanifiee = element.getAttribute('data-date-planifiee');
     const statut = element.getAttribute('data-statut');
     const commentaire = element.getAttribute('data-commentaire');
+    const piecesUtilisees = element.getAttribute('data-pieces-utilisees');
+    
+    console.log("Données récupérées:", { titre, equipement, localisation, site, description, periodicite, datePlanifiee, statut, commentaire, piecesUtilisees }); // DEBUG
     
     // Remplir le modal avec les données
     document.getElementById('modal-titre').textContent = titre;
@@ -228,6 +238,7 @@ function showMaintenanceDetails(element) {
     document.getElementById('modal-date-planifiee').textContent = datePlanifiee;
     document.getElementById('modal-statut').textContent = statut;
     document.getElementById('modal-commentaire').textContent = commentaire;
+    document.getElementById('modal-pieces-utilisees').textContent = piecesUtilisees;
     
     // Afficher le modal
     const modal = new bootstrap.Modal(document.getElementById('maintenanceDetailsModal'));
@@ -236,16 +247,19 @@ function showMaintenanceDetails(element) {
 
 document.addEventListener('DOMContentLoaded', function() {
     // Ajouter une nouvelle ligne de pièce
-    document.getElementById('add-piece').addEventListener('click', function() {
-        const container = document.getElementById('pieces-container');
-        const newRow = container.querySelector('.piece-row').cloneNode(true);
-        
-        // Vider les valeurs
-        newRow.querySelector('select').value = '';
-        newRow.querySelector('input').value = '';
-        
-        container.appendChild(newRow);
-    });
+    const addPieceBtn = document.getElementById('add-piece');
+    if (addPieceBtn) {
+        addPieceBtn.addEventListener('click', function() {
+            const container = document.getElementById('pieces-container');
+            const newRow = container.querySelector('.piece-row').cloneNode(true);
+            
+            // Vider les valeurs
+            newRow.querySelector('select').value = '';
+            newRow.querySelector('input').value = '';
+            
+            container.appendChild(newRow);
+        });
+    }
     
     // Supprimer une ligne de pièce
     document.addEventListener('click', function(e) {

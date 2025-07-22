@@ -1368,7 +1368,6 @@ def envoyer_rapport():
             pdf.cell(40, 8, 'Motif', 1)
             pdf.cell(0, 8, 'Intervention', 1, ln=1)
             pdf.set_font('Arial', '', 10)
-            
             for mouvement in mouvements:
                 try:
                     y_before = pdf.get_y()
@@ -1380,41 +1379,32 @@ def envoyer_rapport():
                     type_mv = mouvement.type_mouvement.title()
                     qte = str(mouvement.quantite)
                     motif = (mouvement.motif or '-')[:40]
-                    
                     # Gestion de l'intervention
                     interv = None
                     if hasattr(mouvement, 'intervention') and mouvement.intervention:
                         interv = mouvement.intervention
                     elif mouvement.intervention_id:
                         interv = Intervention.query.get(mouvement.intervention_id)
-                    
                     txt = f"{interv.maintenance.titre[:15]}" if interv and interv.maintenance else '-'
-                    
                     # multi_cell pour chaque champ, on retient la hauteur max
                     pdf.multi_cell(w_date, h, date, border=1, align='L')
                     y_after = pdf.get_y()
                     max_h = y_after - y_before
-                    
                     pdf.set_xy(x + w_date, y_before)
                     pdf.multi_cell(w_piece, h, piece, border=1, align='L')
                     max_h = max(max_h, pdf.get_y() - y_before)
-                    
                     pdf.set_xy(x + w_date + w_piece, y_before)
                     pdf.multi_cell(w_type, h, type_mv, border=1, align='L')
                     max_h = max(max_h, pdf.get_y() - y_before)
-                    
                     pdf.set_xy(x + w_date + w_piece + w_type, y_before)
                     pdf.multi_cell(w_qte, h, qte, border=1, align='L')
                     max_h = max(max_h, pdf.get_y() - y_before)
-                    
                     pdf.set_xy(x + w_date + w_piece + w_type + w_qte, y_before)
                     pdf.multi_cell(w_motif, h, motif, border=1, align='L')
                     max_h = max(max_h, pdf.get_y() - y_before)
-                    
                     pdf.set_xy(x + w_date + w_piece + w_type + w_qte + w_motif, y_before)
                     pdf.multi_cell(w_interv, h, txt, border=1, align='L')
                     max_h = max(max_h, pdf.get_y() - y_before)
-                    
                     pdf.set_y(y_before + max_h)
                 except Exception as e:
                     print(f"Erreur lors du traitement du mouvement {mouvement.id}: {e}")
