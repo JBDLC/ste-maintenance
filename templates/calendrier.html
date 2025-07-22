@@ -13,7 +13,7 @@
         <span class="badge bg-primary" style="font-size: 0.9rem;">Semaine {{ semaine_lundi.isocalendar()[1] }} - du {{ semaine_lundi.strftime('%d/%m/%Y') }}</span>
         <a href="{{ url_for('calendrier', date=next_week) }}" class="btn btn-outline-secondary btn-sm" title="Semaine suivante"><i class="fas fa-chevron-right"></i></a>
         <a href="{{ url_for('calendrier', date=this_week) }}" class="btn btn-outline-info btn-sm" title="Semaine courante"><i class="fas fa-calendar-week"></i></a>
-        <form method="POST" action="{{ url_for('envoyer_rapport') }}" class="d-inline">
+        <form method="POST" action="{{ url_for('envoyer_rapport', date=semaine_lundi.strftime('%Y-%m-%d')) }}" class="d-inline">
             <button type="submit" class="btn btn-success btn-sm">
                 <i class="fas fa-file-pdf"></i> Envoyer le rapport
             </button>
@@ -37,7 +37,18 @@
         </thead>
         <tbody>
             {% for intervention in interventions %}
-            <tr>
+            <tr style="cursor: pointer;" 
+                data-maintenance-id="{{ intervention.maintenance.id }}"
+                data-titre="{{ intervention.maintenance.titre }}"
+                data-equipement="{{ intervention.maintenance.equipement.nom }}"
+                data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
+                data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
+                data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
+                data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
+                data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
+                data-statut="{{ intervention.statut }}"
+                data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
+                onclick="showMaintenanceDetails(this)">
                 <td>{{ intervention.maintenance.equipement.localisation.nom }}</td>
                 <td>{{ intervention.maintenance.equipement.nom }}</td>
                 <td>{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
@@ -49,7 +60,7 @@
                 </td>
                 <td>
                     {% if intervention.statut == 'planifiee' %}
-                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}">
+                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
                         <i class="fas fa-check"></i> Réaliser
                     </button>
                     {% else %}
@@ -159,8 +170,70 @@
 {% endif %}
 {% endblock %}
 
+<!-- Modal pour les détails de maintenance -->
+<div class="modal fade" id="maintenanceDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Détails de la maintenance</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-tools"></i> Informations générales</h6>
+                        <p><strong>Titre:</strong> <span id="modal-titre"></span></p>
+                        <p><strong>Équipement:</strong> <span id="modal-equipement"></span></p>
+                        <p><strong>Localisation:</strong> <span id="modal-localisation"></span></p>
+                        <p><strong>Site:</strong> <span id="modal-site"></span></p>
+                        <p><strong>Date planifiée:</strong> <span id="modal-date-planifiee"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-info-circle"></i> Détails techniques</h6>
+                        <p><strong>Description:</strong> <span id="modal-description"></span></p>
+                        <p><strong>Périodicité:</strong> <span id="modal-periodicite"></span></p>
+                        <p><strong>Statut:</strong> <span id="modal-statut"></span></p>
+                        <p><strong>Commentaire:</strong> <span id="modal-commentaire"></span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% block scripts %}
 <script>
+function showMaintenanceDetails(element) {
+    // Récupérer les données depuis les data attributes
+    const titre = element.getAttribute('data-titre');
+    const equipement = element.getAttribute('data-equipement');
+    const localisation = element.getAttribute('data-localisation');
+    const site = element.getAttribute('data-site');
+    const description = element.getAttribute('data-description');
+    const periodicite = element.getAttribute('data-periodicite');
+    const datePlanifiee = element.getAttribute('data-date-planifiee');
+    const statut = element.getAttribute('data-statut');
+    const commentaire = element.getAttribute('data-commentaire');
+    
+    // Remplir le modal avec les données
+    document.getElementById('modal-titre').textContent = titre;
+    document.getElementById('modal-equipement').textContent = equipement;
+    document.getElementById('modal-localisation').textContent = localisation;
+    document.getElementById('modal-site').textContent = site;
+    document.getElementById('modal-description').textContent = description;
+    document.getElementById('modal-periodicite').textContent = periodicite;
+    document.getElementById('modal-date-planifiee').textContent = datePlanifiee;
+    document.getElementById('modal-statut').textContent = statut;
+    document.getElementById('modal-commentaire').textContent = commentaire;
+    
+    // Afficher le modal
+    const modal = new bootstrap.Modal(document.getElementById('maintenanceDetailsModal'));
+    modal.show();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Ajouter une nouvelle ligne de pièce
     document.getElementById('add-piece').addEventListener('click', function() {
