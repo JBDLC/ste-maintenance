@@ -1151,11 +1151,17 @@ def envoyer_rapport():
             Intervention.date_planifiee <= dimanche
         ).all()
         
+        print(f"🔍 Debug: {len(interventions)} interventions trouvées pour la semaine {lundi.isocalendar()[1]}")
+        for interv in interventions:
+            print(f"  - Intervention {interv.id}: {interv.maintenance.titre} le {interv.date_planifiee}")
+        
         # Récupérer les mouvements de la semaine
         mouvements = MouvementPiece.query.filter(
             MouvementPiece.date >= datetime.combine(lundi, datetime.min.time()),
             MouvementPiece.date <= datetime.combine(dimanche, datetime.max.time())
         ).all()
+        
+        print(f"🔍 Debug: {len(mouvements)} mouvements trouvés pour la semaine {lundi.isocalendar()[1]}")
         
         # Récupérer l'email de destination
         email_param = Parametre.query.filter_by(cle='email_rapport').first()
@@ -1194,6 +1200,77 @@ def envoyer_rapport():
         pdf.cell(50, 8, 'Commentaire', 1)
         pdf.cell(0, 8, 'Pièces utilisées', 1, ln=1)
         pdf.set_font('Arial', '', 10)
+        
+        # Si pas d'interventions, essayer de générer les interventions manquantes
+        if not interventions:
+            print("🔍 Aucune intervention trouvée, génération des interventions manquantes...")
+            maintenances_actives = Maintenance.query.filter_by(active=True).all()
+            print(f"🔍 {len(maintenances_actives)} maintenances actives trouvées")
+            
+            # Générer les interventions pour chaque maintenance active
+            for maintenance in maintenances_actives:
+                try:
+                    # Vérifier si des interventions existent déjà pour cette maintenance
+                    existing_interventions = Intervention.query.filter_by(maintenance_id=maintenance.id).count()
+                    if existing_interventions == 0:
+                        print(f"🔧 Génération des interventions pour maintenance {maintenance.id}: {maintenance.titre}")
+                        generate_interventions(maintenance)
+                except Exception as e:
+                    print(f"Erreur lors de la génération des interventions pour maintenance {maintenance.id}: {e}")
+            
+            # Récupérer à nouveau les interventions après génération
+            interventions = Intervention.query.filter(
+                Intervention.date_planifiee >= lundi,
+                Intervention.date_planifiee <= dimanche
+            ).all()
+            print(f"🔍 Après génération: {len(interventions)} interventions trouvées")
+            
+            # Si toujours pas d'interventions, afficher les maintenances actives
+            if not interventions:
+                print("🔍 Aucune intervention générée, affichage des maintenances actives...")
+            
+            for maintenance in maintenances_actives:
+                try:
+                    titre = maintenance.titre or ''
+                    equip = maintenance.equipement.nom if maintenance.equipement else 'N/A'
+                    statut = 'Active'
+                    commentaire = maintenance.description or '-'
+                    pieces = 'N/A'
+                    
+                    # Calculer la hauteur max de la ligne
+                    y_before = pdf.get_y()
+                    x = pdf.get_x()
+                    w_titre, w_equip, w_statut, w_com, w_pieces = 50, 35, 25, 50, 40
+                    h = 8
+                    
+                    # multi_cell pour chaque champ, on retient la hauteur max
+                    pdf.multi_cell(w_titre, h, titre, border=1, align='L', max_line_height=pdf.font_size)
+                    y_after = pdf.get_y()
+                    max_h = y_after - y_before
+                    
+                    pdf.set_xy(x + w_titre, y_before)
+                    pdf.multi_cell(w_equip, h, equip, border=1, align='L', max_line_height=pdf.font_size)
+                    max_h = max(max_h, pdf.get_y() - y_before)
+                    
+                    pdf.set_xy(x + w_titre + w_equip, y_before)
+                    pdf.multi_cell(w_statut, h, statut, border=1, align='L', max_line_height=pdf.font_size)
+                    max_h = max(max_h, pdf.get_y() - y_before)
+                    
+                    pdf.set_xy(x + w_titre + w_equip + w_statut, y_before)
+                    pdf.multi_cell(w_com, h, commentaire, border=1, align='L', max_line_height=pdf.font_size)
+                    max_h = max(max_h, pdf.get_y() - y_before)
+                    
+                    pdf.set_xy(x + w_titre + w_equip + w_statut + w_com, y_before)
+                    pdf.multi_cell(w_pieces, h, pieces, border=1, align='L', max_line_height=pdf.font_size)
+                    max_h = max(max_h, pdf.get_y() - y_before)
+                    
+                    # Passer à la ligne suivante
+                    pdf.set_y(y_before + max_h)
+                except Exception as e:
+                    print(f"Erreur lors du traitement de la maintenance {maintenance.id}: {e}")
+                    continue
+        else:
+            print(f"🔍 {len(interventions)} interventions trouvées, génération du rapport...")
         
         for intervention in interventions:
             try:
