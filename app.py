@@ -1162,6 +1162,13 @@ def envoyer_rapport():
             maintenances_actives = Maintenance.query.filter_by(active=True).all()
             print(f"🔍 {len(maintenances_actives)} maintenances actives trouvées")
             
+            # Debug: afficher toutes les maintenances (actives et inactives)
+            all_maintenances = Maintenance.query.all()
+            print(f"🔍 TOTAL: {len(all_maintenances)} maintenances dans la base")
+            for m in all_maintenances:
+                equip = m.equipement.nom if m.equipement else 'N/A'
+                print(f"  - Maintenance {m.id}: {m.titre} (Équipement: {equip}, Active: {m.active}, Date première: {m.date_premiere})")
+            
             # Filtrer les maintenances qui devraient avoir des interventions cette semaine
             for maintenance in maintenances_actives:
                 try:
@@ -1171,6 +1178,7 @@ def envoyer_rapport():
                         while current_date <= dimanche:
                             if lundi <= current_date <= dimanche:
                                 maintenances_semaine.append(maintenance)
+                                print(f"✅ Maintenance {maintenance.id} ajoutée pour la semaine")
                                 break
                             # Calculer la prochaine date selon la périodicité
                             if maintenance.periodicite == 'semaine':
@@ -1192,6 +1200,7 @@ def envoyer_rapport():
                     else:
                         # Si pas de date de première, inclure toutes les maintenances actives
                         maintenances_semaine.append(maintenance)
+                        print(f"✅ Maintenance {maintenance.id} ajoutée (pas de date première)")
                 except Exception as e:
                     print(f"Erreur lors du calcul pour maintenance {maintenance.id}: {e}")
                     maintenances_semaine.append(maintenance)
@@ -1248,6 +1257,7 @@ def envoyer_rapport():
         if not interventions:
             print("🔍 Aucune intervention trouvée, utilisation des maintenances calculées...")
             maintenances_a_afficher = maintenances_semaine
+            print(f"🔍 {len(maintenances_a_afficher)} maintenances à afficher dans le PDF")
             
             for maintenance in maintenances_a_afficher:
                 try:
@@ -1256,6 +1266,8 @@ def envoyer_rapport():
                     statut = 'Active'
                     commentaire = maintenance.description or '-'
                     pieces = 'N/A'
+                    
+                    print(f"📝 Ajout dans PDF: {titre} - {equip}")
                     
                     # Calculer la hauteur max de la ligne
                     y_before = pdf.get_y()
@@ -1286,6 +1298,7 @@ def envoyer_rapport():
                     
                     # Passer à la ligne suivante
                     pdf.set_y(y_before + max_h)
+                    print(f"✅ Ligne ajoutée au PDF")
                 except Exception as e:
                     print(f"Erreur lors du traitement de la maintenance {maintenance.id}: {e}")
                     continue
