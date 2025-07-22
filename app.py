@@ -1155,6 +1155,49 @@ def envoyer_rapport():
         for interv in interventions:
             print(f"  - Intervention {interv.id}: {interv.maintenance.titre} le {interv.date_planifiee}")
         
+        # Si pas d'interventions, récupérer les maintenances actives qui devraient avoir des interventions cette semaine
+        if not interventions:
+            print("🔍 Aucune intervention trouvée, récupération des maintenances actives...")
+            maintenances_actives = Maintenance.query.filter_by(active=True).all()
+            print(f"🔍 {len(maintenances_actives)} maintenances actives trouvées")
+            
+            # Filtrer les maintenances qui devraient avoir des interventions cette semaine
+            maintenances_semaine = []
+            for maintenance in maintenances_actives:
+                try:
+                    # Si la maintenance a une date de première intervention
+                    if maintenance.date_premiere:
+                        current_date = maintenance.date_premiere
+                        while current_date <= dimanche:
+                            if lundi <= current_date <= dimanche:
+                                maintenances_semaine.append(maintenance)
+                                break
+                            # Calculer la prochaine date selon la périodicité
+                            if maintenance.periodicite == 'semaine':
+                                current_date += timedelta(days=7)
+                            elif maintenance.periodicite == '2_semaines':
+                                current_date += timedelta(days=14)
+                            elif maintenance.periodicite == 'mois':
+                                current_date += timedelta(days=30)
+                            elif maintenance.periodicite == '2_mois':
+                                current_date += timedelta(days=60)
+                            elif maintenance.periodicite == '6_mois':
+                                current_date += timedelta(days=182)
+                            elif maintenance.periodicite == '1_an':
+                                current_date += timedelta(days=365)
+                            elif maintenance.periodicite == '2_ans':
+                                current_date += timedelta(days=730)
+                            else:
+                                break
+                    else:
+                        # Si pas de date de première, inclure toutes les maintenances actives
+                        maintenances_semaine.append(maintenance)
+                except Exception as e:
+                    print(f"Erreur lors du calcul pour maintenance {maintenance.id}: {e}")
+                    maintenances_semaine.append(maintenance)
+            
+            print(f"🔍 {len(maintenances_semaine)} maintenances trouvées pour la semaine")
+        
         # Récupérer les mouvements de la semaine
         mouvements = MouvementPiece.query.filter(
             MouvementPiece.date >= datetime.combine(lundi, datetime.min.time()),
@@ -1201,35 +1244,12 @@ def envoyer_rapport():
         pdf.cell(0, 8, 'Pièces utilisées', 1, ln=1)
         pdf.set_font('Arial', '', 10)
         
-        # Si pas d'interventions, essayer de générer les interventions manquantes
+        # Si pas d'interventions, utiliser les maintenances trouvées
         if not interventions:
-            print("🔍 Aucune intervention trouvée, génération des interventions manquantes...")
-            maintenances_actives = Maintenance.query.filter_by(active=True).all()
-            print(f"🔍 {len(maintenances_actives)} maintenances actives trouvées")
+            print("🔍 Aucune intervention trouvée, utilisation des maintenances calculées...")
+            maintenances_a_afficher = maintenances_semaine if 'maintenances_semaine' in locals() else []
             
-            # Générer les interventions pour chaque maintenance active
-            for maintenance in maintenances_actives:
-                try:
-                    # Vérifier si des interventions existent déjà pour cette maintenance
-                    existing_interventions = Intervention.query.filter_by(maintenance_id=maintenance.id).count()
-                    if existing_interventions == 0:
-                        print(f"🔧 Génération des interventions pour maintenance {maintenance.id}: {maintenance.titre}")
-                        generate_interventions(maintenance)
-                except Exception as e:
-                    print(f"Erreur lors de la génération des interventions pour maintenance {maintenance.id}: {e}")
-            
-            # Récupérer à nouveau les interventions après génération
-            interventions = Intervention.query.filter(
-                Intervention.date_planifiee >= lundi,
-                Intervention.date_planifiee <= dimanche
-            ).all()
-            print(f"🔍 Après génération: {len(interventions)} interventions trouvées")
-            
-            # Si toujours pas d'interventions, afficher les maintenances actives
-            if not interventions:
-                print("🔍 Aucune intervention générée, affichage des maintenances actives...")
-            
-            for maintenance in maintenances_actives:
+            for maintenance in maintenances_a_afficher:
                 try:
                     titre = maintenance.titre or ''
                     equip = maintenance.equipement.nom if maintenance.equipement else 'N/A'
@@ -1271,60 +1291,56 @@ def envoyer_rapport():
                     continue
         else:
             print(f"🔍 {len(interventions)} interventions trouvées, génération du rapport...")
-        
-        for intervention in interventions:
-            try:
-                # Préparer les contenus avec gestion d'erreurs
-                titre = intervention.maintenance.titre or ''
-                equip = intervention.maintenance.equipement.nom if intervention.maintenance.equipement else 'N/A'
-                statut = 'Réalisée' if intervention.statut == 'realisee' else 'Non réalisée'
-                commentaire = intervention.commentaire or '-'
-                
-                # Gestion des pièces utilisées
-                pieces_list = []
-                for pu in intervention.pieces_utilisees:
-                    try:
-                        piece = pu.piece if hasattr(pu, 'piece') and pu.piece else Piece.query.get(pu.piece_id)
-                        if piece:
-                            piece_name = piece.item or piece.description or f"Pièce {piece.id}"
-                            pieces_list.append(f"{piece_name} ({pu.quantite})")
-                    except:
-                        pieces_list.append(f"Pièce {pu.piece_id} ({pu.quantite})")
-                
-                pieces = ', '.join(pieces_list) if pieces_list else 'Aucune'
-                
-                # Calculer la hauteur max de la ligne
-                y_before = pdf.get_y()
-                x = pdf.get_x()
-                w_titre, w_equip, w_statut, w_com, w_pieces = 50, 35, 25, 50, 40
-                h = 8
-                
-                # multi_cell pour chaque champ, on retient la hauteur max
-                pdf.multi_cell(w_titre, h, titre, border=1, align='L', max_line_height=pdf.font_size)
-                y_after = pdf.get_y()
-                max_h = y_after - y_before
-                
-                pdf.set_xy(x + w_titre, y_before)
-                pdf.multi_cell(w_equip, h, equip, border=1, align='L', max_line_height=pdf.font_size)
-                max_h = max(max_h, pdf.get_y() - y_before)
-                
-                pdf.set_xy(x + w_titre + w_equip, y_before)
-                pdf.multi_cell(w_statut, h, statut, border=1, align='L', max_line_height=pdf.font_size)
-                max_h = max(max_h, pdf.get_y() - y_before)
-                
-                pdf.set_xy(x + w_titre + w_equip + w_statut, y_before)
-                pdf.multi_cell(w_com, h, commentaire, border=1, align='L', max_line_height=pdf.font_size)
-                max_h = max(max_h, pdf.get_y() - y_before)
-                
-                pdf.set_xy(x + w_titre + w_equip + w_statut + w_com, y_before)
-                pdf.multi_cell(w_pieces, h, pieces, border=1, align='L', max_line_height=pdf.font_size)
-                max_h = max(max_h, pdf.get_y() - y_before)
-                
-                # Passer à la ligne suivante
-                pdf.set_y(y_before + max_h)
-            except Exception as e:
-                print(f"Erreur lors du traitement de l'intervention {intervention.id}: {e}")
-                continue
+            
+            for intervention in interventions:
+                try:
+                    titre = intervention.maintenance.titre or ''
+                    equip = intervention.maintenance.equipement.nom if intervention.maintenance.equipement else 'N/A'
+                    statut = 'Réalisée' if intervention.statut == 'realisee' else 'Non réalisée'
+                    commentaire = intervention.commentaire or '-'
+                    pieces_list = []
+                    for pu in intervention.pieces_utilisees:
+                        try:
+                            piece = pu.piece if hasattr(pu, 'piece') and pu.piece else Piece.query.get(pu.piece_id)
+                            if piece:
+                                piece_name = piece.item or piece.description or f"Pièce {piece.id}"
+                                pieces_list.append(f"{piece_name} ({pu.quantite})")
+                        except:
+                            pieces_list.append(f"Pièce {pu.piece_id} ({pu.quantite})")
+                    pieces = ', '.join(pieces_list) if pieces_list else 'Aucune'
+                    
+                    # Calculer la hauteur max de la ligne
+                    y_before = pdf.get_y()
+                    x = pdf.get_x()
+                    w_titre, w_equip, w_statut, w_com, w_pieces = 50, 35, 25, 50, 40
+                    h = 8
+                    
+                    # multi_cell pour chaque champ, on retient la hauteur max
+                    pdf.multi_cell(w_titre, h, titre, border=1, align='L', max_line_height=pdf.font_size)
+                    y_after = pdf.get_y()
+                    max_h = y_after - y_before
+                    
+                    pdf.set_xy(x + w_titre, y_before)
+                    pdf.multi_cell(w_equip, h, equip, border=1, align='L', max_line_height=pdf.font_size)
+                    max_h = max(max_h, pdf.get_y() - y_before)
+                    
+                    pdf.set_xy(x + w_titre + w_equip, y_before)
+                    pdf.multi_cell(w_statut, h, statut, border=1, align='L', max_line_height=pdf.font_size)
+                    max_h = max(max_h, pdf.get_y() - y_before)
+                    
+                    pdf.set_xy(x + w_titre + w_equip + w_statut, y_before)
+                    pdf.multi_cell(w_com, h, commentaire, border=1, align='L', max_line_height=pdf.font_size)
+                    max_h = max(max_h, pdf.get_y() - y_before)
+                    
+                    pdf.set_xy(x + w_titre + w_equip + w_statut + w_com, y_before)
+                    pdf.multi_cell(w_pieces, h, pieces, border=1, align='L', max_line_height=pdf.font_size)
+                    max_h = max(max_h, pdf.get_y() - y_before)
+                    
+                    # Passer à la ligne suivante
+                    pdf.set_y(y_before + max_h)
+                except Exception as e:
+                    print(f"Erreur lors du traitement de l'intervention {intervention.id}: {e}")
+                    continue
         
         # Nouvelle page pour les mouvements de stock
         if mouvements:
@@ -2295,6 +2311,48 @@ def import_maintenances():
     
     print("🏁 Fin import_maintenances()")
     return redirect(url_for('parametres'))
+
+@app.route('/debug-rapport')
+@login_required
+def debug_rapport():
+    """Route de debug pour vérifier les données de maintenance"""
+    try:
+        # Date de la semaine 30 (21-27 juillet 2025)
+        date_cible = datetime(2025, 7, 21).date()
+        lundi = date_cible - timedelta(days=date_cible.weekday())
+        dimanche = lundi + timedelta(days=6)
+        
+        # Récupérer les données
+        maintenances = Maintenance.query.all()
+        interventions = Intervention.query.filter(
+            Intervention.date_planifiee >= lundi,
+            Intervention.date_planifiee <= dimanche
+        ).all()
+        
+        # Préparer le debug
+        debug_info = {
+            'semaine': f"{lundi.isocalendar()[1]} ({lundi} au {dimanche})",
+            'maintenances_total': len(maintenances),
+            'interventions_semaine': len(interventions),
+            'maintenances_actives': len([m for m in maintenances if m.active]),
+            'maintenances_details': []
+        }
+        
+        for m in maintenances:
+            equip = m.equipement.nom if m.equipement else 'N/A'
+            debug_info['maintenances_details'].append({
+                'id': m.id,
+                'titre': m.titre,
+                'equipement': equip,
+                'active': m.active,
+                'date_premiere': str(m.date_premiere) if m.date_premiere else 'None',
+                'periodicite': m.periodicite
+            })
+        
+        return jsonify(debug_info)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 # Test route pour vérifier que la fonction est accessible
 @app.route('/test-import-maintenances')
