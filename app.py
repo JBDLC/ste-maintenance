@@ -922,12 +922,14 @@ def parametres():
     
     if request.method == 'POST':
         # Mise à jour de la configuration SMTP
+        smtp_server = request.form.get('smtp_server')
+        smtp_port = request.form.get('smtp_port')
         smtp_user = request.form.get('smtp_user')
         smtp_password = request.form.get('smtp_password')
         email_rapport = request.form.get('email_rapport')
         
         # Mettre à jour ou créer les paramètres
-        for key, value in [('smtp_user', smtp_user), ('smtp_password', smtp_password), ('email_rapport', email_rapport)]:
+        for key, value in [('smtp_server', smtp_server), ('smtp_port', smtp_port), ('smtp_user', smtp_user), ('smtp_password', smtp_password), ('email_rapport', email_rapport)]:
             if value:
                 param = Parametre.query.filter_by(cle=key).first()
                 if param:
@@ -940,7 +942,14 @@ def parametres():
         flash('Configuration mise à jour avec succès!', 'success')
         return redirect(url_for('parametres'))
     
-    return render_template('parametres.html', smtp_config=smtp_config)
+    # Charger tous les paramètres pour le template
+    params = {p.cle: p.valeur for p in Parametre.query.all()}
+    return render_template('parametres.html', 
+                         smtp_server=params.get('smtp_server', 'smtp.gmail.com'),
+                         smtp_port=params.get('smtp_port', '587'),
+                         smtp_user=params.get('smtp_user', ''),
+                         smtp_password=params.get('smtp_password', ''),
+                         email_rapport=params.get('email_rapport', ''))
 
 @app.route('/parametres/utilisateurs')
 @login_required
@@ -1104,24 +1113,17 @@ def charger_config_smtp():
 @login_required
 def test_email():
     from flask_mail import Mail, Message
-    # Récupérer les paramètres du formulaire (sans sauvegarder)
+    # Charger la configuration sauvegardée
+    charger_config_smtp()
+    
+    # Récupérer l'email de destination depuis le formulaire
     email_rapport = request.form.get('email_rapport')
-    smtp_server = request.form.get('smtp_server')
-    smtp_port = int(request.form.get('smtp_port') or 587)
-    smtp_user = request.form.get('smtp_user')
-    smtp_password = request.form.get('smtp_password')
-    # Config temporaire
-    app.config.update(
-        MAIL_SERVER=smtp_server,
-        MAIL_PORT=smtp_port,
-        MAIL_USE_TLS=True,
-        MAIL_USERNAME=smtp_user,
-        MAIL_PASSWORD=smtp_password,
-        MAIL_DEFAULT_SENDER=smtp_user
-    )
-    mail = Mail(app)
+    
     try:
-        msg = Message('Test de configuration email', recipients=[email_rapport], body='Ceci est un test de la configuration SMTP de l\'application de maintenance.', sender=smtp_user)
+        msg = Message('Test de configuration email', 
+                     recipients=[email_rapport], 
+                     body='Ceci est un test de la configuration SMTP de l\'application de maintenance.', 
+                     sender=app.config.get('MAIL_USERNAME'))
         mail.send(msg)
         flash('Email de test envoyé avec succès !', 'success')
     except Exception as e:
