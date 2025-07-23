@@ -2436,7 +2436,7 @@ def export_maintenances_special():
         ws = wb.active
         ws.title = "Maintenances"
         
-        # En-têtes du format spécial (compatible avec l'import)
+        # En-têtes du format spécial (compatible avec l'import intelligent)
         headers = [
             "ID", "Titre", "Équipement", "Localisation", "Périodicité", 
             "Date première", "Date prochaine", "Active", "Date importée", "Description"
@@ -2951,15 +2951,21 @@ def import_maintenances():
                 if any(cell for cell in row):  # Ignorer les lignes vides
                     maintenances_data.append(row)
             
-            # Convertir en format plus facile à traiter
+            # Convertir en format plus facile à traiter avec gestion des IDs
             df_maintenances = []
             for row in maintenances_data:
                 if len(row) >= 4:  # Au moins titre, equipement_nom, localisation_nom, periodicite
                     df_maintenances.append({
+                        'id': row[0] if len(row) > 0 and row[0] else None,  # ID optionnel
                         'titre': row[1] if len(row) > 1 else '',
                         'equipement_nom': row[2] if len(row) > 2 else '',
                         'localisation_nom': row[3] if len(row) > 3 else '',
-                        'periodicite': row[4] if len(row) > 4 else ''
+                        'periodicite': row[4] if len(row) > 4 else '',
+                        'date_premiere': row[5] if len(row) > 5 else None,
+                        'date_prochaine': row[6] if len(row) > 6 else None,
+                        'active': row[7] if len(row) > 7 else True,
+                        'date_importee': row[8] if len(row) > 8 else False,
+                        'description': row[9] if len(row) > 9 else None
                     })
             
         else:
@@ -2968,13 +2974,20 @@ def import_maintenances():
         
         erreurs = []
         maintenances_importees = 0
+        maintenances_mises_a_jour = 0
         
         for idx, row in enumerate(df_maintenances):
             try:
+                maintenance_id = row.get('id')
                 titre = row.get('titre')
                 equipement_nom = row.get('equipement_nom')
                 localisation_nom = row.get('localisation_nom')
                 periodicite = row.get('periodicite')
+                date_premiere = row.get('date_premiere')
+                date_prochaine = row.get('date_prochaine')
+                active = row.get('active', True)
+                date_importee = row.get('date_importee', False)
+                description = row.get('description')
                 
                 if not titre or not equipement_nom or not localisation_nom or not periodicite:
                     erreurs.append(f"Ligne {int(idx)+2}: Champs obligatoires manquants")
@@ -3002,18 +3015,70 @@ def import_maintenances():
                 if len(titre) > 100:
                     print(f"⚠️ Titre tronqué de {len(titre)} à 100 caractères: {titre}")
                 
-                # Créer la maintenance sans date
-                maintenance = Maintenance(
-                    equipement_id=equipement.id,
-                    titre=titre_tronque,
-                    periodicite=periodicite,
-                    date_premiere=None,
-                    date_prochaine=None,
-                    date_importee=True  # Marquer comme importée sans date
-                )
-                
-                db.session.add(maintenance)
-                maintenances_importees += 1
+                # Gestion intelligente des IDs
+                if maintenance_id:
+                    # Chercher la maintenance existante par ID
+                    maintenance = Maintenance.query.get(maintenance_id)
+                    if maintenance:
+                        # Mise à jour de la maintenance existante
+                        maintenance.equipement_id = equipement.id
+                        maintenance.titre = titre_tronque
+                        maintenance.periodicite = periodicite
+                        maintenance.description = description
+                        maintenance.active = active
+                        maintenance.date_importee = date_importee
+                        
+                        # Gérer les dates si fournies
+                        if date_premiere:
+                            try:
+                                if isinstance(date_premiere, str):
+                                    maintenance.date_premiere = datetime.strptime(date_premiere, '%Y-%m-%d').date()
+                                else:
+                                    maintenance.date_premiere = date_premiere
+                            except:
+                                pass  # Garder la date existante si erreur
+                        
+                        if date_prochaine:
+                            try:
+                                if isinstance(date_prochaine, str):
+                                    maintenance.date_prochaine = datetime.strptime(date_prochaine, '%Y-%m-%d').date()
+                                else:
+                                    maintenance.date_prochaine = date_prochaine
+                            except:
+                                pass  # Garder la date existante si erreur
+                        
+                        maintenances_mises_a_jour += 1
+                        print(f"🔄 Maintenance #{maintenance_id} mise à jour")
+                    else:
+                        # ID fourni mais maintenance non trouvée - créer une nouvelle
+                        maintenance = Maintenance(
+                            equipement_id=equipement.id,
+                            titre=titre_tronque,
+                            periodicite=periodicite,
+                            description=description,
+                            date_premiere=date_premiere,
+                            date_prochaine=date_prochaine,
+                            active=active,
+                            date_importee=date_importee
+                        )
+                        db.session.add(maintenance)
+                        maintenances_importees += 1
+                        print(f"➕ Nouvelle maintenance créée (ID {maintenance_id} non trouvé)")
+                else:
+                    # Pas d'ID - créer une nouvelle maintenance
+                    maintenance = Maintenance(
+                        equipement_id=equipement.id,
+                        titre=titre_tronque,
+                        periodicite=periodicite,
+                        description=description,
+                        date_premiere=date_premiere,
+                        date_prochaine=date_prochaine,
+                        active=active,
+                        date_importee=date_importee
+                    )
+                    db.session.add(maintenance)
+                    maintenances_importees += 1
+                    print(f"➕ Nouvelle maintenance créée (sans ID)")
                 
             except Exception as e:
                 erreurs.append(f"Ligne {int(idx)+2}: Erreur - {str(e)}")
@@ -3025,8 +3090,12 @@ def import_maintenances():
             return redirect(url_for('parametres'))
         
         db.session.commit()
-        print(f"✅ Import réussi: {maintenances_importees} maintenances importées")
-        flash(f'Importation réussie ! {maintenances_importees} maintenances importées sans date de début.', 'success')
+        print(f"✅ Import réussi: {maintenances_importees} maintenances importées, {maintenances_mises_a_jour} mises à jour")
+        
+        if maintenances_mises_a_jour > 0:
+            flash(f'Importation réussie ! {maintenances_importees} nouvelles maintenances importées, {maintenances_mises_a_jour} maintenances mises à jour.', 'success')
+        else:
+            flash(f'Importation réussie ! {maintenances_importees} maintenances importées.', 'success')
         
     except Exception as e:
         db.session.rollback()
