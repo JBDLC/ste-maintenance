@@ -699,16 +699,17 @@ def envoyer_rapport_maintenance_curative(maintenance_id):
             for piece_utilisee in maintenance_curative.pieces_utilisees:
                 pdf.cell(0, 8, f'- {piece_utilisee.piece.item} (Réf: {piece_utilisee.piece.reference_ste or "N/A"}) - Quantité: {piece_utilisee.quantite}', ln=True)
         
-        # Sauvegarder le PDF
-        pdf_output = io.BytesIO()
-        pdf.output(pdf_output)
-        pdf_output.seek(0)
+        # Créer un fichier temporaire pour le PDF
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
+            pdf.output(tmp_file.name)
+            tmp_file_path = tmp_file.name
         
-        # Envoyer l'email
-        msg = Message(
-            subject=f'Rapport de Maintenance Curative - {maintenance_curative.equipement.nom}',
-            recipients=[config_smtp['destinataire']],
-            body=f"""
+        try:
+            # Envoyer l'email
+            msg = Message(
+                subject=f'Rapport de Maintenance Curative - {maintenance_curative.equipement.nom}',
+                recipients=[config_smtp['destinataire']],
+                body=f"""
 Rapport de Maintenance Curative
 
 Équipement: {maintenance_curative.equipement.nom}
@@ -724,12 +725,17 @@ Nombre de personnes: {maintenance_curative.nombre_personnes}
 
 Pièces utilisées:
 {chr(10).join([f'- {pu.piece.item} (Réf: {pu.piece.reference_ste or "N/A"}) - Quantité: {pu.quantite}' for pu in maintenance_curative.pieces_utilisees]) if maintenance_curative.pieces_utilisees else 'Aucune pièce utilisée'}
-            """,
-            attachments=[('rapport_maintenance_curative.pdf', 'application/pdf', pdf_output.getvalue())]
-        )
-        
-        mail.send(msg)
-        flash('Rapport envoyé avec succès!', 'success')
+                """,
+                attachments=[('rapport_maintenance_curative.pdf', 'application/pdf', open(tmp_file_path, 'rb').read())]
+            )
+            
+            mail.send(msg)
+            flash('Rapport envoyé avec succès!', 'success')
+            
+        finally:
+            # Nettoyer le fichier temporaire
+            if os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)
         
     except Exception as e:
         flash(f'Erreur lors de l\'envoi du rapport: {str(e)}', 'danger')
