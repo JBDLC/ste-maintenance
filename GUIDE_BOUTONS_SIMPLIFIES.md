@@ -71,4 +71,4 @@ Tous les tableaux de données ont maintenant des boutons simplifiés et cohéren
 - **Ajouter** : Icône `+` bleue avec contour
 - **Supprimer** : Icône poubelle rouge avec contour
 - **Modifier** : Icône crayon grise avec contour
-- **Voir** : Icône œil bleue avec contour 
+- **Voir** : Icône œil bleue avec contour image.png

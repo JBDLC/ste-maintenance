@@ -12,6 +12,7 @@ import json
 import tempfile
 import csv
 from sqlalchemy.inspection import inspect
+from sqlalchemy import text
 from dateutil.parser import parse as parse_date
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -211,7 +212,7 @@ class PieceEquipement(db.Model):
 class Maintenance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     equipement_id = db.Column(db.Integer, db.ForeignKey('equipement.id'), nullable=False)
-    titre = db.Column(db.String(100), nullable=False)
+    titre = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     periodicite = db.Column(db.String(20), nullable=False)  # semaine, 2_semaines, mois, 2_mois, 6_mois, 1_an, 2_ans
     date_premiere = db.Column(db.Date, nullable=True)  # Peut être NULL pour les maintenances importées
@@ -2913,6 +2914,21 @@ def import_maintenances():
         flash(f'Erreur lors de l\'import : {e}', 'danger')
     
     print("🏁 Fin import_maintenances()")
+    return redirect(url_for('parametres'))
+
+@app.route('/fix-titre-length')
+@login_required
+def fix_titre_length_route():
+    """Route temporaire pour corriger la longueur du champ titre"""
+    try:
+        # Exécuter la migration SQL
+        db.session.execute(text("ALTER TABLE maintenance ALTER COLUMN titre TYPE VARCHAR(200)"))
+        db.session.commit()
+        flash('✅ Migration réussie ! Le champ titre accepte maintenant 200 caractères.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'❌ Erreur lors de la migration : {str(e)}', 'danger')
+    
     return redirect(url_for('parametres'))
 
 @app.route('/debug-rapport')
