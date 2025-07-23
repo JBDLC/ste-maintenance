@@ -187,6 +187,7 @@ class Equipement(db.Model):
     description = db.Column(db.Text)
     localisation_id = db.Column(db.Integer, db.ForeignKey('localisation.id'), nullable=False)
     maintenances = db.relationship('Maintenance', backref='equipement', lazy=True, cascade='all, delete-orphan')
+    maintenances_curatives = db.relationship('MaintenanceCurative', lazy=True, cascade='all, delete-orphan')
     pieces = db.relationship('PieceEquipement', backref='equipement', lazy=True, cascade='all, delete-orphan')
 
 class Piece(db.Model):
@@ -251,6 +252,24 @@ class MouvementPiece(db.Model):
     intervention_id = db.Column(db.Integer, db.ForeignKey('intervention.id'), nullable=True)
     intervention = db.relationship('Intervention')
 
+class MaintenanceCurative(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    equipement_id = db.Column(db.Integer, db.ForeignKey('equipement.id'), nullable=False)
+    description_maintenance = db.Column(db.Text, nullable=False)
+    temps_passe = db.Column(db.Float, nullable=False)  # en heures
+    nombre_personnes = db.Column(db.Integer, nullable=False, default=1)
+    date_intervention = db.Column(db.Date, nullable=False)  # Date réelle de l'intervention
+    date_realisation = db.Column(db.DateTime, default=datetime.utcnow)  # Date de saisie
+    equipement = db.relationship('Equipement')
+    pieces_utilisees = db.relationship('PieceUtiliseeCurative', backref='maintenance_curative', lazy=True, cascade='all, delete-orphan')
+
+class PieceUtiliseeCurative(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    maintenance_curative_id = db.Column(db.Integer, db.ForeignKey('maintenance_curative.id'), nullable=False)
+    piece_id = db.Column(db.Integer, db.ForeignKey('piece.id'), nullable=False)
+    quantite = db.Column(db.Integer, default=1)
+    piece = db.relationship('Piece')
+
 class Parametre(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     cle = db.Column(db.String(100), unique=True, nullable=False)
@@ -288,7 +307,7 @@ def has_permission(user_id, page, action='view'):
 def create_user_permissions(user_id):
     """Crée les permissions par défaut (aucune) pour un nouvel utilisateur"""
     pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
-             'maintenances', 'calendrier', 'mouvements', 'parametres']
+             'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres']
     
     for page in pages:
         permission = UserPermission(
@@ -570,6 +589,352 @@ def ajouter_maintenance():
     equipements = Equipement.query.all()
     localisations = Localisation.query.all()
     return render_template('ajouter_maintenance.html', equipements=equipements, localisations=localisations)
+
+@app.route('/maintenance-curative')
+@login_required
+def maintenance_curative():
+    maintenances_curatives = MaintenanceCurative.query.order_by(MaintenanceCurative.date_realisation.desc()).all()
+    return render_template('maintenance_curative.html', maintenances_curatives=maintenances_curatives)
+
+@app.route('/maintenance-curative/ajouter', methods=['GET', 'POST'])
+@login_required
+def ajouter_maintenance_curative():
+    if request.method == 'POST':
+        equipement_id = request.form['equipement_id']
+        description_maintenance = request.form['description_maintenance']
+        temps_passe = float(request.form['temps_passe'])
+        nombre_personnes = int(request.form['nombre_personnes'])
+        date_intervention = datetime.strptime(request.form['date_intervention'], '%Y-%m-%d').date()
+        
+        maintenance_curative = MaintenanceCurative(
+            equipement_id=equipement_id,
+            description_maintenance=description_maintenance,
+            temps_passe=temps_passe,
+            nombre_personnes=nombre_personnes,
+            date_intervention=date_intervention
+        )
+        db.session.add(maintenance_curative)
+        db.session.flush()  # Pour obtenir l'ID
+        
+        # Gérer les pièces utilisées
+        pieces_ids = request.form.getlist('pieces_ids')
+        pieces_quantites = request.form.getlist('pieces_quantites')
+        
+        for i, piece_id in enumerate(pieces_ids):
+            if piece_id and pieces_quantites[i]:
+                quantite = int(pieces_quantites[i])
+                if quantite > 0:
+                    # Créer l'association
+                    piece_utilisee = PieceUtiliseeCurative(
+                        maintenance_curative_id=maintenance_curative.id,
+                        piece_id=int(piece_id),
+                        quantite=quantite
+                    )
+                    db.session.add(piece_utilisee)
+                    
+                    # Mettre à jour le stock
+                    piece = Piece.query.get(int(piece_id))
+                    if piece:
+                        piece.quantite_stock -= quantite
+                        
+                        # Créer un mouvement de sortie
+                        mouvement = MouvementPiece(
+                            piece_id=int(piece_id),
+                            type_mouvement='sortie',
+                            quantite=quantite,
+                            motif=f'Maintenance curative - {maintenance_curative.description_maintenance[:50]}'
+                        )
+                        db.session.add(mouvement)
+        
+        db.session.commit()
+        flash('Maintenance curative ajoutée avec succès!', 'success')
+        return redirect(url_for('maintenance_curative'))
+    
+    localisations = Localisation.query.all()
+    pieces = Piece.query.all()
+    return render_template('ajouter_maintenance_curative.html', localisations=localisations, pieces=pieces)
+
+@app.route('/maintenance-curative/envoyer-rapport/<int:maintenance_id>', methods=['POST'])
+@login_required
+def envoyer_rapport_maintenance_curative(maintenance_id):
+    maintenance_curative = MaintenanceCurative.query.get_or_404(maintenance_id)
+    
+    try:
+        # Charger la configuration SMTP
+        config_smtp = charger_config_smtp()
+        if not config_smtp:
+            flash('Configuration email non trouvée. Veuillez configurer les paramètres SMTP.', 'danger')
+            return redirect(url_for('maintenance_curative'))
+        
+        # Créer le PDF
+        pdf = FPDF()
+        pdf.add_page()
+        pdf.set_font('Arial', 'B', 16)
+        pdf.cell(0, 10, 'Rapport de Maintenance Curative', ln=True, align='C')
+        pdf.ln(10)
+        
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 10, f'Équipement: {maintenance_curative.equipement.nom}', ln=True)
+        pdf.cell(0, 10, f'Localisation: {maintenance_curative.equipement.localisation.nom}', ln=True)
+        pdf.cell(0, 10, f'Site: {maintenance_curative.equipement.localisation.site.nom}', ln=True)
+        pdf.cell(0, 10, f'Date d\'intervention: {maintenance_curative.date_intervention.strftime("%d/%m/%Y")}', ln=True)
+        pdf.cell(0, 10, f'Date de saisie: {maintenance_curative.date_realisation.strftime("%d/%m/%Y %H:%M")}', ln=True)
+        pdf.ln(5)
+        
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 10, 'Description de la maintenance:', ln=True)
+        pdf.set_font('Arial', '', 10)
+        pdf.multi_cell(0, 8, maintenance_curative.description_maintenance)
+        pdf.ln(5)
+        
+        pdf.set_font('Arial', 'B', 12)
+        pdf.cell(0, 10, f'Temps passé: {maintenance_curative.temps_passe} heures', ln=True)
+        pdf.cell(0, 10, f'Nombre de personnes: {maintenance_curative.nombre_personnes}', ln=True)
+        pdf.ln(5)
+        
+        if maintenance_curative.pieces_utilisees:
+            pdf.set_font('Arial', 'B', 12)
+            pdf.cell(0, 10, 'Pièces utilisées:', ln=True)
+            pdf.set_font('Arial', '', 10)
+            for piece_utilisee in maintenance_curative.pieces_utilisees:
+                pdf.cell(0, 8, f'- {piece_utilisee.piece.item} (Réf: {piece_utilisee.piece.reference_ste or "N/A"}) - Quantité: {piece_utilisee.quantite}', ln=True)
+        
+        # Sauvegarder le PDF
+        pdf_output = io.BytesIO()
+        pdf.output(pdf_output)
+        pdf_output.seek(0)
+        
+        # Envoyer l'email
+        msg = Message(
+            subject=f'Rapport de Maintenance Curative - {maintenance_curative.equipement.nom}',
+            recipients=[config_smtp['destinataire']],
+            body=f"""
+Rapport de Maintenance Curative
+
+Équipement: {maintenance_curative.equipement.nom}
+Localisation: {maintenance_curative.equipement.localisation.nom}
+Site: {maintenance_curative.equipement.localisation.site.nom}
+Date d'intervention: {maintenance_curative.date_intervention.strftime("%d/%m/%Y")}
+Date de saisie: {maintenance_curative.date_realisation.strftime("%d/%m/%Y %H:%M")}
+
+Description: {maintenance_curative.description_maintenance}
+
+Temps passé: {maintenance_curative.temps_passe} heures
+Nombre de personnes: {maintenance_curative.nombre_personnes}
+
+Pièces utilisées:
+{chr(10).join([f'- {pu.piece.item} (Réf: {pu.piece.reference_ste or "N/A"}) - Quantité: {pu.quantite}' for pu in maintenance_curative.pieces_utilisees]) if maintenance_curative.pieces_utilisees else 'Aucune pièce utilisée'}
+            """,
+            attachments=[('rapport_maintenance_curative.pdf', 'application/pdf', pdf_output.getvalue())]
+        )
+        
+        mail.send(msg)
+        flash('Rapport envoyé avec succès!', 'success')
+        
+    except Exception as e:
+        flash(f'Erreur lors de l\'envoi du rapport: {str(e)}', 'danger')
+    
+    return redirect(url_for('maintenance_curative'))
+
+@app.route('/maintenance-curative/modifier/<int:maintenance_id>', methods=['GET', 'POST'])
+@login_required
+def modifier_maintenance_curative(maintenance_id):
+    """Modifier une maintenance curative existante"""
+    maintenance_curative = MaintenanceCurative.query.get_or_404(maintenance_id)
+    
+    if request.method == 'POST':
+        try:
+            # Récupérer les données du formulaire
+            equipement_id = request.form.get('equipement_id')
+            description_maintenance = request.form.get('description_maintenance')
+            temps_passe = float(request.form.get('temps_passe', 0))
+            nombre_personnes = int(request.form.get('nombre_personnes', 1))
+            date_intervention = datetime.strptime(request.form.get('date_intervention'), '%Y-%m-%d').date()
+            
+            # Mettre à jour les données de base
+            maintenance_curative.equipement_id = equipement_id
+            maintenance_curative.description_maintenance = description_maintenance
+            maintenance_curative.temps_passe = temps_passe
+            maintenance_curative.nombre_personnes = nombre_personnes
+            maintenance_curative.date_intervention = date_intervention
+            
+            # Supprimer les anciennes pièces utilisées
+            for piece_utilisee in maintenance_curative.pieces_utilisees:
+                db.session.delete(piece_utilisee)
+            
+            # Ajouter les nouvelles pièces utilisées
+            pieces_data = request.form.getlist('pieces[]')
+            quantites_data = request.form.getlist('quantites[]')
+            
+            for i, piece_id in enumerate(pieces_data):
+                if piece_id and quantites_data[i]:
+                    quantite = int(quantites_data[i])
+                    if quantite > 0:
+                        piece_utilisee = PieceUtiliseeCurative(
+                            maintenance_curative_id=maintenance_curative.id,
+                            piece_id=int(piece_id),
+                            quantite=quantite
+                        )
+                        db.session.add(piece_utilisee)
+                        
+                        # Mettre à jour le stock (ajouter les pièces retournées, puis retirer les nouvelles)
+                        piece = Piece.query.get(int(piece_id))
+                        if piece:
+                            # Ajouter les pièces retournées (annuler l'ancienne sortie)
+                            mouvement_retour = MouvementPiece(
+                                piece_id=int(piece_id),
+                                type_mouvement='entree',
+                                quantite=quantite,
+                                motif=f'Retour modification maintenance curative #{maintenance_curative.id}'
+                            )
+                            db.session.add(mouvement_retour)
+                            piece.quantite_stock += quantite
+                            
+                            # Retirer les nouvelles pièces
+                            mouvement_sortie = MouvementPiece(
+                                piece_id=int(piece_id),
+                                type_mouvement='sortie',
+                                quantite=quantite,
+                                motif=f'Modification maintenance curative #{maintenance_curative.id}'
+                            )
+                            db.session.add(mouvement_sortie)
+                            piece.quantite_stock -= quantite
+            
+            db.session.commit()
+            flash('Maintenance curative modifiée avec succès!', 'success')
+            return redirect(url_for('maintenance_curative'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur lors de la modification: {str(e)}', 'danger')
+    
+    # Récupérer les données pour le formulaire
+    sites = Site.query.all()
+    localisations = Localisation.query.all()
+    equipements = Equipement.query.all()
+    pieces = Piece.query.all()
+    
+    return render_template('modifier_maintenance_curative.html',
+                         maintenance_curative=maintenance_curative,
+                         sites=sites,
+                         localisations=localisations,
+                         equipements=equipements,
+                         pieces=pieces)
+
+@app.route('/maintenance-curative/export-excel')
+@login_required
+def export_maintenance_curative_excel():
+    """Exporter toutes les maintenances curatives en Excel"""
+    try:
+        # Récupérer toutes les maintenances curatives avec leurs relations
+        maintenances_curatives = MaintenanceCurative.query.all()
+        
+        # Préparer les données pour l'export
+        data = []
+        for maintenance in maintenances_curatives:
+            # Récupérer les pièces utilisées
+            pieces_utilisees = []
+            for piece_utilisee in maintenance.pieces_utilisees:
+                pieces_utilisees.append(f"{piece_utilisee.piece.item} (x{piece_utilisee.quantite})")
+            
+            pieces_str = "; ".join(pieces_utilisees) if pieces_utilisees else "Aucune"
+            
+            # Créer la ligne de données
+            row = {
+                'ID': maintenance.id,
+                'Date d\'intervention': maintenance.date_intervention.strftime('%d/%m/%Y'),
+                'Date de saisie': maintenance.date_realisation.strftime('%d/%m/%Y %H:%M'),
+                'Site': maintenance.equipement.localisation.site.nom,
+                'Localisation': maintenance.equipement.localisation.nom,
+                'Équipement': maintenance.equipement.nom,
+                'Description équipement': maintenance.equipement.description or '',
+                'Maintenance réalisée': maintenance.description_maintenance,
+                'Temps passé (heures)': maintenance.temps_passe,
+                'Nombre de personnes': maintenance.nombre_personnes,
+                'Pièces utilisées': pieces_str
+            }
+            data.append(row)
+        
+        # Créer le fichier Excel
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+            from openpyxl import Workbook
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Maintenances Curatives"
+            
+            # Écrire les en-têtes
+            if data:
+                headers = list(data[0].keys())
+                for col, header in enumerate(headers, 1):
+                    ws.cell(row=1, column=col, value=header)
+                
+                # Écrire les données
+                for row_idx, row_data in enumerate(data, 2):
+                    for col_idx, header in enumerate(headers, 1):
+                        ws.cell(row=row_idx, column=col_idx, value=row_data.get(header))
+            
+            # Ajuster la largeur des colonnes
+            for column in ws.columns:
+                max_length = 0
+                column_letter = column[0].column_letter
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                ws.column_dimensions[column_letter].width = adjusted_width
+            
+            wb.save(tmp.name)
+            tmp.flush()
+            
+            # Générer le nom du fichier avec la date
+            from datetime import datetime
+            date_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f'maintenances_curatives_{date_str}.xlsx'
+            
+            return send_file(tmp.name, as_attachment=True, download_name=filename)
+            
+    except Exception as e:
+        flash(f'Erreur lors de l\'export: {str(e)}', 'danger')
+        return redirect(url_for('maintenance_curative'))
+
+@app.route('/maintenance-curative/supprimer/<int:maintenance_id>', methods=['POST'])
+@login_required
+def supprimer_maintenance_curative(maintenance_id):
+    """Supprimer une maintenance curative"""
+    try:
+        maintenance_curative = MaintenanceCurative.query.get_or_404(maintenance_id)
+        
+        # Récupérer les pièces utilisées pour les remettre en stock
+        pieces_utilisees = PieceUtiliseeCurative.query.filter_by(maintenance_curative_id=maintenance_id).all()
+        
+        # Remettre les pièces en stock
+        for piece_utilisee in pieces_utilisees:
+            piece = piece_utilisee.piece
+            piece.quantite_stock += piece_utilisee.quantite
+            
+            # Créer un mouvement de stock pour l'entrée
+            mouvement = MouvementPiece(
+                piece_id=piece.id,
+                type_mouvement='entree',
+                quantite=piece_utilisee.quantite,
+                motif=f'Suppression maintenance curative #{maintenance_id}'
+            )
+            db.session.add(mouvement)
+        
+        # Supprimer la maintenance curative (les pièces utilisées seront supprimées en cascade)
+        db.session.delete(maintenance_curative)
+        db.session.commit()
+        
+        flash('Maintenance curative supprimée avec succès. Les pièces utilisées ont été remises en stock.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erreur lors de la suppression : {str(e)}', 'danger')
+    
+    return redirect(url_for('maintenance_curative'))
 
 @app.route('/calendrier')
 @login_required
@@ -957,7 +1322,7 @@ def gestion_utilisateurs():
     """Page de gestion des utilisateurs et permissions"""
     users = User.query.filter_by(active=True).all()
     pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
-             'maintenances', 'calendrier', 'mouvements', 'parametres']
+             'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres']
     
     # Récupérer les permissions pour chaque utilisateur
     users_permissions = {}
@@ -1004,7 +1369,7 @@ def modifier_permissions(user_id):
     """Modifier les permissions d'un utilisateur"""
     user = User.query.get_or_404(user_id)
     pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
-             'maintenances', 'calendrier', 'mouvements', 'parametres']
+             'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres']
     
     permissions_data = {}
     for page in pages:
@@ -1021,7 +1386,7 @@ def modifier_permissions(user_id):
 def modifier_permissions_bulk():
     """Modifier les permissions de tous les utilisateurs en lot"""
     pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
-             'maintenances', 'calendrier', 'mouvements', 'parametres']
+             'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres']
     
     # Récupérer toutes les permissions du formulaire
     permissions_form = request.form.getlist('permissions')
@@ -1474,6 +1839,51 @@ def supprimer_lieu_stockage(lieu_stockage_id):
     db.session.delete(lieu)
     db.session.commit()
     flash('Lieu de stockage supprimé avec succès.', 'success')
+    return redirect(url_for('lieux_stockage'))
+
+@app.route('/vider-lieux-stockage', methods=['POST'])
+@login_required
+def vider_lieux_stockage():
+    """Vide tous les lieux de stockage et les pièces associées"""
+    try:
+        # Supprimer les données dans l'ordre pour respecter les contraintes de clés étrangères
+        
+        # 1. Mouvements de pièces (liés aux interventions)
+        MouvementPiece.query.delete()
+        
+        # 2. Pièces utilisées (liées aux interventions)
+        PieceUtilisee.query.delete()
+        
+        # 3. Pièces utilisées curatives (liées aux maintenances curatives)
+        PieceUtiliseeCurative.query.delete()
+        
+        # 4. Interventions (liées aux maintenances)
+        Intervention.query.delete()
+        
+        # 5. Maintenances (liées aux équipements)
+        Maintenance.query.delete()
+        
+        # 6. Maintenances curatives (liées aux équipements)
+        MaintenanceCurative.query.delete()
+        
+        # 7. Associations pièces-équipements
+        PieceEquipement.query.delete()
+        
+        # 8. Pièces (liées aux lieux de stockage)
+        Piece.query.delete()
+        
+        # 9. Lieux de stockage
+        LieuStockage.query.delete()
+        
+        # Valider les changements
+        db.session.commit()
+        
+        flash('Tous les lieux de stockage et leurs données associées ont été supprimés avec succès !', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erreur lors de la suppression : {str(e)}', 'danger')
+    
     return redirect(url_for('lieux_stockage'))
 
 @app.route('/equipement/supprimer/<int:equipement_id>', methods=['POST'])

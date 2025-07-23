@@ -6,9 +6,12 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Lieux de stockage</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{{ url_for('ajouter_lieu_stockage') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Ajouter un lieu de stockage
+        <a href="{{ url_for('ajouter_lieu_stockage') }}" class="btn btn-outline-primary" title="Ajouter un lieu de stockage">
+            <i class="fas fa-plus"></i>
         </a>
+        <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#viderDonneesModal" title="Vider les lieux de stockage">
+            <i class="fas fa-trash"></i>
+        </button>
     </div>
 </div>
 
@@ -36,9 +39,9 @@
                         <a href="{{ url_for('modifier_lieu_stockage', lieu_stockage_id=lieu.id) }}" class="btn btn-outline-secondary">
                             <i class="fas fa-edit"></i>
                         </a>
-                        <a href="{{ url_for('supprimer_lieu_stockage', lieu_stockage_id=lieu.id) }}" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ lieu.id }}">
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ lieu.id }}" title="Supprimer">
                             <i class="fas fa-trash"></i>
-                        </a>
+                        </button>
                     </div>
                 </td>
             </tr>
@@ -101,5 +104,32 @@
             {% endfor %}
         </tbody>
     </table>
+</div>
+
+<!-- Modal de confirmation pour vider les lieux de stockage -->
+<div class="modal fade" id="viderDonneesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Vider les lieux de stockage</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Attention !</strong> Cette action va supprimer TOUS les lieux de stockage et toutes les pièces associées.
+                </div>
+                <p>Êtes-vous sûr de vouloir continuer ? Cette action est irréversible.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('vider_lieux_stockage') }}" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Vider les lieux de stockage
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %} 

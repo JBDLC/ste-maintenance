@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier une maintenance curative - Gestion Maintenance Préventive{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Modifier une maintenance curative</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('maintenance_curative') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-edit"></i> Modifier la maintenance curative</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" id="maintenanceForm">
+                    <div class="mb-3">
+                        <label for="localisation_id" class="form-label">Localisation *</label>
+                        <select class="form-select" id="localisation_id" name="localisation_id" required>
+                            <option value="">Sélectionner une localisation</option>
+                            {% for localisation in localisations %}
+                                <option value="{{ localisation.id }}" 
+                                        {% if maintenance_curative.equipement.localisation_id == localisation.id %}selected{% endif %}>
+                                    {{ localisation.nom }} ({{ localisation.site.nom }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="equipement_id" class="form-label">Équipement *</label>
+                        <select class="form-select" id="equipement_id" name="equipement_id" required>
+                            <option value="">Sélectionner un équipement</option>
+                            {% for equipement in equipements %}
+                                <option value="{{ equipement.id }}" 
+                                        {% if maintenance_curative.equipement_id == equipement.id %}selected{% endif %}
+                                        data-description="{{ equipement.description or '' }}">
+                                    {{ equipement.nom }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description_equipement" class="form-label">Description de l'équipement</label>
+                        <textarea class="form-control" id="description_equipement" rows="2" readonly>{{ maintenance_curative.equipement.description or '' }}</textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="date_intervention" class="form-label">Date d'intervention *</label>
+                        <input type="date" class="form-control" id="date_intervention" name="date_intervention" 
+                               value="{{ maintenance_curative.date_intervention.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description_maintenance" class="form-label">Maintenance réalisée *</label>
+                        <textarea class="form-control" id="description_maintenance" name="description_maintenance" rows="4" required placeholder="Décrivez la maintenance curative réalisée...">{{ maintenance_curative.description_maintenance }}</textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="temps_passe" class="form-label">Temps passé (en heures) *</label>
+                                <input type="number" class="form-control" id="temps_passe" name="temps_passe" step="0.5" min="0" 
+                                       value="{{ maintenance_curative.temps_passe }}" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="nombre_personnes" class="form-label">Nombre de personnes *</label>
+                                <input type="number" class="form-control" id="nombre_personnes" name="nombre_personnes" min="1" 
+                                       value="{{ maintenance_curative.nombre_personnes }}" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Pièces de rechange utilisées</label>
+                        <div id="pieces-container">
+                            {% for piece_utilisee in maintenance_curative.pieces_utilisees %}
+                            <div class="row mb-2 piece-row">
+                                <div class="col-md-6">
+                                    <select class="form-select piece-select" name="pieces[]">
+                                        <option value="">Sélectionner une pièce</option>
+                                        {% for piece in pieces %}
+                                            <option value="{{ piece.id }}" data-stock="{{ piece.quantite_stock }}"
+                                                    {% if piece_utilisee.piece_id == piece.id %}selected{% endif %}>
+                                                {{ piece.item }} (Stock: {{ piece.quantite_stock }})
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="number" class="form-control piece-quantity" name="quantites[]" min="1" 
+                                           value="{{ piece_utilisee.quantite }}" placeholder="Qté">
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% if not maintenance_curative.pieces_utilisees %}
+                            <div class="row mb-2 piece-row">
+                                <div class="col-md-6">
+                                    <select class="form-select piece-select" name="pieces[]">
+                                        <option value="">Sélectionner une pièce</option>
+                                        {% for piece in pieces %}
+                                            <option value="{{ piece.id }}" data-stock="{{ piece.quantite_stock }}">{{ piece.item }} (Stock: {{ piece.quantite_stock }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="number" class="form-control piece-quantity" name="quantites[]" min="1" placeholder="Qté" disabled>
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="button" class="btn btn-outline-danger btn-sm remove-piece" disabled>
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece">
+                            <i class="fas fa-plus"></i> Ajouter une pièce
+                        </button>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-warning">
+                            <i class="fas fa-save"></i> Modifier la maintenance curative
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Données des équipements par localisation
+const equipementsData = {
+    {% for localisation in localisations %}
+    {{ localisation.id }}: [
+        {% for equipement in localisation.equipements %}
+        {
+            id: {{ equipement.id }},
+            nom: "{{ equipement.nom|replace('"', '\\"') }}",
+            description: "{{ (equipement.description or '')|replace('"', '\\"')|replace('\n', '\\n') }}"
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ]{% if not loop.last %},{% endif %}
+    {% endfor %}
+};
+
+// Gestion du changement de localisation
+document.getElementById('localisation_id').addEventListener('change', function() {
+    const localisationId = this.value;
+    const equipementSelect = document.getElementById('equipement_id');
+    const descriptionEquipement = document.getElementById('description_equipement');
+    
+    // Réinitialiser les champs
+    equipementSelect.innerHTML = '<option value="">Sélectionner un équipement</option>';
+    equipementSelect.disabled = true;
+    descriptionEquipement.value = '';
+    
+    if (localisationId && equipementsData[localisationId]) {
+        equipementSelect.disabled = false;
+        equipementsData[localisationId].forEach(equipement => {
+            const option = document.createElement('option');
+            option.value = equipement.id;
+            option.textContent = equipement.nom;
+            option.dataset.description = equipement.description;
+            equipementSelect.appendChild(option);
+        });
+    }
+});
+
+// Gestion du changement d'équipement
+document.getElementById('equipement_id').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const descriptionEquipement = document.getElementById('description_equipement');
+    
+    if (selectedOption && selectedOption.dataset.description) {
+        descriptionEquipement.value = selectedOption.dataset.description;
+    } else {
+        descriptionEquipement.value = '';
+    }
+});
+
+// Gestion des pièces
+document.getElementById('add-piece').addEventListener('click', function() {
+    const container = document.getElementById('pieces-container');
+    const newRow = document.createElement('div');
+    newRow.className = 'row mb-2 piece-row';
+    newRow.innerHTML = `
+        <div class="col-md-6">
+            <select class="form-select piece-select" name="pieces[]">
+                <option value="">Sélectionner une pièce</option>
+                {% for piece in pieces %}
+                    <option value="{{ piece.id }}" data-stock="{{ piece.quantite_stock }}">{{ piece.item }} (Stock: {{ piece.quantite_stock }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <input type="number" class="form-control piece-quantity" name="quantites[]" min="1" placeholder="Qté" disabled>
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(newRow);
+    
+    // Ajouter les event listeners pour la nouvelle ligne
+    setupPieceRow(newRow);
+});
+
+// Fonction pour configurer une ligne de pièce
+function setupPieceRow(row) {
+    const pieceSelect = row.querySelector('.piece-select');
+    const quantityInput = row.querySelector('.piece-quantity');
+    const removeButton = row.querySelector('.remove-piece');
+    
+    pieceSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value) {
+            quantityInput.disabled = false;
+            quantityInput.max = selectedOption.dataset.stock;
+            quantityInput.placeholder = `Qté (max: ${selectedOption.dataset.stock})`;
+        } else {
+            quantityInput.disabled = true;
+            quantityInput.value = '';
+        }
+    });
+    
+    removeButton.addEventListener('click', function() {
+        row.remove();
+    });
+}
+
+// Configurer toutes les lignes existantes
+document.querySelectorAll('.piece-row').forEach(setupPieceRow);
+</script>
+{% endblock %} 

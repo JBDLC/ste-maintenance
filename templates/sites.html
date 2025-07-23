@@ -6,11 +6,11 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Sites</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{{ url_for('ajouter_site') }}" class="btn btn-primary">
-            <i class="fas fa-plus"></i> Ajouter un site
+        <a href="{{ url_for('ajouter_site') }}" class="btn btn-outline-primary" title="Ajouter un site">
+            <i class="fas fa-plus"></i>
         </a>
-        <button type="button" class="btn btn-danger ms-2" data-bs-toggle="modal" data-bs-target="#viderDonneesModal">
-            <i class="fas fa-trash-alt"></i> Vider les sites
+        <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#viderDonneesModal" title="Vider les sites">
+            <i class="fas fa-trash"></i>
         </button>
     </div>
 </div>
@@ -75,9 +75,9 @@
                         <a href="{{ url_for('modifier_site', site_id=site.id) }}" class="btn btn-outline-secondary">
                             <i class="fas fa-edit"></i>
                         </a>
-                        <a href="{{ url_for('supprimer_site', site_id=site.id) }}" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ site.id }}">
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ site.id }}" title="Supprimer">
                             <i class="fas fa-trash"></i>
-                        </a>
+                        </button>
                     </div>
                 </td>
             </tr>

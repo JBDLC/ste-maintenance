@@ -619,7 +619,7 @@
                         ) %}
                         {% if has_data_access %}
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle {% if request.endpoint in ['sites', 'ajouter_site', 'modifier_site', 'localisations', 'ajouter_localisation', 'modifier_localisation', 'equipements', 'ajouter_equipement', 'modifier_equipement', 'lieux_stockage', 'ajouter_lieu_stockage', 'modifier_lieu_stockage'] %}active{% endif %}" href="#" id="donneesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a class="nav-link dropdown-toggle {% if request.endpoint in ['sites', 'ajouter_site', 'modifier_site', 'localisations', 'ajouter_localisation', 'modifier_localisation', 'equipements', 'ajouter_equipement', 'modifier_equipement', 'lieux_stockage', 'ajouter_lieu_stockage', 'modifier_lieu_stockage', 'pieces', 'ajouter_piece'] %}active{% endif %}" href="#" id="donneesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-database"></i> Données
                             </a>
                             <ul class="dropdown-menu bg-light border-0 shadow-sm" aria-labelledby="donneesDropdown">
@@ -635,42 +635,44 @@
                                 {% if has_permission(current_user.id, 'lieux_stockage') %}
                                 <li><a class="dropdown-item {% if request.endpoint in ['lieux_stockage', 'ajouter_lieu_stockage', 'modifier_lieu_stockage'] %}active{% endif %}" href="{{ url_for('lieux_stockage') }}"><i class="fas fa-warehouse"></i> Lieux de stockage</a></li>
                                 {% endif %}
+                                {% if has_permission(current_user.id, 'pieces') %}
+                                <li><a class="dropdown-item {% if request.endpoint in ['pieces', 'ajouter_piece'] %}active{% endif %}" href="{{ url_for('pieces') }}"><i class="fas fa-boxes"></i> Pièces de rechange</a></li>
+                                {% endif %}
                             </ul>
                         </li>
                         {% endif %}
                         
-                        <!-- Pièces de rechange -->
-                        {% if has_permission(current_user.id, 'pieces') %}
+                        <!-- Préventif -->
+                        {% if has_permission(current_user.id, 'maintenances') or has_permission(current_user.id, 'calendrier') %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle {% if request.endpoint in ['maintenances', 'ajouter_maintenance', 'modifier_maintenance', 'calendrier'] %}active{% endif %}" href="#" id="preventifDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-shield-alt"></i> Préventif
+                            </a>
+                            <ul class="dropdown-menu bg-light border-0 shadow-sm" aria-labelledby="preventifDropdown">
+                                {% if has_permission(current_user.id, 'maintenances') %}
+                                <li><a class="dropdown-item {% if request.endpoint in ['maintenances', 'ajouter_maintenance', 'modifier_maintenance'] %}active{% endif %}" href="{{ url_for('maintenances') }}"><i class="fas fa-clipboard-list"></i> Maintenance préventive</a></li>
+                                {% endif %}
+                                {% if has_permission(current_user.id, 'calendrier') %}
+                                <li><a class="dropdown-item {% if request.endpoint in ['calendrier'] %}active{% endif %}" href="{{ url_for('calendrier') }}"><i class="fas fa-calendar-alt"></i> Calendrier préventif</a></li>
+                                {% endif %}
+                            </ul>
+                        </li>
+                        {% endif %}
+                        
+                        <!-- Curatif -->
+                        {% if has_permission(current_user.id, 'maintenance_curative') %}
                         <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint in ['pieces', 'ajouter_piece'] %}active{% endif %}" href="{{ url_for('pieces') }}">
-                                <i class="fas fa-boxes"></i> Pièces de rechange
+                            <a class="nav-link {% if request.endpoint in ['maintenance_curative', 'ajouter_maintenance_curative'] %}active{% endif %}" href="{{ url_for('maintenance_curative') }}">
+                                <i class="fas fa-tools"></i> Curatif
                             </a>
                         </li>
                         {% endif %}
                         
-                        <!-- Maintenances -->
-                        {% if has_permission(current_user.id, 'maintenances') %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint in ['maintenances', 'ajouter_maintenance', 'modifier_maintenance'] %}active{% endif %}" href="{{ url_for('maintenances') }}">
-                                <i class="fas fa-clipboard-list"></i> Maintenances
-                            </a>
-                        </li>
-                        {% endif %}
-                        
-                        <!-- Calendrier -->
-                        {% if has_permission(current_user.id, 'calendrier') %}
-                        <li class="nav-item">
-                            <a class="nav-link {% if request.endpoint in ['calendrier'] %}active{% endif %}" href="{{ url_for('calendrier') }}">
-                                <i class="fas fa-calendar-alt"></i> Calendrier
-                            </a>
-                        </li>
-                        {% endif %}
-                        
-                        <!-- Magasin -->
+                        <!-- Mouvement stock -->
                         {% if has_permission(current_user.id, 'mouvements') %}
                         <li class="nav-item">
                             <a class="nav-link {% if request.endpoint in ['mouvements'] %}active{% endif %}" href="{{ url_for('mouvements') }}">
-                                <i class="fas fa-exchange-alt"></i> Magasin
+                                <i class="fas fa-exchange-alt"></i> Mouvement stock
                             </a>
                         </li>
                         {% endif %}
