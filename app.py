@@ -676,10 +676,11 @@ def envoyer_rapport_maintenance_curative(maintenance_id):
         
         # En-tête avec logo
         try:
-            # Ajouter le logo en haut à gauche
+            # Ajouter le logo en haut à gauche avec de meilleures proportions
             logo_path = os.path.join(app.static_folder, 'logo.png')
             if os.path.exists(logo_path):
-                pdf.image(logo_path, x=10, y=10, w=30, h=20)
+                # Utiliser une taille plus appropriée et garder le ratio d'aspect
+                pdf.image(logo_path, x=10, y=10, w=25, h=15)
         except:
             pass  # Si le logo n'est pas disponible, continuer sans
         
