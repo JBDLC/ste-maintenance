@@ -674,20 +674,21 @@ def envoyer_rapport_maintenance_curative(maintenance_id):
         pdf = FPDF()
         pdf.add_page()
         
-        # En-tête avec logo
+        # En-tête avec logo et titre sur la même ligne
         try:
-            # Ajouter le logo en haut à gauche avec de meilleures proportions
+            # Ajouter le logo en haut à gauche, plus petit
             logo_path = os.path.join(app.static_folder, 'logo.png')
             if os.path.exists(logo_path):
-                # Utiliser une taille plus appropriée et garder le ratio d'aspect
-                pdf.image(logo_path, x=10, y=10, w=25, h=15)
+                # Logo plus petit sur la même ligne que le titre
+                pdf.image(logo_path, x=10, y=12, w=25)
         except:
             pass  # Si le logo n'est pas disponible, continuer sans
         
-        # Titre principal centré
+        # Titre principal à droite du logo
         pdf.set_font('Helvetica', 'B', 20)
         pdf.set_text_color(0, 0, 0)
-        pdf.cell(0, 30, 'Rapport de Maintenance Curative', ln=True, align='C')
+        pdf.set_xy(40, 20)  # Position après le logo
+        pdf.cell(0, 10, 'Rapport de Maintenance Curative', ln=True)
         
         # Ligne de séparation
         pdf.set_draw_color(200, 200, 200)

@@ -165,7 +165,7 @@
                 margin-left: 0;
                 width: 100vw;
                 max-width: 100vw;
-                padding: 60px 15px 15px 15px;
+                padding: 70px 15px 15px 15px;
             }
             
             .sidebar .logo-circle {
@@ -180,8 +180,48 @@
             }
             
             .sidebar .nav-link {
-                padding: 10px 15px;
+                padding: 12px 15px;
                 font-size: 1rem;
+            }
+            
+            /* Amélioration des dropdowns sur mobile */
+            .dropdown-menu {
+                position: static !important;
+                transform: none !important;
+                width: 100%;
+                margin-top: 0;
+                border: none;
+                background: rgba(255,255,255,0.1);
+                display: none;
+            }
+            
+            .dropdown-menu.show {
+                display: block !important;
+            }
+            
+            .dropdown-toggle.show {
+                background: var(--sidebar-link-active-bg) !important;
+                color: var(--sidebar-link-active-color) !important;
+            }
+            
+            .dropdown-toggle.show i {
+                color: var(--sidebar-link-active-color) !important;
+            }
+            
+            .dropdown-item {
+                color: var(--sidebar-link) !important;
+                padding: 8px 20px;
+                font-size: 0.9rem;
+            }
+            
+            .dropdown-item:hover {
+                background: rgba(255,255,255,0.2) !important;
+                color: var(--sidebar-link) !important;
+            }
+            
+            .dropdown-item.active {
+                background: var(--sidebar-link-active-bg) !important;
+                color: var(--sidebar-link-active-color) !important;
             }
         }
         
@@ -247,7 +287,7 @@
         
         @media (max-width: 575px) {
             .main-content {
-                padding: 60px 5px 5px 5px;
+                padding: 70px 8px 8px 8px;
             }
             
             .dashboard-card {
@@ -267,7 +307,7 @@
             
             .sidebar .nav-link {
                 font-size: 0.95rem;
-                padding: 8px 12px;
+                padding: 10px 15px;
             }
             
             .sidebar .logo-circle {
@@ -293,6 +333,35 @@
             .btn-group .btn {
                 padding: 0.5rem 0.8rem;
                 font-size: 0.85rem;
+            }
+            
+            /* Amélioration des formulaires sur mobile */
+            .form-control, .form-select {
+                font-size: 16px; /* Évite le zoom sur iOS */
+                padding: 0.75rem;
+            }
+            
+            /* Boutons plus grands sur mobile */
+            .btn {
+                padding: 0.75rem 1rem;
+                font-size: 1rem;
+            }
+            
+            .btn-sm {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.9rem;
+            }
+            
+            /* Modals plus adaptés */
+            .modal-dialog {
+                margin: 0.5rem;
+                max-width: calc(100vw - 1rem);
+            }
+            
+            .modal-body {
+                padding: 1rem;
+                max-height: 70vh;
+                overflow-y: auto;
             }
         }
         
@@ -583,6 +652,49 @@
             border-bottom: 1px solid #dee2e6;
             border-radius: 12px 12px 0 0 !important;
         }
+        
+        /* Amélioration des formulaires sur mobile */
+        .form-control, .form-select {
+            font-size: 16px; /* Évite le zoom sur iOS */
+        }
+        
+        /* Amélioration des boutons sur mobile */
+        .btn {
+            touch-action: manipulation; /* Améliore la réactivité tactile */
+        }
+        
+        /* Amélioration des modals sur mobile */
+        .modal-content {
+            border-radius: 12px;
+        }
+        
+        /* Amélioration des tableaux sur mobile */
+        .table-responsive {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        /* Amélioration de la navigation sur mobile */
+        .nav-link {
+            touch-action: manipulation;
+        }
+        
+        /* Amélioration des badges sur mobile */
+        .badge {
+            font-size: 0.75em;
+        }
+        
+        /* Amélioration des alertes sur mobile */
+        .alert {
+            margin-bottom: 1rem;
+        }
+        
+        /* Amélioration des tooltips sur mobile */
+        @media (max-width: 767px) {
+            .tooltip {
+                display: none !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -740,8 +852,35 @@
             sidebarToggle.addEventListener('click', toggleSidebar);
             sidebarOverlay.addEventListener('click', closeSidebar);
             
+            // Gestion des dropdowns dans la sidebar
+            const dropdownToggles = sidebar.querySelectorAll('.dropdown-toggle');
+            dropdownToggles.forEach(toggle => {
+                toggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    // Fermer tous les autres dropdowns
+                    dropdownToggles.forEach(otherToggle => {
+                        if (otherToggle !== toggle) {
+                            otherToggle.classList.remove('show');
+                            const otherDropdown = otherToggle.nextElementSibling;
+                            if (otherDropdown && otherDropdown.classList.contains('dropdown-menu')) {
+                                otherDropdown.classList.remove('show');
+                            }
+                        }
+                    });
+                    
+                    // Toggle le dropdown actuel
+                    toggle.classList.toggle('show');
+                    const dropdown = toggle.nextElementSibling;
+                    if (dropdown && dropdown.classList.contains('dropdown-menu')) {
+                        dropdown.classList.toggle('show');
+                    }
+                });
+            });
+            
             // Fermer la sidebar quand on clique sur un lien (mobile)
-            const sidebarLinks = sidebar.querySelectorAll('.nav-link');
+            const sidebarLinks = sidebar.querySelectorAll('.nav-link:not(.dropdown-toggle)');
             sidebarLinks.forEach(link => {
                 link.addEventListener('click', function() {
                     if (window.innerWidth <= 991) {
@@ -754,6 +893,19 @@
             window.addEventListener('resize', function() {
                 if (window.innerWidth > 991) {
                     closeSidebar();
+                }
+            });
+            
+            // Fermer les dropdowns quand on clique en dehors
+            document.addEventListener('click', function(e) {
+                if (!sidebar.contains(e.target)) {
+                    dropdownToggles.forEach(toggle => {
+                        toggle.classList.remove('show');
+                        const dropdown = toggle.nextElementSibling;
+                        if (dropdown && dropdown.classList.contains('dropdown-menu')) {
+                            dropdown.classList.remove('show');
+                        }
+                    });
                 }
             });
         });

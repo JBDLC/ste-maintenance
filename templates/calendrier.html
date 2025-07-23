@@ -6,16 +6,25 @@
 {% set prev_week = (semaine_lundi - timedelta(days=7)).strftime('%Y-%m-%d') %}
 {% set next_week = (semaine_lundi + timedelta(days=7)).strftime('%Y-%m-%d') %}
 {% set this_week = lundi_courant.strftime('%Y-%m-%d') %}
-<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom" style="flex-wrap: nowrap; min-width: 0;">
-    <h1 class="h2 mb-0" style="flex-shrink: 0; margin-right: 15px;">Calendrier de maintenance</h1>
-    <div class="d-flex align-items-center" style="flex-shrink: 0; gap: 8px;">
-        <a href="{{ url_for('calendrier', date=prev_week) }}" class="btn btn-outline-secondary btn-sm" title="Semaine précédente"><i class="fas fa-chevron-left"></i></a>
-        <span class="badge bg-primary" style="font-size: 0.9rem;">Semaine {{ semaine_lundi.isocalendar()[1] }} - du {{ semaine_lundi.strftime('%d/%m/%Y') }}</span>
-        <a href="{{ url_for('calendrier', date=next_week) }}" class="btn btn-outline-secondary btn-sm" title="Semaine suivante"><i class="fas fa-chevron-right"></i></a>
-        <a href="{{ url_for('calendrier', date=this_week) }}" class="btn btn-outline-info btn-sm" title="Semaine courante"><i class="fas fa-calendar-week"></i></a>
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom flex-wrap">
+    <h1 class="h2 mb-0 me-3">Calendrier de maintenance</h1>
+    <div class="d-flex align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-1">
+            <a href="{{ url_for('calendrier', date=prev_week) }}" class="btn btn-outline-secondary btn-sm" title="Semaine précédente">
+                <i class="fas fa-chevron-left"></i>
+            </a>
+            <span class="badge bg-primary">Semaine {{ semaine_lundi.isocalendar()[1] }} - du {{ semaine_lundi.strftime('%d/%m/%Y') }}</span>
+            <a href="{{ url_for('calendrier', date=next_week) }}" class="btn btn-outline-secondary btn-sm" title="Semaine suivante">
+                <i class="fas fa-chevron-right"></i>
+            </a>
+            <a href="{{ url_for('calendrier', date=this_week) }}" class="btn btn-outline-info btn-sm" title="Semaine courante">
+                <i class="fas fa-calendar-week"></i>
+            </a>
+        </div>
         <form method="POST" action="{{ url_for('envoyer_rapport', date=semaine_lundi.strftime('%Y-%m-%d')) }}" class="d-inline">
             <button type="submit" class="btn btn-success btn-sm">
-                <i class="fas fa-file-pdf"></i> Envoyer le rapport
+                <i class="fas fa-file-pdf"></i>
+                <span class="d-none d-sm-inline ms-1">Envoyer le rapport</span>
             </button>
         </form>
     </div>
@@ -23,16 +32,16 @@
 
 {% if interventions %}
 <div class="table-responsive">
-    <table class="table table-hover table-sm align-middle" style="font-size: 70%;">
+    <table class="table table-hover table-sm align-middle">
         <thead class="table-dark">
             <tr>
-                <th>Localisation</th>
+                <th class="d-none d-md-table-cell">Localisation</th>
                 <th>Équipement</th>
-                <th>Description</th>
-                <th>Action de maintenance</th>
+                <th class="d-none d-lg-table-cell">Description</th>
+                <th class="d-none d-sm-table-cell">Action de maintenance</th>
                 <th>Statut</th>
                 <th>Actions</th>
-                <th>Prochaine maintenance</th>
+                <th class="d-none d-lg-table-cell">Prochaine maintenance</th>
             </tr>
         </thead>
         <tbody>
@@ -50,10 +59,15 @@
                 data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
                 data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
                 onclick="showMaintenanceDetails(this)">
-                <td>{{ intervention.maintenance.equipement.localisation.nom }}</td>
-                <td>{{ intervention.maintenance.equipement.nom }}</td>
-                <td>{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
-                <td>{{ intervention.maintenance.titre }}</td>
+                <td class="d-none d-md-table-cell">{{ intervention.maintenance.equipement.localisation.nom }}</td>
+                <td>
+                    <strong>{{ intervention.maintenance.equipement.nom }}</strong>
+                    <div class="d-md-none small text-muted">
+                        {{ intervention.maintenance.equipement.localisation.nom }}
+                    </div>
+                </td>
+                <td class="d-none d-lg-table-cell">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
+                <td class="d-none d-sm-table-cell">{{ intervention.maintenance.titre }}</td>
                 <td>
                     <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}">
                         {{ intervention.statut|title }}
@@ -62,13 +76,14 @@
                 <td>
                     {% if intervention.statut == 'planifiee' %}
                     <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
-                        <i class="fas fa-check"></i> Réaliser
+                        <i class="fas fa-check"></i>
+                        <span class="d-none d-sm-inline ms-1">Réaliser</span>
                     </button>
                     {% else %}
                     <span class="text-muted">-</span>
                     {% endif %}
                 </td>
-                <td>
+                <td class="d-none d-lg-table-cell">
                     {% if intervention.prochaine_maintenance %}
                         Semaine {{ intervention.prochaine_maintenance.isocalendar()[1] }}
                     {% else %}

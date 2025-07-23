@@ -8,9 +8,11 @@
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('ajouter_equipement') }}" class="btn btn-outline-primary" title="Ajouter un équipement">
             <i class="fas fa-plus"></i>
+            <span class="d-none d-sm-inline ms-1">Ajouter</span>
         </a>
         <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#viderDonneesModal" title="Vider les équipements">
             <i class="fas fa-trash"></i>
+            <span class="d-none d-sm-inline ms-1">Vider</span>
         </button>
     </div>
 </div>
@@ -51,12 +53,12 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-hover table-sm align-middle" style="font-size: 70%;">
+    <table class="table table-hover table-sm align-middle">
         <thead class="table-dark">
             <tr>
                 <th style="width: 20%;">Nom</th>
-                <th style="width: 25%;">Description</th>
-                <th style="width: 15%;">Localisation</th>
+                <th class="d-none d-md-table-cell" style="width: 25%;">Description</th>
+                <th class="d-none d-sm-table-cell" style="width: 15%;">Localisation</th>
                 <th style="width: 8%; text-align: center;">PDR</th>
                 <th style="width: 8%; text-align: center;">Préventif</th>
                 <th style="width: 8%; text-align: center;">Curatif</th>
@@ -66,9 +68,14 @@
         <tbody>
             {% for equipement in equipements %}
             <tr>
-                <td><strong>{{ equipement.nom }}</strong></td>
-                <td>{{ equipement.description or '-' }}</td>
-                <td>{{ equipement.localisation.nom }}</td>
+                <td>
+                    <strong>{{ equipement.nom }}</strong>
+                    <div class="d-md-none small text-muted">
+                        {{ equipement.localisation.nom }}
+                    </div>
+                </td>
+                <td class="d-none d-md-table-cell">{{ equipement.description or '-' }}</td>
+                <td class="d-none d-sm-table-cell">{{ equipement.localisation.nom }}</td>
                 <td style="text-align: center;">
                     <span class="badge bg-info">{{ equipement.pieces|length }}</span>
                 </td>

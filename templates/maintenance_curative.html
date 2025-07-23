@@ -8,20 +8,22 @@
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('export_maintenance_curative_excel') }}" class="btn btn-outline-success me-2" title="Exporter Excel">
             <i class="fas fa-download"></i>
+            <span class="d-none d-sm-inline ms-1">Excel</span>
         </a>
         <a href="{{ url_for('ajouter_maintenance_curative') }}" class="btn btn-outline-primary" title="Ajouter une maintenance curative">
             <i class="fas fa-plus"></i>
+            <span class="d-none d-sm-inline ms-1">Ajouter</span>
         </a>
     </div>
 </div>
 
 {% if maintenances_curatives %}
 <div class="table-responsive">
-    <table class="table table-hover table-sm align-middle" style="font-size: 70%;">
+    <table class="table table-hover table-sm align-middle">
         <thead class="table-dark">
             <tr>
-                <th>Date</th>
-                <th>Localisation</th>
+                <th class="d-none d-md-table-cell">Date</th>
+                <th class="d-none d-sm-table-cell">Localisation</th>
                 <th>Équipement</th>
                 <th>Actions</th>
             </tr>
@@ -29,9 +31,17 @@
         <tbody>
             {% for maintenance in maintenances_curatives %}
             <tr>
-                <td>{{ maintenance.date_intervention.strftime('%d/%m/%Y') }}</td>
-                <td>{{ maintenance.equipement.localisation.nom }}</td>
-                <td>{{ maintenance.equipement.nom }}</td>
+                <td class="d-none d-md-table-cell">{{ maintenance.date_intervention.strftime('%d/%m/%Y') }}</td>
+                <td class="d-none d-sm-table-cell">{{ maintenance.equipement.localisation.nom }}</td>
+                <td>
+                    <strong>{{ maintenance.equipement.nom }}</strong>
+                    <div class="d-md-none small text-muted">
+                        {{ maintenance.date_intervention.strftime('%d/%m/%Y') }}
+                    </div>
+                    <div class="d-sm-none small text-muted">
+                        {{ maintenance.equipement.localisation.nom }}
+                    </div>
+                </td>
                 <td>
                     <div class="btn-group btn-group-sm" role="group">
                         <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#maintenanceModal{{ maintenance.id }}">

@@ -8,9 +8,11 @@
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('ajouter_piece') }}" class="btn btn-outline-primary" title="Ajouter une pièce">
             <i class="fas fa-plus"></i>
+            <span class="d-none d-sm-inline ms-1">Ajouter</span>
         </a>
         <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#viderDonneesModal" title="Vider les pièces">
             <i class="fas fa-trash"></i>
+            <span class="d-none d-sm-inline ms-1">Vider</span>
         </button>
     </div>
 </div>
@@ -50,15 +52,15 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-striped table-hover" style="font-size: 70%;">
+    <table class="table table-striped table-hover">
         <thead class="table-dark">
             <tr>
-                <th>Référence STE</th>
+                <th class="d-none d-md-table-cell">Référence STE</th>
                 <th>Item</th>
-                <th>Lieu</th>
+                <th class="d-none d-sm-table-cell">Lieu</th>
                 <th>Stock</th>
-                <th>Min</th>
-                <th>Max</th>
+                <th class="d-none d-lg-table-cell">Min</th>
+                <th class="d-none d-lg-table-cell">Max</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -66,25 +68,30 @@
             {% if pieces %}
                 {% for piece in pieces %}
                 <tr class="{{ 'table-danger' if piece.quantite_stock <= piece.stock_mini else 'table-warning' if piece.quantite_stock <= piece.stock_mini + 2 else '' }} {{ 'table-secondary' if not piece.item or not piece.reference_ste }}">
-                    <td>{{ piece.reference_ste or '<span class="text-muted">Non renseigné</span>'|safe }}</td>
-                    <td>{{ piece.item or '<span class="text-muted">Non renseigné</span>'|safe }}</td>
-                    <td>{{ piece.lieu_stockage.nom if piece.lieu_stockage else '-' }}</td>
+                    <td class="d-none d-md-table-cell">{{ piece.reference_ste or '<span class="text-muted">Non renseigné</span>'|safe }}</td>
+                    <td>
+                        <strong>{{ piece.item or '<span class="text-muted">Non renseigné</span>'|safe }}</strong>
+                        <div class="d-sm-none small text-muted">
+                            {{ piece.lieu_stockage.nom if piece.lieu_stockage else '-' }}
+                        </div>
+                    </td>
+                    <td class="d-none d-sm-table-cell">{{ piece.lieu_stockage.nom if piece.lieu_stockage else '-' }}</td>
                     <td>
                         <span class="badge bg-{{ 'danger' if piece.quantite_stock <= piece.stock_mini else 'warning' if piece.quantite_stock <= piece.stock_mini + 2 else 'success' }}">
                             {{ piece.quantite_stock }}
                         </span>
                     </td>
-                    <td>{{ piece.stock_mini }}</td>
-                    <td>{{ piece.stock_maxi }}</td>
+                    <td class="d-none d-lg-table-cell">{{ piece.stock_mini }}</td>
+                    <td class="d-none d-lg-table-cell">{{ piece.stock_maxi }}</td>
                     <td>
-                        <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#reapprovisionnerModal{{ piece.id }}">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#reapprovisionnerModal{{ piece.id }}">
                                 <i class="fas fa-plus"></i>
                             </button>
-                            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#modifierPieceModal{{ piece.id }}">
+                            <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#modifierPieceModal{{ piece.id }}">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ piece.id }}">
+                            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ piece.id }}">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>

@@ -8,6 +8,7 @@
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('ajouter_maintenance') }}" class="btn btn-outline-primary" title="Ajouter une maintenance">
             <i class="fas fa-plus"></i>
+            <span class="d-none d-sm-inline ms-1">Ajouter</span>
         </a>
     </div>
 </div>
@@ -15,15 +16,15 @@
 <!-- Tableau CO6 -->
 <h3 class="mb-3">CO6</h3>
 <div class="table-responsive mb-4">
-    <table class="table table-hover table-sm align-middle" style="font-size: 70%;">
+    <table class="table table-hover table-sm align-middle">
         <thead class="table-dark">
             <tr>
-                <th>Localisation</th>
+                <th class="d-none d-md-table-cell">Localisation</th>
                 <th>Équipement</th>
-                <th>Description équipement</th>
-                <th>Action de maintenance</th>
-                <th>Périodicité</th>
-                <th>1ère maintenance</th>
+                <th class="d-none d-lg-table-cell">Description équipement</th>
+                <th class="d-none d-sm-table-cell">Action de maintenance</th>
+                <th class="d-none d-md-table-cell">Périodicité</th>
+                <th class="d-none d-sm-table-cell">1ère maintenance</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -31,12 +32,17 @@
             {% if maintenances_co6 %}
                 {% for maintenance in maintenances_co6 %}
                 <tr class="{{ 'table-warning' if maintenance.date_importee and not maintenance.date_premiere else '' }}">
-                    <td>{{ maintenance.equipement.localisation.nom if maintenance.equipement and maintenance.equipement.localisation else '-' }}</td>
-                    <td>{{ maintenance.equipement.nom if maintenance.equipement else '-' }}</td>
-                    <td>{{ maintenance.equipement.description if maintenance.equipement and maintenance.equipement.description else 'Aucune description' }}</td>
-                    <td>{{ maintenance.titre }}</td>
-                    <td>{{ maintenance.periodicite or '-' }}</td>
+                    <td class="d-none d-md-table-cell">{{ maintenance.equipement.localisation.nom if maintenance.equipement and maintenance.equipement.localisation else '-' }}</td>
                     <td>
+                        <strong>{{ maintenance.equipement.nom if maintenance.equipement else '-' }}</strong>
+                        <div class="d-md-none small text-muted">
+                            {{ maintenance.equipement.localisation.nom if maintenance.equipement and maintenance.equipement.localisation else '-' }}
+                        </div>
+                    </td>
+                    <td class="d-none d-lg-table-cell">{{ maintenance.equipement.description if maintenance.equipement and maintenance.equipement.description else 'Aucune description' }}</td>
+                    <td class="d-none d-sm-table-cell">{{ maintenance.titre }}</td>
+                    <td class="d-none d-md-table-cell">{{ maintenance.periodicite or '-' }}</td>
+                    <td class="d-none d-sm-table-cell">
                         {% if maintenance.date_premiere %}
                             {{ maintenance.date_premiere.strftime('%d/%m/%Y') }}
                         {% elif maintenance.date_importee %}
