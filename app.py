@@ -187,7 +187,7 @@ class Equipement(db.Model):
     description = db.Column(db.Text)
     localisation_id = db.Column(db.Integer, db.ForeignKey('localisation.id'), nullable=False)
     maintenances = db.relationship('Maintenance', backref='equipement', lazy=True, cascade='all, delete-orphan')
-    maintenances_curatives = db.relationship('MaintenanceCurative', lazy=True, cascade='all, delete-orphan')
+    maintenances_curatives = db.relationship('MaintenanceCurative', lazy=True, cascade='all, delete-orphan', overlaps="equipement")
     pieces = db.relationship('PieceEquipement', backref='equipement', lazy=True, cascade='all, delete-orphan')
 
 class Piece(db.Model):
@@ -260,7 +260,7 @@ class MaintenanceCurative(db.Model):
     nombre_personnes = db.Column(db.Integer, nullable=False, default=1)
     date_intervention = db.Column(db.Date, nullable=False)  # Date réelle de l'intervention
     date_realisation = db.Column(db.DateTime, default=datetime.utcnow)  # Date de saisie
-    equipement = db.relationship('Equipement')
+    equipement = db.relationship('Equipement', overlaps="maintenances_curatives")
     pieces_utilisees = db.relationship('PieceUtiliseeCurative', backref='maintenance_curative', lazy=True, cascade='all, delete-orphan')
 
 class PieceUtiliseeCurative(db.Model):

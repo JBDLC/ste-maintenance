@@ -3,115 +3,260 @@
 {% block title %}Tableau de bord - Gestion Maintenance Préventive{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Tableau de bord</h1>
+<div class="dashboard-header">
+    <h1 class="dashboard-title">Tableau de bord</h1>
 </div>
 
-<div class="dashboard-row">
-    <div class="col">
-        <div class="card dashboard-card dashboard-sites h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Sites</h5>
-                        <h2 class="card-text">{{ sites|length }}</h2>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-building fa-2x"></i>
-                    </div>
-                </div>
-                <a href="{{ url_for('sites') }}" class="btn btn-light btn-sm mt-2">Voir les sites</a>
-            </div>
+<!-- Cartes principales en grille responsive -->
+<div class="dashboard-grid">
+    <!-- Sites -->
+    <div class="dashboard-card dashboard-sites">
+        <div class="card-title">Sites</div>
+        <div class="card-count">{{ sites|length }}</div>
+        <div class="card-icon">
+            <i class="fas fa-building"></i>
         </div>
+        <a href="{{ url_for('sites') }}" class="btn-action">Voir les sites</a>
     </div>
 
-    <div class="col">
-        <div class="card dashboard-card dashboard-equipements h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Équipements</h5>
-                        <h2 class="card-text">{{ equipements|length }}</h2>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-cogs fa-2x"></i>
-                    </div>
-                </div>
-                <a href="{{ url_for('equipements') }}" class="btn btn-light btn-sm mt-2">Voir les équipements</a>
-            </div>
+    <!-- Équipements -->
+    <div class="dashboard-card dashboard-equipements">
+        <div class="card-title">Équipements</div>
+        <div class="card-count">{{ equipements|length }}</div>
+        <div class="card-icon">
+            <i class="fas fa-cogs"></i>
         </div>
+        <a href="{{ url_for('equipements') }}" class="btn-action">Voir les équipements</a>
     </div>
 
-    <div class="col">
-        <div class="card dashboard-card dashboard-maintenances h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Maintenances</h5>
-                        <h2 class="card-text">{{ maintenances|length }}</h2>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-clipboard-list fa-2x"></i>
-                    </div>
-                </div>
-                <a href="{{ url_for('maintenances') }}" class="btn btn-light btn-sm mt-2">Voir les maintenances</a>
-            </div>
+    <!-- Maintenances -->
+    <div class="dashboard-card dashboard-maintenances">
+        <div class="card-title">Maintenances</div>
+        <div class="card-count">{{ maintenances|length }}</div>
+        <div class="card-icon">
+            <i class="fas fa-clipboard-list"></i>
         </div>
+        <a href="{{ url_for('maintenances') }}" class="btn-action">Voir les maintenances</a>
     </div>
 
-    <div class="col">
-        <div class="card dashboard-card dashboard-pieces h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Pièces</h5>
-                        <h2 class="card-text">{{ pieces|length }}</h2>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-boxes fa-2x"></i>
-                    </div>
-                </div>
-                <a href="{{ url_for('pieces') }}" class="btn btn-light btn-sm mt-2">Voir les pièces</a>
-            </div>
+    <!-- Pièces -->
+    <div class="dashboard-card dashboard-pieces">
+        <div class="card-title">Pièces</div>
+        <div class="card-count">{{ pieces|length }}</div>
+        <div class="card-icon">
+            <i class="fas fa-boxes"></i>
         </div>
+        <a href="{{ url_for('pieces') }}" class="btn-action">Voir les pièces</a>
+    </div>
+
+    <!-- Maintenances cette semaine -->
+    <div class="dashboard-card dashboard-maintenances-semaine">
+        <div class="card-title">Maintenances cette semaine</div>
+        <div class="card-count">{{ interventions_semaine|length }}</div>
+        <div class="card-icon">
+            <i class="fas fa-calendar-alt"></i>
+        </div>
+        <a href="{{ url_for('calendrier') }}" class="btn-action">Voir le calendrier</a>
+    </div>
+
+    <!-- Pièces en rupture -->
+    <div class="dashboard-card dashboard-pieces-rupture">
+        <div class="card-title">Pièces en rupture</div>
+        <div class="card-count">{{ pieces_rupture|length }}</div>
+        <div class="card-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <a href="{{ url_for('pieces') }}#rupture" class="btn-action">Voir les pièces en rupture</a>
     </div>
 </div>
+{% endblock %}
 
-<div class="dashboard-row">
-    <div class="col">
-        <div class="card dashboard-card dashboard-maintenances-semaine h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Maintenances à faire cette semaine</h5>
-                        <h2 class="card-text">{{ interventions_semaine|length }}</h2>
-                        <small class="text-muted">maintenance{{ interventions_semaine|length > 1 and 's' or '' }} à réaliser</small>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-calendar-alt fa-2x"></i>
-                    </div>
-                </div>
-                <a href="{{ url_for('calendrier') }}" class="btn btn-light btn-sm mt-2">Voir le calendrier</a>
-            </div>
-        </div>
-    </div>
-
-    <div class="col">
-        <div class="card dashboard-card dashboard-pieces-rupture h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between">
-                    <div>
-                        <h5 class="card-title">Pièces en rupture</h5>
-                        <h2 class="card-text">{{ pieces_rupture|length }}</h2>
-                        <small class="text-muted">pièce{{ pieces_rupture|length > 1 and 's' or '' }} en rupture</small>
-                    </div>
-                    <div class="align-self-center">
-                        <i class="fas fa-exclamation-triangle fa-2x"></i>
-                    </div>
-                </div>
-                <a href="{{ url_for('pieces') }}#rupture" class="btn btn-light btn-sm mt-2">Voir les pièces en rupture</a>
-            </div>
-        </div>
-    </div>
-</div>
+{% block scripts %}
+<style>
+    /* Styles pour le tableau de bord mobile */
+    .dashboard-header {
+        margin-bottom: 2rem;
+    }
+    
+    .dashboard-title {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #333;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .dashboard-card {
+        border-radius: 16px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        overflow: hidden;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: none;
+        padding: 1.5rem;
+        position: relative;
+        min-height: 200px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    
+    .dashboard-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    }
+    
+    .card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0 0 0.5rem 0;
+        color: #fff;
+    }
+    
+    .card-count {
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin: 0;
+        line-height: 1;
+        color: #fff;
+    }
+    
+    .card-subtitle {
+        font-size: 0.9rem;
+        color: rgba(255,255,255,0.8);
+        margin-top: 0.25rem;
+    }
+    
+    .card-icon {
+        font-size: 2rem;
+        opacity: 0.9;
+        color: #fff;
+        position: absolute;
+        top: 1.5rem;
+        right: 1.5rem;
+    }
+    
+    .btn-action {
+        display: inline-block;
+        width: 100%;
+        padding: 0.75rem 1rem;
+        background: #fff;
+        color: #000;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 700;
+        text-align: center;
+        transition: all 0.2s ease;
+        border: 2px solid rgba(255,255,255,0.3);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-top: auto;
+    }
+    
+    .btn-action:hover {
+        background: #f8f9fa;
+        color: #000;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        border-color: rgba(255,255,255,0.5);
+    }
+    
+    /* Couleurs des cartes */
+    .dashboard-sites {
+        background: #667eea;
+        border: 3px solid #5a6fd8;
+    }
+    
+    .dashboard-equipements {
+        background: #e91e63;
+        border: 3px solid #d81b60;
+    }
+    
+    .dashboard-maintenances {
+        background: #2196f3;
+        border: 3px solid #1e88e5;
+    }
+    
+    .dashboard-pieces {
+        background: #4caf50;
+        border: 3px solid #43a047;
+    }
+    
+    .dashboard-maintenances-semaine {
+        background: #ff9800;
+        border: 3px solid #f57c00;
+    }
+    
+    .dashboard-pieces-rupture {
+        background: #f44336;
+        border: 3px solid #e53935;
+    }
+    
+    /* Responsive pour tablette */
+    @media (min-width: 768px) {
+        .dashboard-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+        
+        .dashboard-title {
+            font-size: 2.5rem;
+        }
+        
+        .dashboard-card {
+            padding: 2rem;
+            min-height: 220px;
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+        }
+        
+        .card-count {
+            font-size: 3rem;
+        }
+        
+        .card-icon {
+            font-size: 2.5rem;
+            top: 2rem;
+            right: 2rem;
+        }
+    }
+    
+    /* Responsive pour desktop */
+    @media (min-width: 1200px) {
+        .dashboard-grid {
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+        
+        .dashboard-title {
+            font-size: 3rem;
+        }
+        
+        .dashboard-card {
+            padding: 2.5rem;
+            min-height: 250px;
+        }
+        
+        .card-title {
+            font-size: 1.3rem;
+        }
+        
+        .card-count {
+            font-size: 3.5rem;
+        }
+        
+        .card-icon {
+            font-size: 3rem;
+            top: 2.5rem;
+            right: 2.5rem;
+        }
+    }
+</style>
 {% endblock %} 
