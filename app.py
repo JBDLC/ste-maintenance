@@ -1404,6 +1404,51 @@ def modifier_maintenance(maintenance_id):
         return redirect(url_for('maintenances'))
     return render_template('ajouter_maintenance.html', maintenance=maintenance, equipements=equipements, localisations=localisations, edition=True)
 
+@app.route('/vider-maintenances', methods=['POST'])
+@login_required
+def vider_maintenances():
+    """Vider toutes les maintenances préventives"""
+    try:
+        # Récupérer toutes les maintenances
+        maintenances = Maintenance.query.all()
+        
+        # Compter les interventions réalisées pour remettre les pièces en stock
+        interventions_realisees = Intervention.query.filter_by(statut='realisee').all()
+        
+        # Remettre en stock les pièces utilisées dans toutes les interventions réalisées
+        for intervention in interventions_realisees:
+            pieces_utilisees = PieceUtilisee.query.filter_by(intervention_id=intervention.id).all()
+            
+            for piece_utilisee in pieces_utilisees:
+                piece = piece_utilisee.piece
+                piece.quantite_stock += piece_utilisee.quantite
+                
+                # Créer un mouvement de stock pour l'entrée
+                mouvement = MouvementPiece(
+                    piece_id=piece.id,
+                    type_mouvement='entree',
+                    quantite=piece_utilisee.quantite,
+                    motif=f'Vidage maintenances - Intervention #{intervention.id}'
+                )
+                db.session.add(mouvement)
+        
+        # Supprimer toutes les maintenances (les interventions et pièces utilisées seront supprimées en cascade)
+        for maintenance in maintenances:
+            db.session.delete(maintenance)
+        
+        db.session.commit()
+        
+        if interventions_realisees:
+            flash(f'Toutes les maintenances ont été supprimées. {len(interventions_realisees)} interventions réalisées - les pièces utilisées ont été remises en stock.', 'success')
+        else:
+            flash('Toutes les maintenances ont été supprimées.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erreur lors de la suppression : {str(e)}', 'danger')
+    
+    return redirect(url_for('maintenances'))
+
 @app.route('/maintenance/supprimer/<int:maintenance_id>', methods=['POST'])
 @login_required
 def supprimer_maintenance(maintenance_id):
@@ -2371,6 +2416,78 @@ def download_modele(entite, format):
         tmp.flush()
         return send_file(tmp.name, as_attachment=True, download_name=f'modele_{entite}.{format}')
 
+@app.route('/parametres/export-maintenances-special.xlsx')
+@login_required
+def export_maintenances_special():
+    """Export des maintenances dans le format spécial pour l'import"""
+    try:
+        # Récupérer toutes les maintenances avec leurs équipements et localisations
+        maintenances = db.session.query(
+            Maintenance, Equipement, Localisation
+        ).join(
+            Equipement, Maintenance.equipement_id == Equipement.id
+        ).join(
+            Localisation, Equipement.localisation_id == Localisation.id
+        ).all()
+        
+        # Créer le fichier Excel
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Maintenances"
+        
+        # En-têtes du format spécial (compatible avec l'import)
+        headers = [
+            "ID", "Titre", "Équipement", "Localisation", "Périodicité", 
+            "Date première", "Date prochaine", "Active", "Date importée", "Description"
+        ]
+        
+        # Écrire les en-têtes avec style
+        from openpyxl.styles import Font, PatternFill, Alignment
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        center_alignment = Alignment(horizontal="center", vertical="center")
+        
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = center_alignment
+        
+        # Écrire les données
+        for row_idx, (maintenance, equipement, localisation) in enumerate(maintenances, 2):
+            ws.cell(row=row_idx, column=1, value=maintenance.id)
+            ws.cell(row=row_idx, column=2, value=maintenance.titre)
+            ws.cell(row=row_idx, column=3, value=equipement.nom)
+            ws.cell(row=row_idx, column=4, value=localisation.nom)
+            ws.cell(row=row_idx, column=5, value=maintenance.periodicite)
+            ws.cell(row=row_idx, column=6, value=maintenance.date_premiere)
+            ws.cell(row=row_idx, column=7, value=maintenance.date_prochaine)
+            ws.cell(row=row_idx, column=8, value=maintenance.active)
+            ws.cell(row=row_idx, column=9, value=maintenance.date_importee)
+            ws.cell(row=row_idx, column=10, value=maintenance.description or "")
+        
+        # Ajuster la largeur des colonnes
+        for col in range(1, len(headers) + 1):
+            ws.column_dimensions[chr(64 + col)].width = 20
+        
+        # Créer le fichier en mémoire
+        from io import BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name='maintenances_export_special.xlsx'
+        )
+        
+    except Exception as e:
+        flash(f'Erreur lors de l\'export : {str(e)}', 'danger')
+        return redirect(url_for('parametres'))
+
 @app.route('/parametres/modele-maintenances.xlsx')
 @login_required
 def download_modele_maintenances():
@@ -2880,10 +2997,15 @@ def import_maintenances():
                     erreurs.append(f"Ligne {int(idx)+2}: Périodicité '{periodicite}' invalide. Valeurs autorisées: {', '.join(periodicites_valides)}")
                     continue
                 
+                # Tronquer le titre si nécessaire (solution temporaire)
+                titre_tronque = titre[:100] if len(titre) > 100 else titre
+                if len(titre) > 100:
+                    print(f"⚠️ Titre tronqué de {len(titre)} à 100 caractères: {titre}")
+                
                 # Créer la maintenance sans date
                 maintenance = Maintenance(
                     equipement_id=equipement.id,
-                    titre=titre,
+                    titre=titre_tronque,
                     periodicite=periodicite,
                     date_premiere=None,
                     date_prochaine=None,
@@ -2921,10 +3043,25 @@ def import_maintenances():
 def fix_titre_length_route():
     """Route temporaire pour corriger la longueur du champ titre"""
     try:
-        # Exécuter la migration SQL
-        db.session.execute(text("ALTER TABLE maintenance ALTER COLUMN titre TYPE VARCHAR(200)"))
-        db.session.commit()
-        flash('✅ Migration réussie ! Le champ titre accepte maintenant 200 caractères.', 'success')
+        # Vérifier la structure actuelle
+        result = db.session.execute(text("""
+            SELECT column_name, data_type, character_maximum_length 
+            FROM information_schema.columns 
+            WHERE table_name = 'maintenance' AND column_name = 'titre'
+        """))
+        
+        current_structure = result.fetchone()
+        if current_structure:
+            if current_structure[2] == 100:
+                # Exécuter la migration SQL
+                db.session.execute(text("ALTER TABLE maintenance ALTER COLUMN titre TYPE VARCHAR(200)"))
+                db.session.commit()
+                flash('✅ Migration réussie ! Le champ titre accepte maintenant 200 caractères.', 'success')
+            else:
+                flash(f'✅ Déjà migré : titre est {current_structure[1]}({current_structure[2]})', 'info')
+        else:
+            flash('❌ Table maintenance ou colonne titre non trouvée', 'danger')
+            
     except Exception as e:
         db.session.rollback()
         flash(f'❌ Erreur lors de la migration : {str(e)}', 'danger')

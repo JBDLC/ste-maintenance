@@ -8,8 +8,10 @@
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('ajouter_maintenance') }}" class="btn btn-outline-primary" title="Ajouter une maintenance">
             <i class="fas fa-plus"></i>
-            <span class="d-none d-sm-inline ms-1">Ajouter</span>
         </a>
+        <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#viderMaintenancesModal" title="Vider toutes les maintenances">
+            <i class="fas fa-trash"></i>
+        </button>
     </div>
 </div>
 
@@ -227,4 +229,36 @@
         </div>
     </div>
 {% endfor %}
+
+<!-- Modal de confirmation pour vider toutes les maintenances -->
+<div class="modal fade" id="viderMaintenancesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="fas fa-trash"></i> Vider toutes les maintenances</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Attention !</strong> Cette action va supprimer toutes les maintenances préventives :
+                    <ul class="mb-0 mt-2">
+                        <li>Toutes les maintenances CO6 et CO7</li>
+                        <li>Toutes les interventions planifiées</li>
+                        <li>Tous les mouvements de pièces associés</li>
+                    </ul>
+                </div>
+                <p>Cette action est irréversible. Êtes-vous sûr de vouloir continuer ?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('vider_maintenances') }}" method="post">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash-alt"></i> Vider toutes les maintenances
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %} 
