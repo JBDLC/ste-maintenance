@@ -661,55 +661,146 @@ def envoyer_rapport_maintenance_curative(maintenance_id):
     
     try:
         # Charger la configuration SMTP
-        config_smtp = charger_config_smtp()
-        if not config_smtp:
-            flash('Configuration email non trouvée. Veuillez configurer les paramètres SMTP.', 'danger')
+        charger_config_smtp()
+        
+        # Récupérer l'email de destination depuis les paramètres
+        email_param = Parametre.query.filter_by(cle='email_rapport').first()
+        email_dest = email_param.valeur if email_param else None
+        if not email_dest:
+            flash('Aucune adresse email de rapport n\'est configurée.', 'danger')
             return redirect(url_for('maintenance_curative'))
         
-        # Créer le PDF
+        # Créer le PDF avec une meilleure mise en page
         pdf = FPDF()
         pdf.add_page()
-        pdf.set_font('Arial', 'B', 16)
-        pdf.cell(0, 10, 'Rapport de Maintenance Curative', ln=True, align='C')
+        
+        # En-tête avec logo
+        try:
+            # Ajouter le logo en haut à gauche
+            logo_path = os.path.join(app.static_folder, 'logo.png')
+            if os.path.exists(logo_path):
+                pdf.image(logo_path, x=10, y=10, w=30, h=20)
+        except:
+            pass  # Si le logo n'est pas disponible, continuer sans
+        
+        # Titre principal centré
+        pdf.set_font('Helvetica', 'B', 20)
+        pdf.set_text_color(0, 0, 0)
+        pdf.cell(0, 30, 'Rapport de Maintenance Curative', ln=True, align='C')
+        
+        # Ligne de séparation
+        pdf.set_draw_color(200, 200, 200)
+        pdf.line(10, 45, 200, 45)
         pdf.ln(10)
         
-        pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 10, f'Équipement: {maintenance_curative.equipement.nom}', ln=True)
-        pdf.cell(0, 10, f'Localisation: {maintenance_curative.equipement.localisation.nom}', ln=True)
-        pdf.cell(0, 10, f'Site: {maintenance_curative.equipement.localisation.site.nom}', ln=True)
-        pdf.cell(0, 10, f'Date d\'intervention: {maintenance_curative.date_intervention.strftime("%d/%m/%Y")}', ln=True)
-        pdf.cell(0, 10, f'Date de saisie: {maintenance_curative.date_realisation.strftime("%d/%m/%Y %H:%M")}', ln=True)
+        # Informations de l'équipement dans un cadre
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.set_text_color(50, 50, 50)
+        pdf.cell(0, 10, 'Informations de l\'équipement', ln=True)
         pdf.ln(5)
         
-        pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 10, 'Description de la maintenance:', ln=True)
-        pdf.set_font('Arial', '', 10)
-        pdf.multi_cell(0, 8, maintenance_curative.description_maintenance)
+        # Créer un tableau pour les informations
+        pdf.set_font('Helvetica', '', 11)
+        pdf.set_fill_color(245, 245, 245)
+        
+        # Équipement
+        pdf.cell(40, 8, 'Équipement:', 1, 0, 'L', True)
+        pdf.cell(0, 8, maintenance_curative.equipement.nom, 1, 1, 'L')
+        
+        # Localisation
+        pdf.cell(40, 8, 'Localisation:', 1, 0, 'L', True)
+        pdf.cell(0, 8, maintenance_curative.equipement.localisation.nom, 1, 1, 'L')
+        
+        # Site
+        pdf.cell(40, 8, 'Site:', 1, 0, 'L', True)
+        pdf.cell(0, 8, maintenance_curative.equipement.localisation.site.nom, 1, 1, 'L')
+        
+        # Date d'intervention
+        pdf.cell(40, 8, 'Date intervention:', 1, 0, 'L', True)
+        pdf.cell(0, 8, maintenance_curative.date_intervention.strftime("%d/%m/%Y"), 1, 1, 'L')
+        
+        # Date de saisie
+        pdf.cell(40, 8, 'Date saisie:', 1, 0, 'L', True)
+        pdf.cell(0, 8, maintenance_curative.date_realisation.strftime("%d/%m/%Y %H:%M"), 1, 1, 'L')
+        
+        pdf.ln(10)
+        
+        # Description de la maintenance
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.set_text_color(50, 50, 50)
+        pdf.cell(0, 10, 'Description de la maintenance', ln=True)
         pdf.ln(5)
         
-        pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 10, f'Temps passé: {maintenance_curative.temps_passe} heures', ln=True)
-        pdf.cell(0, 10, f'Nombre de personnes: {maintenance_curative.nombre_personnes}', ln=True)
+        pdf.set_font('Helvetica', '', 11)
+        pdf.set_fill_color(250, 250, 250)
+        pdf.rect(10, pdf.get_y(), 190, 30, 'F')
+        pdf.set_xy(15, pdf.get_y() + 5)
+        pdf.multi_cell(180, 8, maintenance_curative.description_maintenance)
+        pdf.ln(35)
+        
+        # Informations techniques
+        pdf.set_font('Helvetica', 'B', 14)
+        pdf.set_text_color(50, 50, 50)
+        pdf.cell(0, 10, 'Informations techniques', ln=True)
         pdf.ln(5)
         
+        pdf.set_font('Helvetica', '', 11)
+        pdf.set_fill_color(245, 245, 245)
+        
+        # Temps passé
+        pdf.cell(50, 8, 'Temps passé:', 1, 0, 'L', True)
+        pdf.cell(0, 8, f'{maintenance_curative.temps_passe} heures', 1, 1, 'L')
+        
+        # Nombre de personnes
+        pdf.cell(50, 8, 'Personnes:', 1, 0, 'L', True)
+        pdf.cell(0, 8, f'{maintenance_curative.nombre_personnes} personne(s)', 1, 1, 'L')
+        
+        pdf.ln(10)
+        
+        # Pièces utilisées
         if maintenance_curative.pieces_utilisees:
-            pdf.set_font('Arial', 'B', 12)
-            pdf.cell(0, 10, 'Pièces utilisées:', ln=True)
-            pdf.set_font('Arial', '', 10)
+            pdf.set_font('Helvetica', 'B', 14)
+            pdf.set_text_color(50, 50, 50)
+            pdf.cell(0, 10, 'Pièces utilisées', ln=True)
+            pdf.ln(5)
+            
+            pdf.set_font('Helvetica', 'B', 10)
+            pdf.set_fill_color(220, 220, 220)
+            pdf.cell(80, 8, 'Pièce', 1, 0, 'C', True)
+            pdf.cell(50, 8, 'Référence', 1, 0, 'C', True)
+            pdf.cell(30, 8, 'Quantité', 1, 1, 'C', True)
+            
+            pdf.set_font('Helvetica', '', 10)
             for piece_utilisee in maintenance_curative.pieces_utilisees:
-                pdf.cell(0, 8, f'- {piece_utilisee.piece.item} (Réf: {piece_utilisee.piece.reference_ste or "N/A"}) - Quantité: {piece_utilisee.quantite}', ln=True)
+                pdf.cell(80, 8, piece_utilisee.piece.item[:35], 1, 0, 'L')
+                pdf.cell(50, 8, piece_utilisee.piece.reference_ste or "N/A", 1, 0, 'L')
+                pdf.cell(30, 8, str(piece_utilisee.quantite), 1, 1, 'C')
+        else:
+            pdf.set_font('Helvetica', 'B', 14)
+            pdf.set_text_color(50, 50, 50)
+            pdf.cell(0, 10, 'Pièces utilisées', ln=True)
+            pdf.ln(5)
+            
+            pdf.set_font('Helvetica', '', 11)
+            pdf.set_text_color(150, 150, 150)
+            pdf.cell(0, 8, 'Aucune pièce utilisée', ln=True)
         
-        # Créer un fichier temporaire pour le PDF
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-            pdf.output(tmp_file.name)
-            tmp_file_path = tmp_file.name
+        # Pied de page
+        pdf.ln(20)
+        pdf.set_font('Helvetica', '', 8)
+        pdf.set_text_color(100, 100, 100)
+        pdf.cell(0, 8, f'Document généré le {datetime.now().strftime("%d/%m/%Y à %H:%M")}', ln=True, align='C')
         
-        try:
-            # Envoyer l'email
-            msg = Message(
-                subject=f'Rapport de Maintenance Curative - {maintenance_curative.equipement.nom}',
-                recipients=[config_smtp['destinataire']],
-                body=f"""
+        # Sauvegarder le PDF en mémoire
+        pdf_data = pdf.output(dest='S')
+        if isinstance(pdf_data, str):
+            pdf_data = pdf_data.encode('latin1')
+        
+        # Envoyer l'email
+        msg = Message(
+            subject=f'Rapport de Maintenance Curative - {maintenance_curative.equipement.nom}',
+            recipients=[email_dest],
+            body=f"""
 Rapport de Maintenance Curative
 
 Équipement: {maintenance_curative.equipement.nom}
@@ -725,17 +816,13 @@ Nombre de personnes: {maintenance_curative.nombre_personnes}
 
 Pièces utilisées:
 {chr(10).join([f'- {pu.piece.item} (Réf: {pu.piece.reference_ste or "N/A"}) - Quantité: {pu.quantite}' for pu in maintenance_curative.pieces_utilisees]) if maintenance_curative.pieces_utilisees else 'Aucune pièce utilisée'}
-                """,
-                attachments=[('rapport_maintenance_curative.pdf', 'application/pdf', open(tmp_file_path, 'rb').read())]
-            )
-            
-            mail.send(msg)
-            flash('Rapport envoyé avec succès!', 'success')
-            
-        finally:
-            # Nettoyer le fichier temporaire
-            if os.path.exists(tmp_file_path):
-                os.unlink(tmp_file_path)
+            """,
+            sender=app.config.get('MAIL_USERNAME')
+        )
+        msg.attach('rapport_maintenance_curative.pdf', 'application/pdf', pdf_data)
+        
+        mail.send(msg)
+        flash('Rapport envoyé avec succès!', 'success')
         
     except Exception as e:
         flash(f'Erreur lors de l\'envoi du rapport: {str(e)}', 'danger')
@@ -764,9 +851,29 @@ def modifier_maintenance_curative(maintenance_id):
             maintenance_curative.nombre_personnes = nombre_personnes
             maintenance_curative.date_intervention = date_intervention
             
-            # Supprimer les anciennes pièces utilisées
+            # Récupérer les anciennes pièces utilisées pour les remettre en stock
+            anciennes_pieces = {}
             for piece_utilisee in maintenance_curative.pieces_utilisees:
+                piece_id = piece_utilisee.piece_id
+                quantite = piece_utilisee.quantite
+                if piece_id in anciennes_pieces:
+                    anciennes_pieces[piece_id] += quantite
+                else:
+                    anciennes_pieces[piece_id] = quantite
                 db.session.delete(piece_utilisee)
+            
+            # Remettre en stock les anciennes pièces utilisées
+            for piece_id, quantite in anciennes_pieces.items():
+                piece = Piece.query.get(piece_id)
+                if piece:
+                    piece.quantite_stock += quantite
+                    mouvement_retour = MouvementPiece(
+                        piece_id=piece_id,
+                        type_mouvement='entree',
+                        quantite=quantite,
+                        motif=f'Retour modification maintenance curative #{maintenance_curative.id}'
+                    )
+                    db.session.add(mouvement_retour)
             
             # Ajouter les nouvelles pièces utilisées
             pieces_data = request.form.getlist('pieces[]')
@@ -783,20 +890,10 @@ def modifier_maintenance_curative(maintenance_id):
                         )
                         db.session.add(piece_utilisee)
                         
-                        # Mettre à jour le stock (ajouter les pièces retournées, puis retirer les nouvelles)
+                        # Retirer les nouvelles pièces du stock
                         piece = Piece.query.get(int(piece_id))
                         if piece:
-                            # Ajouter les pièces retournées (annuler l'ancienne sortie)
-                            mouvement_retour = MouvementPiece(
-                                piece_id=int(piece_id),
-                                type_mouvement='entree',
-                                quantite=quantite,
-                                motif=f'Retour modification maintenance curative #{maintenance_curative.id}'
-                            )
-                            db.session.add(mouvement_retour)
-                            piece.quantite_stock += quantite
-                            
-                            # Retirer les nouvelles pièces
+                            piece.quantite_stock -= quantite
                             mouvement_sortie = MouvementPiece(
                                 piece_id=int(piece_id),
                                 type_mouvement='sortie',
@@ -804,7 +901,6 @@ def modifier_maintenance_curative(maintenance_id):
                                 motif=f'Modification maintenance curative #{maintenance_curative.id}'
                             )
                             db.session.add(mouvement_sortie)
-                            piece.quantite_stock -= quantite
             
             db.session.commit()
             flash('Maintenance curative modifiée avec succès!', 'success')
@@ -1051,6 +1147,56 @@ def realiser_intervention(intervention_id):
     flash('Intervention réalisée avec succès!', 'success')
     return redirect(url_for('calendrier'))
 
+@app.route('/intervention/annuler/<int:intervention_id>', methods=['POST'])
+@login_required
+def annuler_intervention(intervention_id):
+    """Annuler une intervention réalisée et remettre les pièces en stock"""
+    try:
+        intervention = Intervention.query.get_or_404(intervention_id)
+        
+        if intervention.statut != 'realisee':
+            flash('Seules les interventions réalisées peuvent être annulées.', 'warning')
+            return redirect(url_for('calendrier'))
+        
+        # Récupérer les pièces utilisées pour les remettre en stock
+        pieces_utilisees = PieceUtilisee.query.filter_by(intervention_id=intervention_id).all()
+        
+        # Remettre les pièces en stock
+        for piece_utilisee in pieces_utilisees:
+            piece = piece_utilisee.piece
+            piece.quantite_stock += piece_utilisee.quantite
+            
+            # Créer un mouvement de stock pour l'entrée
+            mouvement = MouvementPiece(
+                piece_id=piece.id,
+                type_mouvement='entree',
+                quantite=piece_utilisee.quantite,
+                motif=f'Annulation intervention #{intervention_id}'
+            )
+            db.session.add(mouvement)
+        
+        # Remettre l'intervention en statut planifiée
+        intervention.statut = 'planifiee'
+        intervention.date_realisee = None
+        intervention.commentaire = None
+        
+        # Supprimer les pièces utilisées (elles seront recréées lors de la prochaine réalisation)
+        for piece_utilisee in pieces_utilisees:
+            db.session.delete(piece_utilisee)
+        
+        db.session.commit()
+        
+        if pieces_utilisees:
+            flash('Intervention annulée avec succès. Les pièces utilisées ont été remises en stock.', 'success')
+        else:
+            flash('Intervention annulée avec succès.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erreur lors de l\'annulation : {str(e)}', 'danger')
+    
+    return redirect(url_for('calendrier'))
+
 def envoyer_email_maintenance(intervention):
     try:
         msg = Message(
@@ -1258,10 +1404,46 @@ def modifier_maintenance(maintenance_id):
 @app.route('/maintenance/supprimer/<int:maintenance_id>', methods=['POST'])
 @login_required
 def supprimer_maintenance(maintenance_id):
-    maintenance = Maintenance.query.get_or_404(maintenance_id)
-    db.session.delete(maintenance)
-    db.session.commit()
-    flash('Maintenance supprimée avec succès.', 'success')
+    """Supprimer une maintenance préventive et remettre les pièces en stock"""
+    try:
+        maintenance = Maintenance.query.get_or_404(maintenance_id)
+        
+        # Récupérer toutes les interventions réalisées de cette maintenance
+        interventions_realisees = Intervention.query.filter_by(
+            maintenance_id=maintenance_id, 
+            statut='realisee'
+        ).all()
+        
+        # Remettre en stock les pièces utilisées dans toutes les interventions réalisées
+        for intervention in interventions_realisees:
+            pieces_utilisees = PieceUtilisee.query.filter_by(intervention_id=intervention.id).all()
+            
+            for piece_utilisee in pieces_utilisees:
+                piece = piece_utilisee.piece
+                piece.quantite_stock += piece_utilisee.quantite
+                
+                # Créer un mouvement de stock pour l'entrée
+                mouvement = MouvementPiece(
+                    piece_id=piece.id,
+                    type_mouvement='entree',
+                    quantite=piece_utilisee.quantite,
+                    motif=f'Suppression maintenance préventive #{maintenance_id} - Intervention #{intervention.id}'
+                )
+                db.session.add(mouvement)
+        
+        # Supprimer la maintenance (les interventions et pièces utilisées seront supprimées en cascade)
+        db.session.delete(maintenance)
+        db.session.commit()
+        
+        if interventions_realisees:
+            flash('Maintenance supprimée avec succès. Les pièces utilisées ont été remises en stock.', 'success')
+        else:
+            flash('Maintenance supprimée avec succès.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erreur lors de la suppression : {str(e)}', 'danger')
+    
     return redirect(url_for('maintenances'))
 
 @app.route('/maintenance/definir-date/<int:maintenance_id>', methods=['POST'])

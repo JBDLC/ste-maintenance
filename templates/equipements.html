@@ -54,12 +54,13 @@
     <table class="table table-hover table-sm align-middle" style="font-size: 70%;">
         <thead class="table-dark">
             <tr>
-                <th>Nom</th>
-                <th>Description</th>
-                <th>Localisation</th>
-                <th>Pièces associées</th>
-                <th>Maintenances</th>
-                <th>Actions</th>
+                <th style="width: 20%;">Nom</th>
+                <th style="width: 25%;">Description</th>
+                <th style="width: 15%;">Localisation</th>
+                <th style="width: 8%; text-align: center;">PDR</th>
+                <th style="width: 8%; text-align: center;">Préventif</th>
+                <th style="width: 8%; text-align: center;">Curatif</th>
+                <th style="width: 16%; text-align: center;">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -68,13 +69,16 @@
                 <td><strong>{{ equipement.nom }}</strong></td>
                 <td>{{ equipement.description or '-' }}</td>
                 <td>{{ equipement.localisation.nom }}</td>
-                <td>
+                <td style="text-align: center;">
                     <span class="badge bg-info">{{ equipement.pieces|length }}</span>
                 </td>
-                <td>
+                <td style="text-align: center;">
                     <span class="badge bg-warning">{{ equipement.maintenances|length }}</span>
                 </td>
-                <td>
+                <td style="text-align: center;">
+                    <span class="badge bg-danger">{{ equipement.maintenances_curatives|length }}</span>
+                </td>
+                <td style="text-align: center;">
                     <div class="btn-group btn-group-sm" role="group">
                         <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#equipementModal{{ equipement.id }}" title="Voir les détails">
                             <i class="fas fa-eye"></i>
@@ -94,7 +98,7 @@
             {% endfor %}
             {% if equipements|length == 0 %}
             <tr>
-                <td colspan="6" class="text-center">
+                <td colspan="7" class="text-center">
                     <div class="alert alert-info mb-0">
                         <i class="fas fa-info-circle"></i> Aucun équipement créé pour le moment. 
                         <a href="{{ url_for('ajouter_equipement') }}" class="alert-link">Créer le premier équipement</a>
@@ -123,8 +127,9 @@
                             <p><strong>Localisation:</strong> {{ equipement.localisation.nom }}</p>
                         </div>
                         <div class="col-md-6">
-                            <p><strong>Pièces associées:</strong> {{ equipement.pieces|length }}</p>
-                            <p><strong>Maintenances:</strong> {{ equipement.maintenances|length }}</p>
+                            <p><strong>PDR:</strong> {{ equipement.pieces|length }}</p>
+                            <p><strong>Préventif:</strong> {{ equipement.maintenances|length }}</p>
+                            <p><strong>Curatif:</strong> {{ equipement.maintenances_curatives|length }}</p>
                         </div>
                     </div>
                     
@@ -162,7 +167,7 @@
                         <p class="text-muted">Aucune pièce associée.</p>
                     {% endif %}
                     
-                    <h6 class="mt-3">Maintenances:</h6>
+                    <h6 class="mt-3">Maintenances préventives:</h6>
                     {% if equipement.maintenances %}
                         <div class="table-responsive">
                             <table class="table table-sm" style="font-size: 70%;">
@@ -238,8 +243,12 @@
                     {% set maints = [] %}
                     {% for m in equipement.maintenances %}
                         {% for interv in m.interventions if interv.statut == 'realisee' %}
-                            {% set _ = maints.append({'titre': m.titre, 'description': m.description, 'date': interv.date_realisee, 'commentaire': interv.commentaire, 'pieces': interv.pieces_utilisees}) %}
+                            {% set _ = maints.append({'titre': m.titre, 'description': m.description, 'date': interv.date_realisee, 'commentaire': interv.commentaire, 'pieces': interv.pieces_utilisees, 'type': 'préventive'}) %}
                         {% endfor %}
+                    {% endfor %}
+                    {% for mc in equipement.maintenances_curatives %}
+                        {% set commentaire = 'Temps passé: ' + mc.temps_passe|string + 'h, ' + mc.nombre_personnes|string + ' personne(s)' %}
+                        {% set _ = maints.append({'titre': 'Maintenance curative', 'description': mc.description_maintenance, 'date': mc.date_intervention, 'commentaire': commentaire, 'pieces': mc.pieces_utilisees, 'type': 'curative'}) %}
                     {% endfor %}
                     {% if maints %}
                     <div class="table-responsive">
@@ -247,6 +256,7 @@
                             <thead class="table-light">
                                 <tr>
                                     <th>Date</th>
+                                    <th>Type</th>
                                     <th>Titre</th>
                                     <th>Description</th>
                                     <th>Commentaire</th>
@@ -257,6 +267,11 @@
                                 {% for m in maints|sort(attribute='date', reverse=True) %}
                                 <tr>
                                     <td>{{ m.date.strftime('%d/%m/%Y') if m.date else '-' }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ 'warning' if m.type == 'préventive' else 'danger' }}">
+                                            {{ m.type|title }}
+                                        </span>
+                                    </td>
                                     <td>{{ m.titre }}</td>
                                     <td>{{ m.description or '-' }}</td>
                                     <td>{{ m.commentaire or '-' }}</td>
