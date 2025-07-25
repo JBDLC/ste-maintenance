@@ -149,6 +149,11 @@ document.addEventListener('DOMContentLoaded', function() {
                             <li>Création automatique d'équipements si aucun équipement similaire n'est trouvé</li>
                             <li>Import partiel : les lignes valides sont traitées même s'il y a des erreurs</li>
                         </ul>
+                        <div class="mt-2">
+                            <a href="{{ url_for('erreurs_import_maintenance') }}" class="btn btn-outline-warning btn-sm">
+                                <i class="fas fa-exclamation-triangle"></i> Voir les erreurs d'import
+                            </a>
+                        </div>
                     </div>
                     <div class="d-flex flex-wrap gap-2 mb-2">
                         <a href="{{ url_for('download_modele_maintenances') }}" class="btn btn-success btn-sm">
@@ -187,13 +192,7 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                    <i class="fas fa-times"></i> Annuler
-                </button>
-                <button type="button" class="btn btn-danger" id="btnSupprimerLigne">
-                    <i class="fas fa-trash"></i> Supprimer la ligne
-                </button>
-                <button type="button" class="btn btn-success" id="btnCreerEquipement">
-                    <i class="fas fa-plus"></i> Créer l'équipement
+                    <i class="fas fa-times"></i> Annuler l'import
                 </button>
             </div>
         </div>
@@ -251,52 +250,102 @@ function showNextEquipement() {
         
         <div class="mb-3">
             <h6>Suggestions d'équipements similaires :</h6>
-            <div class="list-group">
-                ${equipement.suggestions.map(s => `
-                    <button type="button" class="list-group-item list-group-item-action" 
-                            onclick="selectSimilarEquipement('${s.nom}', '${s.localisation}')">
-                        <strong>${s.nom}</strong> (${s.localisation})
-                    </button>
-                `).join('')}
-            </div>
+            ${equipement.suggestions.length > 0 ? `
+                <div class="list-group">
+                    ${equipement.suggestions.map(s => `
+                        <button type="button" class="list-group-item list-group-item-action" 
+                                onclick="selectSimilarEquipement('${s.nom}', '${s.localisation}')">
+                            <strong>${s.nom}</strong> (${s.localisation})
+                        </button>
+                    `).join('')}
+                </div>
+            ` : `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> Aucune suggestion d'équipement similaire trouvée.
+                </div>
+            `}
         </div>
         
-        <div class="mb-3" id="creationSection" style="display: none;">
-            <h6>Créer un nouvel équipement :</h6>
-            <div class="mb-2">
-                <label for="localisationSelect" class="form-label">Localisation :</label>
-                <select class="form-select" id="localisationSelect">
-                    <option value="">Sélectionner une localisation</option>
-                    ${equipement.localisations.map(l => `
-                        <option value="${l.id}">${l.nom} (${l.site})</option>
-                    `).join('')}
-                </select>
+        <div class="mb-3">
+            <h6>Actions possibles :</h6>
+            <div class="d-grid gap-2">
+                <button type="button" class="btn btn-outline-primary" onclick="showCreateEquipementModal()">
+                    <i class="fas fa-plus"></i> Créer un nouvel équipement
+                </button>
+                <button type="button" class="btn btn-outline-danger" onclick="supprimerLigne()">
+                    <i class="fas fa-trash"></i> Supprimer cette ligne
+                </button>
             </div>
         </div>
     `;
     
-    // Configurer les boutons
-    document.getElementById('btnSupprimerLigne').onclick = () => {
-        equipement.action = 'supprimer';
-        currentEquipementIndex++;
-        showNextEquipement();
-    };
-    
-    document.getElementById('btnCreerEquipement').onclick = () => {
-        const localisationId = document.getElementById('localisationSelect').value;
-        if (!localisationId) {
-            alert('Veuillez sélectionner une localisation');
-            return;
-        }
-        equipement.action = 'creer';
-        equipement.localisation_id = localisationId;
-        currentEquipementIndex++;
-        showNextEquipement();
-    };
-    
     // Afficher la modale
     const modal = new bootstrap.Modal(document.getElementById('equipementNonTrouveModal'));
     modal.show();
+}
+
+// Afficher la modale de création d'équipement
+function showCreateEquipementModal() {
+    const equipement = equipementsNonTrouves[currentEquipementIndex];
+    const content = document.getElementById('equipementNonTrouveContent');
+    
+    content.innerHTML = `
+        <div class="alert alert-info">
+            <h6><i class="fas fa-plus-circle"></i> Créer un nouvel équipement</h6>
+            <p><strong>Nom de l'équipement :</strong> ${equipement.nom}</p>
+        </div>
+        
+        <div class="mb-3">
+            <label for="localisationSelect" class="form-label">Localisation :</label>
+            <select class="form-select" id="localisationSelect" required>
+                <option value="">Sélectionner une localisation</option>
+                ${equipement.localisations.map(l => `
+                    <option value="${l.id}">${l.nom} (${l.site})</option>
+                `).join('')}
+            </select>
+        </div>
+        
+        <div class="mb-3">
+            <label for="descriptionEquipement" class="form-label">Description (optionnel) :</label>
+            <textarea class="form-control" id="descriptionEquipement" rows="3" 
+                      placeholder="Description de l'équipement..."></textarea>
+        </div>
+        
+        <div class="d-flex gap-2">
+            <button type="button" class="btn btn-secondary" onclick="showNextEquipement()">
+                <i class="fas fa-arrow-left"></i> Retour
+            </button>
+            <button type="button" class="btn btn-success" onclick="creerEquipement()">
+                <i class="fas fa-save"></i> Créer l'équipement
+            </button>
+        </div>
+    `;
+}
+
+// Créer l'équipement avec les informations saisies
+function creerEquipement() {
+    const equipement = equipementsNonTrouves[currentEquipementIndex];
+    const localisationId = document.getElementById('localisationSelect').value;
+    const description = document.getElementById('descriptionEquipement').value;
+    
+    if (!localisationId) {
+        alert('Veuillez sélectionner une localisation');
+        return;
+    }
+    
+    equipement.action = 'creer';
+    equipement.localisation_id = localisationId;
+    equipement.description = description;
+    currentEquipementIndex++;
+    showNextEquipement();
+}
+
+// Supprimer la ligne actuelle
+function supprimerLigne() {
+    const equipement = equipementsNonTrouves[currentEquipementIndex];
+    equipement.action = 'supprimer';
+    currentEquipementIndex++;
+    showNextEquipement();
 }
 
 // Sélectionner un équipement similaire
@@ -327,6 +376,18 @@ function finalizeImport() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // Afficher le message de succès
+            let message = data.message || `Import terminé avec succès !`;
+            
+            // Ajouter un lien vers les erreurs si il y en a
+            if (data.stats && data.stats.erreurs_non_traitees > 0) {
+                message += `<br><br><a href="{{ url_for('erreurs_import_maintenance') }}" class="btn btn-outline-warning btn-sm">
+                    <i class="fas fa-exclamation-triangle"></i> Voir les ${data.stats.erreurs_non_traitees} erreur(s) non traitée(s)
+                </a>`;
+            }
+            
+            // Afficher le message et recharger
+            alert(message);
             location.reload();
         } else {
             alert('Erreur lors de l\'import final : ' + data.error);

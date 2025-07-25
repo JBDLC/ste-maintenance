@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+
+{% block title %}Erreurs d'import de maintenance{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-exclamation-triangle text-warning"></i> Erreurs d'import de maintenance</h2>
+                <div>
+                    <a href="{{ url_for('parametres') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Retour aux paramètres
+                    </a>
+                    <button type="button" class="btn btn-outline-danger" onclick="effacerErreurs()">
+                        <i class="fas fa-trash"></i> Effacer les erreurs
+                    </button>
+                </div>
+            </div>
+
+            {% if erreurs %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>{{ erreurs|length }} erreur(s) non traitée(s)</strong> lors du dernier import de maintenance.
+                    Ces erreurs n'ont pas empêché l'import des autres maintenances valides.
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-list"></i> Détail des erreurs
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Ligne</th>
+                                        <th>Équipement</th>
+                                        <th>Maintenance</th>
+                                        <th>Erreur</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for erreur in erreurs %}
+                                    <tr id="erreur-{{ loop.index0 }}">
+                                        <td>
+                                            <span class="badge bg-secondary">{{ erreur.ligne }}</span>
+                                        </td>
+                                        <td>
+                                            <strong>{{ erreur.equipement }}</strong>
+                                        </td>
+                                        <td>
+                                            <em>{{ erreur.maintenance }}</em>
+                                        </td>
+                                        <td>
+                                            <span class="text-danger">
+                                                <i class="fas fa-exclamation-circle"></i>
+                                                {{ erreur.erreur }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button type="button" class="btn btn-outline-primary" 
+                                                        onclick="traiterErreur({{ loop.index0 }}, 'creer')"
+                                                        title="Créer l'équipement et la maintenance">
+                                                    <i class="fas fa-plus"></i> Créer
+                                                </button>
+                                                <button type="button" class="btn btn-outline-info" 
+                                                        onclick="rechercherEquipement('{{ erreur.equipement }}', {{ loop.index0 }})"
+                                                        title="Rechercher des équipements similaires">
+                                                    <i class="fas fa-search"></i> Similaire
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger" 
+                                                        onclick="supprimerErreur({{ loop.index0 }})"
+                                                        title="Supprimer cette erreur">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-lightbulb"></i> Suggestions pour résoudre ces erreurs :</h6>
+                        <ul class="mb-0">
+                            <li><strong>Créer l'équipement</strong> : Si l'équipement n'existe pas, vous pouvez le créer directement</li>
+                            <li><strong>Rechercher des similaires</strong> : Vérifier s'il existe un équipement similaire avec un nom légèrement différent</li>
+                            <li><strong>Corriger le fichier Excel</strong> : Modifier le nom de l'équipement dans le fichier d'origine</li>
+                            <li><strong>Ignorer</strong> : Si la maintenance n'est pas nécessaire, vous pouvez l'ignorer</li>
+                        </ul>
+                    </div>
+                </div>
+
+            {% else %}
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <strong>Aucune erreur en attente</strong> - Toutes les erreurs d'import ont été traitées ou effacées.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour créer un équipement -->
+<div class="modal fade" id="creerEquipementModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus-circle"></i> Créer un nouvel équipement
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formCreerEquipement">
+                    <input type="hidden" id="indexErreur" value="">
+                    <div class="mb-3">
+                        <label for="nomEquipement" class="form-label">Nom de l'équipement :</label>
+                        <input type="text" class="form-control" id="nomEquipement" required readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="localisationSelect" class="form-label">Localisation :</label>
+                        <select class="form-select" id="localisationSelect" required>
+                            <option value="">Sélectionner une localisation</option>
+                            {% for localisation in localisations %}
+                            <option value="{{ localisation.id }}">{{ localisation.nom }} ({{ localisation.site.nom }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descriptionEquipement" class="form-label">Description (optionnel) :</label>
+                        <textarea class="form-control" id="descriptionEquipement" rows="3" 
+                                  placeholder="Description de l'équipement..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <button type="button" class="btn btn-success" onclick="sauvegarderEquipement()">
+                    <i class="fas fa-save"></i> Créer l'équipement
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal pour rechercher des équipements similaires -->
+<div class="modal fade" id="rechercherEquipementModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-search"></i> Rechercher des équipements similaires
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="resultatsRecherche">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Recherche en cours...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function effacerErreurs() {
+    if (confirm('Êtes-vous sûr de vouloir effacer toutes les erreurs ?')) {
+        fetch('{{ url_for("effacer_erreurs_import") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        });
+    }
+}
+
+function creerEquipement(nom) {
+    document.getElementById('nomEquipement').value = nom;
+    const modal = new bootstrap.Modal(document.getElementById('creerEquipementModal'));
+    modal.show();
+}
+
+function sauvegarderEquipement() {
+    const nom = document.getElementById('nomEquipement').value;
+    const localisationId = document.getElementById('localisationSelect').value;
+    const description = document.getElementById('descriptionEquipement').value;
+    
+    if (!localisationId) {
+        alert('Veuillez sélectionner une localisation');
+        return;
+    }
+    
+    fetch('{{ url_for("ajouter_equipement") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            'nom': nom,
+            'description': description,
+            'localisation_id': localisationId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Équipement créé avec succès !');
+            location.reload();
+        } else {
+            alert('Erreur lors de la création : ' + data.error);
+        }
+    });
+}
+
+function rechercherEquipement(nom) {
+    const modal = new bootstrap.Modal(document.getElementById('rechercherEquipementModal'));
+    modal.show();
+    
+    fetch('{{ url_for("import_maintenances_interactive") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            equipement_nom: nom
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.equipements_non_trouves) {
+            const equipement = data.equipements_non_trouves.find(e => e.nom === nom);
+            if (equipement) {
+                afficherResultatsRecherche(equipement);
+            }
+        }
+    });
+}
+
+function afficherResultatsRecherche(equipement, indexErreur) {
+    const container = document.getElementById('resultatsRecherche');
+    
+    let html = `
+        <h6>Recherche pour : <strong>${equipement.nom}</strong></h6>
+    `;
+    
+    if (equipement.suggestions.length > 0) {
+        html += `
+            <div class="mb-3">
+                <h6>Suggestions d'équipements similaires :</h6>
+                <div class="list-group">
+        `;
+        
+        equipement.suggestions.forEach(suggestion => {
+            html += `
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${suggestion.nom}</strong> (${suggestion.localisation})
+                    </div>
+                    <button type="button" class="btn btn-outline-success btn-sm" 
+                            onclick="utiliserEquipementSimilaire('${suggestion.nom}', ${indexErreur})">
+                        <i class="fas fa-check"></i> Utiliser
+                    </button>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> Aucune suggestion d'équipement similaire trouvée.
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
+function traiterErreur(index, action) {
+    if (action === 'creer') {
+        creerEquipement(index);
+    }
+}
+
+function creerEquipement(index) {
+    // Récupérer les données de l'erreur depuis le DOM
+    const row = document.getElementById(`erreur-${index}`);
+    const equipementNom = row.querySelector('td:nth-child(2) strong').textContent;
+    
+    document.getElementById('nomEquipement').value = equipementNom;
+    document.getElementById('indexErreur').value = index;
+    
+    const modal = new bootstrap.Modal(document.getElementById('creerEquipementModal'));
+    modal.show();
+}
+
+function sauvegarderEquipement() {
+    const index = document.getElementById('indexErreur').value;
+    const nom = document.getElementById('nomEquipement').value;
+    const localisationId = document.getElementById('localisationSelect').value;
+    const description = document.getElementById('descriptionEquipement').value;
+    
+    if (!localisationId) {
+        alert('Veuillez sélectionner une localisation');
+        return;
+    }
+    
+    fetch('{{ url_for("traiter_erreur_maintenance") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            index: parseInt(index),
+            action: 'creer',
+            localisation_id: localisationId,
+            description: description
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Maintenance créée avec succès !');
+            // Supprimer la ligne du tableau
+            document.getElementById(`erreur-${index}`).remove();
+            // Mettre à jour le compteur
+            const erreursRestantes = document.querySelectorAll('tbody tr').length;
+            if (erreursRestantes === 0) {
+                location.reload();
+            }
+        } else {
+            alert('Erreur lors de la création : ' + data.error);
+        }
+    });
+}
+
+function rechercherEquipement(nom, index) {
+    const modal = new bootstrap.Modal(document.getElementById('rechercherEquipementModal'));
+    modal.show();
+    
+    fetch('{{ url_for("import_maintenances_interactive") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            equipement_nom: nom
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.equipements_non_trouves) {
+            const equipement = data.equipements_non_trouves.find(e => e.nom === nom);
+            if (equipement) {
+                afficherResultatsRecherche(equipement, index);
+            }
+        }
+    });
+}
+
+function utiliserEquipementSimilaire(nomEquipement, indexErreur) {
+    fetch('{{ url_for("traiter_erreur_maintenance") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            index: indexErreur,
+            action: 'utiliser_similaire',
+            equipement_similaire: nomEquipement
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Maintenance créée avec succès !');
+            // Supprimer la ligne du tableau
+            document.getElementById(`erreur-${indexErreur}`).remove();
+            // Fermer la modale
+            const modal = bootstrap.Modal.getInstance(document.getElementById('rechercherEquipementModal'));
+            modal.hide();
+            // Mettre à jour le compteur
+            const erreursRestantes = document.querySelectorAll('tbody tr').length;
+            if (erreursRestantes === 0) {
+                location.reload();
+            }
+        } else {
+            alert('Erreur lors de la création : ' + data.error);
+        }
+    });
+}
+
+function supprimerErreur(index) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cette erreur ?')) {
+        fetch('{{ url_for("effacer_erreurs_import") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                index: index
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Supprimer la ligne du tableau
+                document.getElementById(`erreur-${index}`).remove();
+                // Mettre à jour le compteur
+                const erreursRestantes = document.querySelectorAll('tbody tr').length;
+                if (erreursRestantes === 0) {
+                    location.reload();
+                }
+            }
+        });
+    }
+}
+</script>
+{% endblock %} 
