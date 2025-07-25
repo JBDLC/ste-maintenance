@@ -444,6 +444,27 @@ function utiliserEquipementSimilaire(nomEquipement, indexErreur) {
     });
 }
 
+function effacerErreurs() {
+    if (confirm('Êtes-vous sûr de vouloir supprimer TOUTES les erreurs ?')) {
+        fetch('{{ url_for("effacer_erreurs_import") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Toutes les erreurs ont été supprimées !');
+                location.reload();
+            } else {
+                alert('Erreur lors de la suppression : ' + data.error);
+            }
+        });
+    }
+}
+
 function supprimerErreur(index) {
     if (confirm('Êtes-vous sûr de vouloir supprimer cette erreur ?')) {
         fetch('{{ url_for("effacer_erreurs_import") }}', {
