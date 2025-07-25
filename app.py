@@ -3651,57 +3651,65 @@ def traiter_erreur_maintenance():
             return jsonify({'success': False, 'error': 'Index d\'erreur invalide'})
         
         erreur_db = erreurs_db[index_erreur]
+        equipement_nom = erreur_db.equipement
+        equipement_created = None
         
         if action == 'creer':
             # Créer l'équipement
-            equipement = Equipement(
-                nom=erreur_db.equipement,
+            equipement_created = Equipement(
+                nom=equipement_nom,
                 description=data.get('description', f"Équipement créé lors du traitement d'erreur d'import"),
                 localisation_id=data.get('localisation_id')
             )
-            db.session.add(equipement)
+            db.session.add(equipement_created)
             db.session.flush()
-            
-            # Créer la maintenance
-            maintenance = Maintenance(
-                equipement_id=equipement.id,
-                titre=erreur_db.maintenance[:200] if len(erreur_db.maintenance) > 200 else erreur_db.maintenance,
-                periodicite=erreur_db.periodicite,
-                description=erreur_db.description,
-                date_premiere=erreur_db.date_premiere,
-                date_prochaine=erreur_db.date_prochaine,
-                active=erreur_db.active,
-                date_importee=erreur_db.date_importee
-            )
-            db.session.add(maintenance)
+            equipement = equipement_created
             
         elif action == 'utiliser_similaire':
             # Utiliser l'équipement similaire
             equipement = Equipement.query.filter_by(nom=data.get('equipement_similaire')).first()
             if not equipement:
                 return jsonify({'success': False, 'error': 'Équipement similaire introuvable'})
-            
-            # Créer la maintenance
+        
+        # Traiter TOUTES les erreurs du même équipement
+        erreurs_meme_equipement = ErreurImportMaintenance.query.filter_by(
+            user_id=current_user.id,
+            equipement=equipement_nom
+        ).all()
+        
+        maintenances_crees = 0
+        for erreur in erreurs_meme_equipement:
+            # Créer la maintenance pour cette erreur
             maintenance = Maintenance(
                 equipement_id=equipement.id,
-                titre=erreur_db.maintenance[:200] if len(erreur_db.maintenance) > 200 else erreur_db.maintenance,
-                periodicite=erreur_db.periodicite,
-                description=erreur_db.description,
-                date_premiere=erreur_db.date_premiere,
-                date_prochaine=erreur_db.date_prochaine,
-                active=erreur_db.active,
-                date_importee=erreur_db.date_importee
+                titre=erreur.maintenance[:200] if len(erreur.maintenance) > 200 else erreur.maintenance,
+                periodicite=erreur.periodicite,
+                description=erreur.description,
+                date_premiere=erreur.date_premiere,
+                date_prochaine=erreur.date_prochaine,
+                active=erreur.active,
+                date_importee=erreur.date_importee
             )
             db.session.add(maintenance)
+            maintenances_crees += 1
+            
+            # Supprimer l'erreur
+            db.session.delete(erreur)
         
-        # Supprimer l'erreur de la base
-        db.session.delete(erreur_db)
         db.session.commit()
+        
+        # Compter les erreurs restantes
+        erreurs_restantes = ErreurImportMaintenance.query.filter_by(user_id=current_user.id).count()
+        
+        message = f"{maintenances_crees} maintenance(s) créée(s) avec succès"
+        if maintenances_crees > 1:
+            message += f" pour l'équipement '{equipement_nom}'"
         
         return jsonify({
             'success': True,
-            'message': 'Maintenance créée avec succès',
-            'erreurs_restantes': len(erreurs_db) - 1
+            'message': message,
+            'erreurs_restantes': erreurs_restantes,
+            'maintenances_crees': maintenances_crees
         })
         
     except Exception as e:

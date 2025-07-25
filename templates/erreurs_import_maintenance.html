@@ -345,9 +345,25 @@ function sauvegarderEquipement() {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Maintenance créée avec succès !');
-            // Supprimer la ligne du tableau
-            document.getElementById(`erreur-${index}`).remove();
+            const message = data.message + '\n\nVoulez-vous voir les maintenances créées ?';
+            if (confirm(message)) {
+                window.open('{{ url_for("maintenances") }}', '_blank');
+            }
+            
+            // Fermer le popup
+            const modal = bootstrap.Modal.getInstance(document.getElementById('creerEquipementModal'));
+            modal.hide();
+            
+            // Supprimer toutes les lignes du même équipement
+            const equipementNom = nom;
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach(function(row) {
+                const rowEquipement = row.querySelector('td:nth-child(2) strong').textContent;
+                if (rowEquipement === equipementNom) {
+                    row.remove();
+                }
+            });
+            
             // Mettre à jour le compteur
             const erreursRestantes = document.querySelectorAll('tbody tr').length;
             if (erreursRestantes === 0) {
@@ -398,12 +414,25 @@ function utiliserEquipementSimilaire(nomEquipement, indexErreur) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            alert('Maintenance créée avec succès !');
-            // Supprimer la ligne du tableau
-            document.getElementById(`erreur-${indexErreur}`).remove();
+            const message = data.message + '\n\nVoulez-vous voir les maintenances créées ?';
+            if (confirm(message)) {
+                window.open('{{ url_for("maintenances") }}', '_blank');
+            }
+            
             // Fermer la modale
             const modal = bootstrap.Modal.getInstance(document.getElementById('rechercherEquipementModal'));
             modal.hide();
+            
+            // Supprimer toutes les lignes du même équipement
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach(function(row) {
+                const rowEquipement = row.querySelector('td:nth-child(2) strong').textContent;
+                const originalEquipement = document.getElementById(`erreur-${indexErreur}`).querySelector('td:nth-child(2) strong').textContent;
+                if (rowEquipement === originalEquipement) {
+                    row.remove();
+                }
+            });
+            
             // Mettre à jour le compteur
             const erreursRestantes = document.querySelectorAll('tbody tr').length;
             if (erreursRestantes === 0) {
