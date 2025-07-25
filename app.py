@@ -30,6 +30,26 @@ def is_na(value):
     """Vérifie si une valeur est NaN (équivalent à pd.isna)"""
     return value is None or (isinstance(value, float) and str(value).lower() == 'nan')
 
+def parse_date(date_value):
+    """Convertir une valeur en date"""
+    if not date_value:
+        return None
+    if isinstance(date_value, datetime):
+        return date_value.date()
+    if isinstance(date_value, date):
+        return date_value
+    try:
+        if isinstance(date_value, str):
+            # Essayer différents formats
+            for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%Y/%m/%d']:
+                try:
+                    return datetime.strptime(date_value, fmt).date()
+                except ValueError:
+                    continue
+        return None
+    except:
+        return None
+
 def find_similar_equipements(nom_recherche, max_suggestions=5):
     """Trouve les équipements similaires à un nom donné"""
     if not nom_recherche:
@@ -312,6 +332,22 @@ class Parametre(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     cle = db.Column(db.String(100), unique=True, nullable=False)
     valeur = db.Column(db.String(255), nullable=False)
+
+class ErreurImportMaintenance(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    equipement = db.Column(db.String(100), nullable=False)
+    maintenance = db.Column(db.String(200), nullable=False)
+    periodicite = db.Column(db.String(20), nullable=False)
+    description = db.Column(db.Text)
+    date_premiere = db.Column(db.Date)
+    date_prochaine = db.Column(db.Date)
+    active = db.Column(db.Boolean, default=True)
+    date_importee = db.Column(db.Boolean, default=False)
+    erreur = db.Column(db.String(200), nullable=False)
+    ligne = db.Column(db.Integer, nullable=False)
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    user = db.relationship('User', backref='erreurs_import_maintenance')
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -3229,8 +3265,11 @@ def import_maintenances_interactive():
     print("🔍 Début import_maintenances_interactive()")
     
     file = request.files.get('fichier')
+    print(f"📁 Fichier reçu: {file}")
+    
     if not file or not file.filename:
-        return jsonify({'error': 'Aucun fichier envoyé'})
+        print("❌ Aucun fichier envoyé")
+        return jsonify({'success': False, 'error': 'Aucun fichier envoyé'})
     
     try:
         # Lire le fichier Excel
@@ -3238,7 +3277,8 @@ def import_maintenances_interactive():
         wb = load_workbook(file, data_only=True)
         
         if 'Maintenances' not in wb.sheetnames:
-            return jsonify({'error': 'Onglet "Maintenances" introuvable'})
+            print(f"❌ Onglet 'Maintenances' introuvable. Onglets disponibles: {wb.sheetnames}")
+            return jsonify({'success': False, 'error': 'Onglet "Maintenances" introuvable'})
         
         ws_maintenances = wb['Maintenances']
         maintenances_data = []
@@ -3264,21 +3304,44 @@ def import_maintenances_interactive():
                     'date_importee': row[8] if len(row) > 8 else False
                 })
         
-        # Analyser les équipements non trouvés
+        # Analyser et importer les maintenances
         equipements_non_trouves = []
+        maintenances_importees = 0
+        erreurs_non_traitees = []
+        
+        print(f"📊 Traitement de {len(df_maintenances)} lignes")
         
         for idx, row in enumerate(df_maintenances):
             titre = row.get('titre')
             equipement_nom = row.get('equipement_nom')
             periodicite = row.get('periodicite')
             
+            print(f"🔍 Ligne {idx+2}: '{titre}' - '{equipement_nom}' - '{periodicite}'")
+            
             if not titre or not equipement_nom or not periodicite:
+                print(f"⚠️ Ligne {idx+2} ignorée: données manquantes")
                 continue
             
             equipement = Equipement.query.filter_by(nom=equipement_nom).first()
             
-            if not equipement:
-                # Chercher des suggestions
+            if equipement:
+                # Équipement trouvé - importer directement la maintenance
+                print(f"✅ Équipement trouvé: {equipement_nom}")
+                maintenance = Maintenance(
+                    equipement_id=equipement.id,
+                    titre=titre[:200] if len(titre) > 200 else titre,
+                    periodicite=periodicite,
+                    description=row.get('description'),
+                    date_premiere=parse_date(row.get('date_premiere')),
+                    date_prochaine=parse_date(row.get('date_prochaine')),
+                    active=row.get('active', True),
+                    date_importee=row.get('date_importee', False)
+                )
+                db.session.add(maintenance)
+                maintenances_importees += 1
+            else:
+                # Équipement non trouvé - chercher des suggestions
+                print(f"❌ Équipement non trouvé: {equipement_nom}")
                 suggestions = find_similar_equipements(equipement_nom)
                 suggestions_data = []
                 
@@ -3306,15 +3369,64 @@ def import_maintenances_interactive():
                     'suggestions': suggestions_data,
                     'localisations': localisations_data
                 })
+                
+                # Ajouter aux erreurs non traitées
+                erreurs_non_traitees.append({
+                    'equipement': equipement_nom,
+                    'maintenance': titre,
+                    'periodicite': periodicite,
+                    'description': row.get('description'),
+                    'date_premiere': row.get('date_premiere'),
+                    'date_prochaine': row.get('date_prochaine'),
+                    'active': row.get('active', True),
+                    'date_importee': row.get('date_importee', False),
+                    'erreur': 'Équipement non trouvé',
+                    'ligne': idx + 2
+                })
+        
+        # Commiter les maintenances valides
+        db.session.commit()
+        
+        # Sauvegarder les erreurs en base de données
+        if erreurs_non_traitees:
+            # Supprimer les anciennes erreurs de l'utilisateur
+            ErreurImportMaintenance.query.filter_by(user_id=current_user.id).delete()
+            
+            # Ajouter les nouvelles erreurs
+            for erreur in erreurs_non_traitees:
+                erreur_db = ErreurImportMaintenance(
+                    user_id=current_user.id,
+                    equipement=erreur['equipement'],
+                    maintenance=erreur['maintenance'],
+                    periodicite=erreur['periodicite'],
+                    description=erreur.get('description'),
+                    date_premiere=parse_date(erreur.get('date_premiere')),
+                    date_prochaine=parse_date(erreur.get('date_prochaine')),
+                    active=erreur.get('active', True),
+                    date_importee=erreur.get('date_importee', False),
+                    erreur=erreur['erreur'],
+                    ligne=erreur['ligne']
+                )
+                db.session.add(erreur_db)
+            
+            db.session.commit()
+            print(f"💾 Sauvegarde en base: {len(erreurs_non_traitees)} erreurs")
+        else:
+            print("💾 Aucune erreur à sauvegarder")
+        
+        print(f"✅ Import terminé: {maintenances_importees} importées, {len(erreurs_non_traitees)} erreurs")
         
         return jsonify({
+            'success': True,
             'equipements_non_trouves': equipements_non_trouves,
-            'import_data': df_maintenances
+            'maintenances_importees': maintenances_importees,
+            'erreurs_non_traitees': len(erreurs_non_traitees),
+            'total_lignes': len(df_maintenances)
         })
         
     except Exception as e:
         print(f"❌ Erreur lors de l'analyse: {e}")
-        return jsonify({'error': str(e)})
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/parametres/import-maintenances-finalize', methods=['POST'])
 @login_required
@@ -3476,32 +3588,50 @@ def import_maintenances_finalize():
 @login_required
 def erreurs_import_maintenance():
     """Afficher les erreurs non traitées de l'import de maintenance"""
-    erreurs = session.get('erreurs_import_maintenance', [])
+    erreurs_db = ErreurImportMaintenance.query.filter_by(user_id=current_user.id).order_by(ErreurImportMaintenance.ligne).all()
+    
+    # Convertir en format compatible avec le template
+    erreurs = []
+    for erreur_db in erreurs_db:
+        erreurs.append({
+            'equipement': erreur_db.equipement,
+            'maintenance': erreur_db.maintenance,
+            'periodicite': erreur_db.periodicite,
+            'description': erreur_db.description,
+            'date_premiere': erreur_db.date_premiere,
+            'date_prochaine': erreur_db.date_prochaine,
+            'active': erreur_db.active,
+            'date_importee': erreur_db.date_importee,
+            'erreur': erreur_db.erreur,
+            'ligne': erreur_db.ligne
+        })
+    
+    print(f"🔍 DEBUG: Erreurs en base = {len(erreurs)}")
     localisations = Localisation.query.join(Site).order_by(Site.nom, Localisation.nom).all()
     return render_template('erreurs_import_maintenance.html', erreurs=erreurs, localisations=localisations)
 
 @app.route('/parametres/effacer-erreurs-import', methods=['POST'])
 @login_required
 def effacer_erreurs_import():
-    """Effacer les erreurs d'import de la session"""
+    """Effacer les erreurs d'import de la base de données"""
     try:
         data = request.get_json()
         index = data.get('index')
         
-        erreurs = session.get('erreurs_import_maintenance', [])
-        
         if index is not None:
             # Supprimer une erreur spécifique
-            if 0 <= index < len(erreurs):
-                erreurs.pop(index)
-                session['erreurs_import_maintenance'] = erreurs
+            erreurs_db = ErreurImportMaintenance.query.filter_by(user_id=current_user.id).order_by(ErreurImportMaintenance.ligne).all()
+            if 0 <= index < len(erreurs_db):
+                erreur_a_supprimer = erreurs_db[index]
+                db.session.delete(erreur_a_supprimer)
+                db.session.commit()
                 return jsonify({'success': True})
             else:
                 return jsonify({'success': False, 'error': 'Index invalide'})
         else:
-            # Supprimer toutes les erreurs
-            if 'erreurs_import_maintenance' in session:
-                del session['erreurs_import_maintenance']
+            # Supprimer toutes les erreurs de l'utilisateur
+            ErreurImportMaintenance.query.filter_by(user_id=current_user.id).delete()
+            db.session.commit()
             return jsonify({'success': True})
             
     except Exception as e:
@@ -3516,16 +3646,16 @@ def traiter_erreur_maintenance():
         index_erreur = data.get('index')
         action = data.get('action')  # 'creer' ou 'utiliser_similaire'
         
-        erreurs = session.get('erreurs_import_maintenance', [])
-        if index_erreur >= len(erreurs):
+        erreurs_db = ErreurImportMaintenance.query.filter_by(user_id=current_user.id).order_by(ErreurImportMaintenance.ligne).all()
+        if index_erreur >= len(erreurs_db):
             return jsonify({'success': False, 'error': 'Index d\'erreur invalide'})
         
-        erreur = erreurs[index_erreur]
+        erreur_db = erreurs_db[index_erreur]
         
         if action == 'creer':
             # Créer l'équipement
             equipement = Equipement(
-                nom=erreur['equipement'],
+                nom=erreur_db.equipement,
                 description=data.get('description', f"Équipement créé lors du traitement d'erreur d'import"),
                 localisation_id=data.get('localisation_id')
             )
@@ -3535,13 +3665,13 @@ def traiter_erreur_maintenance():
             # Créer la maintenance
             maintenance = Maintenance(
                 equipement_id=equipement.id,
-                titre=erreur['maintenance'][:200] if len(erreur['maintenance']) > 200 else erreur['maintenance'],
-                periodicite=erreur['periodicite'],
-                description=erreur.get('description'),
-                date_premiere=erreur.get('date_premiere'),
-                date_prochaine=erreur.get('date_prochaine'),
-                active=erreur.get('active', True),
-                date_importee=erreur.get('date_importee', False)
+                titre=erreur_db.maintenance[:200] if len(erreur_db.maintenance) > 200 else erreur_db.maintenance,
+                periodicite=erreur_db.periodicite,
+                description=erreur_db.description,
+                date_premiere=erreur_db.date_premiere,
+                date_prochaine=erreur_db.date_prochaine,
+                active=erreur_db.active,
+                date_importee=erreur_db.date_importee
             )
             db.session.add(maintenance)
             
@@ -3554,26 +3684,24 @@ def traiter_erreur_maintenance():
             # Créer la maintenance
             maintenance = Maintenance(
                 equipement_id=equipement.id,
-                titre=erreur['maintenance'][:200] if len(erreur['maintenance']) > 200 else erreur['maintenance'],
-                periodicite=erreur['periodicite'],
-                description=erreur.get('description'),
-                date_premiere=erreur.get('date_premiere'),
-                date_prochaine=erreur.get('date_prochaine'),
-                active=erreur.get('active', True),
-                date_importee=erreur.get('date_importee', False)
+                titre=erreur_db.maintenance[:200] if len(erreur_db.maintenance) > 200 else erreur_db.maintenance,
+                periodicite=erreur_db.periodicite,
+                description=erreur_db.description,
+                date_premiere=erreur_db.date_premiere,
+                date_prochaine=erreur_db.date_prochaine,
+                active=erreur_db.active,
+                date_importee=erreur_db.date_importee
             )
             db.session.add(maintenance)
         
-        # Supprimer l'erreur de la liste
-        erreurs.pop(index_erreur)
-        session['erreurs_import_maintenance'] = erreurs
-        
+        # Supprimer l'erreur de la base
+        db.session.delete(erreur_db)
         db.session.commit()
         
         return jsonify({
             'success': True,
             'message': 'Maintenance créée avec succès',
-            'erreurs_restantes': len(erreurs)
+            'erreurs_restantes': len(erreurs_db) - 1
         })
         
     except Exception as e:
