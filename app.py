@@ -3021,11 +3021,14 @@ def import_maintenances():
                     continue
                 
                 # Trouver l'équipement (recherche intelligente)
+                print(f"🔍 Ligne {int(idx)+2}: Recherche équipement '{equipement_nom}'")
                 equipement = Equipement.query.filter_by(nom=equipement_nom).first()
                 
                 if not equipement:
+                    print(f"❌ Ligne {int(idx)+2}: Équipement '{equipement_nom}' non trouvé, recherche de suggestions...")
                     # Chercher des équipements similaires
                     suggestions = find_similar_equipements(equipement_nom)
+                    print(f"🔍 Ligne {int(idx)+2}: {len(suggestions)} suggestions trouvées")
                     
                     if suggestions:
                         # Utiliser le premier équipement suggéré (le plus similaire)
@@ -3033,23 +3036,63 @@ def import_maintenances():
                         warnings.append(f"Ligne {int(idx)+2}: Équipement '{equipement_nom}' non trouvé, utilisé '{equipement.nom}' (localisation: {equipement.localisation.nom})")
                         print(f"🔄 Ligne {int(idx)+2}: Équipement '{equipement_nom}' → '{equipement.nom}'")
                     else:
+                        print(f"➕ Ligne {int(idx)+2}: Aucune suggestion, création d'un nouvel équipement...")
                         # Aucun équipement similaire trouvé - créer un nouvel équipement
-                        # Utiliser la première localisation disponible par défaut
+                        # Essayer de déterminer la localisation basée sur le nom de l'équipement
+                        localisation_id = None
+                        
+                        # Chercher une localisation par défaut
                         premiere_localisation = Localisation.query.first()
                         if premiere_localisation:
+                            localisation_id = premiere_localisation.id
+                        else:
+                            # Si aucune localisation n'existe, créer une localisation par défaut
+                            premier_site = Site.query.first()
+                            if premier_site:
+                                localisation_defaut = Localisation(
+                                    nom="Localisation par défaut",
+                                    description="Créée automatiquement pour l'import de maintenances",
+                                    site_id=premier_site.id
+                                )
+                                db.session.add(localisation_defaut)
+                                db.session.flush()
+                                localisation_id = localisation_defaut.id
+                                print(f"🏗️ Création d'une localisation par défaut: {localisation_defaut.nom}")
+                            else:
+                                # Si aucun site n'existe, créer un site et une localisation
+                                site_defaut = Site(
+                                    nom="Site par défaut",
+                                    description="Créé automatiquement pour l'import de maintenances"
+                                )
+                                db.session.add(site_defaut)
+                                db.session.flush()
+                                
+                                localisation_defaut = Localisation(
+                                    nom="Localisation par défaut",
+                                    description="Créée automatiquement pour l'import de maintenances",
+                                    site_id=site_defaut.id
+                                )
+                                db.session.add(localisation_defaut)
+                                db.session.flush()
+                                localisation_id = localisation_defaut.id
+                                print(f"🏗️ Création d'un site et d'une localisation par défaut")
+                        
+                        if localisation_id:
                             equipement = Equipement(
                                 nom=equipement_nom,
                                 description=f"Équipement créé automatiquement lors de l'import de maintenance",
-                                localisation_id=premiere_localisation.id
+                                localisation_id=localisation_id
                             )
                             db.session.add(equipement)
                             db.session.flush()  # Pour obtenir l'ID
                             equipements_crees += 1
-                            warnings.append(f"Ligne {int(idx)+2}: Équipement '{equipement_nom}' créé automatiquement dans '{premiere_localisation.nom}'")
+                            warnings.append(f"Ligne {int(idx)+2}: Équipement '{equipement_nom}' créé automatiquement")
                             print(f"➕ Ligne {int(idx)+2}: Nouvel équipement créé '{equipement_nom}'")
                         else:
-                            erreurs.append(f"Ligne {int(idx)+2}: Équipement '{equipement_nom}' introuvable et aucune localisation disponible pour création")
+                            erreurs.append(f"Ligne {int(idx)+2}: Équipement '{equipement_nom}' introuvable et impossible de créer une localisation par défaut")
                             continue
+                else:
+                    print(f"✅ Ligne {int(idx)+2}: Équipement '{equipement_nom}' trouvé")
                 
                 # Vérifier la périodicité
                 periodicites_valides = ['semaine', '2_semaines', 'mois', '2_mois', '6_mois', '1_an', '2_ans']
@@ -3178,6 +3221,183 @@ def import_maintenances():
     
     print("🏁 Fin import_maintenances()")
     return redirect(url_for('parametres'))
+
+@app.route('/parametres/import-maintenances-interactive', methods=['POST'])
+@login_required
+def import_maintenances_interactive():
+    """Première étape de l'import interactif - analyse du fichier"""
+    print("🔍 Début import_maintenances_interactive()")
+    
+    file = request.files.get('fichier')
+    if not file or not file.filename:
+        return jsonify({'error': 'Aucun fichier envoyé'})
+    
+    try:
+        # Lire le fichier Excel
+        from openpyxl import load_workbook
+        wb = load_workbook(file, data_only=True)
+        
+        if 'Maintenances' not in wb.sheetnames:
+            return jsonify({'error': 'Onglet "Maintenances" introuvable'})
+        
+        ws_maintenances = wb['Maintenances']
+        maintenances_data = []
+        
+        # Lire les données
+        for row in ws_maintenances.iter_rows(min_row=2, values_only=True):
+            if any(cell for cell in row):
+                maintenances_data.append(row)
+        
+        # Convertir en format standard
+        df_maintenances = []
+        for row in maintenances_data:
+            if len(row) >= 3:
+                df_maintenances.append({
+                    'id': row[0] if len(row) > 0 and row[0] else None,
+                    'titre': row[1] if len(row) > 1 else '',
+                    'equipement_nom': row[2] if len(row) > 2 else '',
+                    'periodicite': row[3] if len(row) > 3 else '',
+                    'description': row[4] if len(row) > 4 else None,
+                    'date_premiere': row[5] if len(row) > 5 else None,
+                    'date_prochaine': row[6] if len(row) > 6 else None,
+                    'active': row[7] if len(row) > 7 else True,
+                    'date_importee': row[8] if len(row) > 8 else False
+                })
+        
+        # Analyser les équipements non trouvés
+        equipements_non_trouves = []
+        
+        for idx, row in enumerate(df_maintenances):
+            titre = row.get('titre')
+            equipement_nom = row.get('equipement_nom')
+            periodicite = row.get('periodicite')
+            
+            if not titre or not equipement_nom or not periodicite:
+                continue
+            
+            equipement = Equipement.query.filter_by(nom=equipement_nom).first()
+            
+            if not equipement:
+                # Chercher des suggestions
+                suggestions = find_similar_equipements(equipement_nom)
+                suggestions_data = []
+                
+                for suggestion in suggestions:
+                    suggestions_data.append({
+                        'nom': suggestion.nom,
+                        'localisation': suggestion.localisation.nom
+                    })
+                
+                # Récupérer toutes les localisations disponibles
+                localisations = Localisation.query.all()
+                localisations_data = []
+                
+                for localisation in localisations:
+                    localisations_data.append({
+                        'id': localisation.id,
+                        'nom': localisation.nom,
+                        'site': localisation.site.nom
+                    })
+                
+                equipements_non_trouves.append({
+                    'nom': equipement_nom,
+                    'ligne': idx + 2,
+                    'maintenance': titre,
+                    'suggestions': suggestions_data,
+                    'localisations': localisations_data
+                })
+        
+        return jsonify({
+            'equipements_non_trouves': equipements_non_trouves,
+            'import_data': df_maintenances
+        })
+        
+    except Exception as e:
+        print(f"❌ Erreur lors de l'analyse: {e}")
+        return jsonify({'error': str(e)})
+
+@app.route('/parametres/import-maintenances-finalize', methods=['POST'])
+@login_required
+def import_maintenances_finalize():
+    """Finalisation de l'import avec les décisions utilisateur"""
+    print("🔍 Début import_maintenances_finalize()")
+    
+    try:
+        data = request.get_json()
+        import_data = data.get('import_data', [])
+        decisions = data.get('decisions', [])
+        
+        maintenances_importees = 0
+        maintenances_mises_a_jour = 0
+        equipements_crees = 0
+        
+        # Créer un mapping des décisions par nom d'équipement
+        decisions_map = {}
+        for decision in decisions:
+            decisions_map[decision['nom']] = decision
+        
+        for idx, row in enumerate(import_data):
+            titre = row.get('titre')
+            equipement_nom = row.get('equipement_nom')
+            periodicite = row.get('periodicite')
+            
+            if not titre or not equipement_nom or not periodicite:
+                continue
+            
+            # Vérifier si une décision a été prise pour cet équipement
+            if equipement_nom in decisions_map:
+                decision = decisions_map[equipement_nom]
+                
+                if decision['action'] == 'supprimer':
+                    # Ignorer cette ligne
+                    continue
+                elif decision['action'] == 'utiliser_similaire':
+                    # Utiliser l'équipement similaire
+                    equipement = Equipement.query.filter_by(nom=decision['equipement_similaire']).first()
+                elif decision['action'] == 'creer':
+                    # Créer un nouvel équipement
+                    equipement = Equipement(
+                        nom=equipement_nom,
+                        description=f"Équipement créé lors de l'import de maintenance",
+                        localisation_id=decision['localisation_id']
+                    )
+                    db.session.add(equipement)
+                    db.session.flush()
+                    equipements_crees += 1
+                else:
+                    continue
+            else:
+                # Équipement trouvé directement
+                equipement = Equipement.query.filter_by(nom=equipement_nom).first()
+                if not equipement:
+                    continue
+            
+            # Créer la maintenance
+            maintenance = Maintenance(
+                equipement_id=equipement.id,
+                titre=titre[:100] if len(titre) > 100 else titre,
+                periodicite=periodicite,
+                description=row.get('description'),
+                date_premiere=row.get('date_premiere'),
+                date_prochaine=row.get('date_prochaine'),
+                active=row.get('active', True),
+                date_importee=row.get('date_importee', False)
+            )
+            db.session.add(maintenance)
+            maintenances_importees += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'maintenances_importees': maintenances_importees,
+            'equipements_crees': equipements_crees
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Erreur lors de la finalisation: {e}")
+        return jsonify({'error': str(e)})
 
 @app.route('/fix-titre-length')
 @login_required

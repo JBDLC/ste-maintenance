@@ -169,4 +169,204 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 </div>
+
+<!-- Modale pour gérer les équipements non trouvés -->
+<div class="modal fade" id="equipementNonTrouveModal" tabindex="-1" aria-labelledby="equipementNonTrouveModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="equipementNonTrouveModalLabel">
+                    <i class="fas fa-question-circle text-warning"></i> Équipement non trouvé
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="equipementNonTrouveContent">
+                    <!-- Le contenu sera rempli dynamiquement -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times"></i> Annuler
+                </button>
+                <button type="button" class="btn btn-danger" id="btnSupprimerLigne">
+                    <i class="fas fa-trash"></i> Supprimer la ligne
+                </button>
+                <button type="button" class="btn btn-success" id="btnCreerEquipement">
+                    <i class="fas fa-plus"></i> Créer l'équipement
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variables globales pour gérer les équipements non trouvés
+let equipementsNonTrouves = [];
+let currentEquipementIndex = 0;
+let importData = null;
+
+// Fonction pour gérer l'import interactif
+function handleInteractiveImport(formData) {
+    fetch('/parametres/import-maintenances-interactive', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.equipements_non_trouves && data.equipements_non_trouves.length > 0) {
+            equipementsNonTrouves = data.equipements_non_trouves;
+            importData = data.import_data;
+            currentEquipementIndex = 0;
+            showNextEquipement();
+        } else {
+            // Aucun équipement non trouvé, import direct
+            handleDirectImport(formData);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Erreur lors de l\'import');
+    });
+}
+
+// Afficher le prochain équipement non trouvé
+function showNextEquipement() {
+    if (currentEquipementIndex >= equipementsNonTrouves.length) {
+        // Tous les équipements traités, finaliser l'import
+        finalizeImport();
+        return;
+    }
+    
+    const equipement = equipementsNonTrouves[currentEquipementIndex];
+    const content = document.getElementById('equipementNonTrouveContent');
+    
+    content.innerHTML = `
+        <div class="alert alert-warning">
+            <h6><i class="fas fa-exclamation-triangle"></i> Équipement non trouvé</h6>
+            <p><strong>Nom de l'équipement :</strong> ${equipement.nom}</p>
+            <p><strong>Ligne dans le fichier :</strong> ${equipement.ligne}</p>
+            <p><strong>Maintenance associée :</strong> ${equipement.maintenance}</p>
+        </div>
+        
+        <div class="mb-3">
+            <h6>Suggestions d'équipements similaires :</h6>
+            <div class="list-group">
+                ${equipement.suggestions.map(s => `
+                    <button type="button" class="list-group-item list-group-item-action" 
+                            onclick="selectSimilarEquipement('${s.nom}', '${s.localisation}')">
+                        <strong>${s.nom}</strong> (${s.localisation})
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+        
+        <div class="mb-3" id="creationSection" style="display: none;">
+            <h6>Créer un nouvel équipement :</h6>
+            <div class="mb-2">
+                <label for="localisationSelect" class="form-label">Localisation :</label>
+                <select class="form-select" id="localisationSelect">
+                    <option value="">Sélectionner une localisation</option>
+                    ${equipement.localisations.map(l => `
+                        <option value="${l.id}">${l.nom} (${l.site})</option>
+                    `).join('')}
+                </select>
+            </div>
+        </div>
+    `;
+    
+    // Configurer les boutons
+    document.getElementById('btnSupprimerLigne').onclick = () => {
+        equipement.action = 'supprimer';
+        currentEquipementIndex++;
+        showNextEquipement();
+    };
+    
+    document.getElementById('btnCreerEquipement').onclick = () => {
+        const localisationId = document.getElementById('localisationSelect').value;
+        if (!localisationId) {
+            alert('Veuillez sélectionner une localisation');
+            return;
+        }
+        equipement.action = 'creer';
+        equipement.localisation_id = localisationId;
+        currentEquipementIndex++;
+        showNextEquipement();
+    };
+    
+    // Afficher la modale
+    const modal = new bootstrap.Modal(document.getElementById('equipementNonTrouveModal'));
+    modal.show();
+}
+
+// Sélectionner un équipement similaire
+function selectSimilarEquipement(nom, localisation) {
+    const equipement = equipementsNonTrouves[currentEquipementIndex];
+    equipement.action = 'utiliser_similaire';
+    equipement.equipement_similaire = nom;
+    currentEquipementIndex++;
+    showNextEquipement();
+}
+
+// Finaliser l'import avec les décisions
+function finalizeImport() {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('equipementNonTrouveModal'));
+    modal.hide();
+    
+    // Envoyer les décisions au serveur
+    fetch('/parametres/import-maintenances-finalize', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            import_data: importData,
+            decisions: equipementsNonTrouves
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erreur lors de l\'import final : ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Erreur lors de l\'import final');
+    });
+}
+
+// Import direct (sans équipements non trouvés)
+function handleDirectImport(formData) {
+    fetch('/parametres/import-maintenances', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Erreur lors de l\'import');
+        }
+    })
+    .catch(error => {
+        console.error('Erreur:', error);
+        alert('Erreur lors de l\'import');
+    });
+}
+
+// Intercepter le formulaire d'import
+document.addEventListener('DOMContentLoaded', function() {
+    const importForm = document.querySelector('form[action*="import-maintenances"]');
+    if (importForm) {
+        importForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            handleInteractiveImport(formData);
+        });
+    }
+});
+</script>
 {% endblock %} 
