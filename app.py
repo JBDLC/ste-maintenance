@@ -2491,23 +2491,16 @@ def export_maintenances_special():
 @app.route('/parametres/modele-maintenances.xlsx')
 @login_required
 def download_modele_maintenances():
-    """Génère un modèle Excel spécial pour l'import des maintenances avec onglets de référence"""
+    """Génère un modèle Excel simplifié pour l'import des maintenances - équipement uniquement"""
     
-    # Onglet principal Maintenances
+    # Onglet principal Maintenances (simplifié)
     data_maintenances = []
     
-    # Onglet Équipements
+    # Onglet Équipements (pour référence)
     equipements = Equipement.query.all()
     data_equipements = [
         {'Nom': e.nom, 'Localisation': e.localisation.nom, 'Description': e.description or ''}
         for e in equipements
-    ]
-    
-    # Onglet Localisations
-    localisations = Localisation.query.all()
-    data_localisations = [
-        {'Nom': l.nom, 'Site': l.site.nom, 'Description': l.description or ''}
-        for l in localisations
     ]
     
     # Onglet Périodicités
@@ -2531,16 +2524,22 @@ def download_modele_maintenances():
         # Créer les onglets
         ws_maintenances = wb.create_sheet('Maintenances')
         ws_equipements = wb.create_sheet('Équipements')
-        ws_localisations = wb.create_sheet('Localisations')
         ws_periodicites = wb.create_sheet('Périodicités')
         
         # Écrire les données
-        # Maintenances
-        headers_maintenances = ['id', 'titre', 'equipement_nom', 'localisation_nom', 'periodicite']
+        # Maintenances (format simplifié - plus de localisation_nom)
+        headers_maintenances = ['id', 'titre', 'equipement_nom', 'periodicite', 'description']
         for col, header in enumerate(headers_maintenances, 1):
             ws_maintenances.cell(row=1, column=col, value=header)
         
-        # Équipements
+        # Ajouter un exemple de ligne
+        ws_maintenances.cell(row=2, column=1, value='')  # id (vide pour nouvelle maintenance)
+        ws_maintenances.cell(row=2, column=2, value='Exemple de maintenance')
+        ws_maintenances.cell(row=2, column=3, value='Nom de l\'équipement')  # equipement_nom
+        ws_maintenances.cell(row=2, column=4, value='mois')  # periodicite
+        ws_maintenances.cell(row=2, column=5, value='Description optionnelle')
+        
+        # Équipements (pour référence)
         if data_equipements:
             headers_equipements = list(data_equipements[0].keys())
             for col, header in enumerate(headers_equipements, 1):
@@ -2548,15 +2547,6 @@ def download_modele_maintenances():
             for row_idx, row_data in enumerate(data_equipements, 2):
                 for col_idx, header in enumerate(headers_equipements, 1):
                     ws_equipements.cell(row=row_idx, column=col_idx, value=row_data.get(header))
-        
-        # Localisations
-        if data_localisations:
-            headers_localisations = list(data_localisations[0].keys())
-            for col, header in enumerate(headers_localisations, 1):
-                ws_localisations.cell(row=1, column=col, value=header)
-            for row_idx, row_data in enumerate(data_localisations, 2):
-                for col_idx, header in enumerate(headers_localisations, 1):
-                    ws_localisations.cell(row=row_idx, column=col_idx, value=row_data.get(header))
         
         # Périodicités
         headers_periodicites = ['Périodicité', 'Description']
@@ -2568,7 +2558,7 @@ def download_modele_maintenances():
         
         wb.save(tmp.name)
         tmp.flush()
-        return send_file(tmp.name, as_attachment=True, download_name='modele_maintenances.xlsx')
+        return send_file(tmp.name, as_attachment=True, download_name='modele_maintenances_simplifie.xlsx')
 
 @app.route('/parametres/export/<entite>.xlsx')
 @login_required
@@ -2954,18 +2944,17 @@ def import_maintenances():
             # Convertir en format plus facile à traiter avec gestion des IDs
             df_maintenances = []
             for row in maintenances_data:
-                if len(row) >= 4:  # Au moins titre, equipement_nom, localisation_nom, periodicite
+                if len(row) >= 3:  # Au moins titre, equipement_nom, periodicite
                     df_maintenances.append({
                         'id': row[0] if len(row) > 0 and row[0] else None,  # ID optionnel
                         'titre': row[1] if len(row) > 1 else '',
                         'equipement_nom': row[2] if len(row) > 2 else '',
-                        'localisation_nom': row[3] if len(row) > 3 else '',
-                        'periodicite': row[4] if len(row) > 4 else '',
+                        'periodicite': row[3] if len(row) > 3 else '',
+                        'description': row[4] if len(row) > 4 else None,
                         'date_premiere': row[5] if len(row) > 5 else None,
                         'date_prochaine': row[6] if len(row) > 6 else None,
                         'active': row[7] if len(row) > 7 else True,
-                        'date_importee': row[8] if len(row) > 8 else False,
-                        'description': row[9] if len(row) > 9 else None
+                        'date_importee': row[8] if len(row) > 8 else False
                     })
             
         else:
@@ -2981,7 +2970,6 @@ def import_maintenances():
                 maintenance_id = row.get('id')
                 titre = row.get('titre')
                 equipement_nom = row.get('equipement_nom')
-                localisation_nom = row.get('localisation_nom')
                 periodicite = row.get('periodicite')
                 date_premiere = row.get('date_premiere')
                 date_prochaine = row.get('date_prochaine')
@@ -2989,19 +2977,14 @@ def import_maintenances():
                 date_importee = row.get('date_importee', False)
                 description = row.get('description')
                 
-                if not titre or not equipement_nom or not localisation_nom or not periodicite:
-                    erreurs.append(f"Ligne {int(idx)+2}: Champs obligatoires manquants")
+                if not titre or not equipement_nom or not periodicite:
+                    erreurs.append(f"Ligne {int(idx)+2}: Champs obligatoires manquants (titre, equipement_nom, periodicite)")
                     continue
                 
                 # Trouver l'équipement
                 equipement = Equipement.query.filter_by(nom=equipement_nom).first()
                 if not equipement:
                     erreurs.append(f"Ligne {int(idx)+2}: Équipement '{equipement_nom}' introuvable")
-                    continue
-                
-                # Vérifier que l'équipement est dans la bonne localisation
-                if equipement.localisation.nom != localisation_nom:
-                    erreurs.append(f"Ligne {int(idx)+2}: L\'équipement '{equipement_nom}' n\'est pas dans la localisation '{localisation_nom}'")
                     continue
                 
                 # Vérifier la périodicité
