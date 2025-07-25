@@ -30,6 +30,43 @@ def is_na(value):
     """Vérifie si une valeur est NaN (équivalent à pd.isna)"""
     return value is None or (isinstance(value, float) and str(value).lower() == 'nan')
 
+def find_similar_equipements(nom_recherche, max_suggestions=5):
+    """Trouve les équipements similaires à un nom donné"""
+    if not nom_recherche:
+        return []
+    
+    nom_recherche = nom_recherche.strip().lower()
+    all_equipements = Equipement.query.all()
+    suggestions = []
+    
+    for equipement in all_equipements:
+        nom_equipement = equipement.nom.lower()
+        
+        # Correspondance exacte
+        if nom_equipement == nom_recherche:
+            return [equipement]
+        
+        # Correspondance partielle (contient le nom recherché)
+        if nom_recherche in nom_equipement or nom_equipement in nom_recherche:
+            suggestions.append((equipement, 1))
+            continue
+        
+        # Calcul de similarité simple (différence de caractères)
+        max_len = max(len(nom_recherche), len(nom_equipement))
+        min_len = min(len(nom_recherche), len(nom_equipement))
+        
+        # Nombre de caractères communs
+        common_chars = sum(1 for c in nom_recherche if c in nom_equipement)
+        similarity = common_chars / max_len if max_len > 0 else 0
+        
+        if similarity > 0.3:  # Seuil de similarité
+            suggestions.append((equipement, similarity))
+    
+    # Trier par similarité décroissante
+    suggestions.sort(key=lambda x: x[1], reverse=True)
+    
+    return [equipement for equipement, similarity in suggestions[:max_suggestions]]
+
 def read_excel_simple(file_path, sheet_name=None):
     """Lit un fichier Excel de manière simple (remplace pd.read_excel)"""
     try:
@@ -2962,8 +2999,10 @@ def import_maintenances():
             return redirect(url_for('parametres'))
         
         erreurs = []
+        warnings = []
         maintenances_importees = 0
         maintenances_mises_a_jour = 0
+        equipements_crees = 0
         
         for idx, row in enumerate(df_maintenances):
             try:
@@ -2981,11 +3020,36 @@ def import_maintenances():
                     erreurs.append(f"Ligne {int(idx)+2}: Champs obligatoires manquants (titre, equipement_nom, periodicite)")
                     continue
                 
-                # Trouver l'équipement
+                # Trouver l'équipement (recherche intelligente)
                 equipement = Equipement.query.filter_by(nom=equipement_nom).first()
+                
                 if not equipement:
-                    erreurs.append(f"Ligne {int(idx)+2}: Équipement '{equipement_nom}' introuvable")
-                    continue
+                    # Chercher des équipements similaires
+                    suggestions = find_similar_equipements(equipement_nom)
+                    
+                    if suggestions:
+                        # Utiliser le premier équipement suggéré (le plus similaire)
+                        equipement = suggestions[0]
+                        warnings.append(f"Ligne {int(idx)+2}: Équipement '{equipement_nom}' non trouvé, utilisé '{equipement.nom}' (localisation: {equipement.localisation.nom})")
+                        print(f"🔄 Ligne {int(idx)+2}: Équipement '{equipement_nom}' → '{equipement.nom}'")
+                    else:
+                        # Aucun équipement similaire trouvé - créer un nouvel équipement
+                        # Utiliser la première localisation disponible par défaut
+                        premiere_localisation = Localisation.query.first()
+                        if premiere_localisation:
+                            equipement = Equipement(
+                                nom=equipement_nom,
+                                description=f"Équipement créé automatiquement lors de l'import de maintenance",
+                                localisation_id=premiere_localisation.id
+                            )
+                            db.session.add(equipement)
+                            db.session.flush()  # Pour obtenir l'ID
+                            equipements_crees += 1
+                            warnings.append(f"Ligne {int(idx)+2}: Équipement '{equipement_nom}' créé automatiquement dans '{premiere_localisation.nom}'")
+                            print(f"➕ Ligne {int(idx)+2}: Nouvel équipement créé '{equipement_nom}'")
+                        else:
+                            erreurs.append(f"Ligne {int(idx)+2}: Équipement '{equipement_nom}' introuvable et aucune localisation disponible pour création")
+                            continue
                 
                 # Vérifier la périodicité
                 periodicites_valides = ['semaine', '2_semaines', 'mois', '2_mois', '6_mois', '1_an', '2_ans']
@@ -3067,18 +3131,43 @@ def import_maintenances():
                 erreurs.append(f"Ligne {int(idx)+2}: Erreur - {str(e)}")
                 continue
         
+        # Préparer le message de résultat
+        message_parts = []
+        
+        if maintenances_importees > 0:
+            message_parts.append(f"{maintenances_importees} nouvelles maintenances importées")
+        
+        if maintenances_mises_a_jour > 0:
+            message_parts.append(f"{maintenances_mises_a_jour} maintenances mises à jour")
+        
+        if equipements_crees > 0:
+            message_parts.append(f"{equipements_crees} équipements créés automatiquement")
+        
+        if warnings:
+            message_parts.append(f"{len(warnings)} avertissements (voir détails)")
+        
+        if erreurs:
+            message_parts.append(f"{len(erreurs)} erreurs bloquantes")
+        
+        # Commit des changements
         if erreurs:
             db.session.rollback()
             flash('Erreurs lors de l\'import :<br>' + '<br>'.join(erreurs), 'danger')
             return redirect(url_for('parametres'))
         
         db.session.commit()
-        print(f"✅ Import réussi: {maintenances_importees} maintenances importées, {maintenances_mises_a_jour} mises à jour")
         
-        if maintenances_mises_a_jour > 0:
-            flash(f'Importation réussie ! {maintenances_importees} nouvelles maintenances importées, {maintenances_mises_a_jour} maintenances mises à jour.', 'success')
-        else:
-            flash(f'Importation réussie ! {maintenances_importees} maintenances importées.', 'success')
+        # Message de succès avec détails
+        message_success = 'Importation réussie ! ' + ', '.join(message_parts) + '.'
+        
+        if warnings:
+            message_success += '<br><br><strong>Avertissements :</strong><br>' + '<br>'.join(warnings[:5])  # Limiter à 5 warnings
+            if len(warnings) > 5:
+                message_success += f'<br>... et {len(warnings) - 5} autres avertissements'
+        
+        flash(message_success, 'success' if not warnings else 'warning')
+        
+        print(f"✅ Import réussi: {maintenances_importees} maintenances importées, {maintenances_mises_a_jour} mises à jour, {equipements_crees} équipements créés")
         
     except Exception as e:
         db.session.rollback()
