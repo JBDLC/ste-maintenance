@@ -26,7 +26,7 @@ def clean_text_for_pdf(text):
     # Convertir en string si ce n'est pas déjà le cas
     text = str(text)
     
-    # Remplacer les caractères problématiques
+    # Remplacer les caractères problématiques spécifiques
     replacements = {
         '\u2019': "'",  # Apostrophe typographique
         '\u2018': "'",  # Apostrophe typographique
@@ -37,6 +37,10 @@ def clean_text_for_pdf(text):
         '\u2022': '-',  # Puce
         '\u2026': '...',  # Points de suspension
         '\u00a0': ' ',  # Espace insécable
+        '\u0153': 'oe',  # œ
+        '\u0152': 'OE',  # Œ
+        '\u00e6': 'ae',  # æ
+        '\u00c6': 'AE',  # Æ
         '\u00e9': 'e',  # é
         '\u00e8': 'e',  # è
         '\u00ea': 'e',  # ê
@@ -69,8 +73,22 @@ def clean_text_for_pdf(text):
         '\u00c7': 'C',  # Ç
     }
     
+    # Appliquer les remplacements spécifiques
     for unicode_char, replacement in replacements.items():
         text = text.replace(unicode_char, replacement)
+    
+    # Méthode de fallback : normaliser les caractères Unicode restants
+    try:
+        # Essayer d'encoder en latin1 et décoder pour éliminer les caractères non supportés
+        text = text.encode('latin1', errors='replace').decode('latin1')
+    except:
+        # Si ça échoue, remplacer tous les caractères non-ASCII par des équivalents
+        import unicodedata
+        text = ''.join(
+            c if ord(c) < 128 else 
+            unicodedata.normalize('NFKD', c).encode('ascii', 'ignore').decode('ascii')
+            for c in text
+        )
     
     return text
 
