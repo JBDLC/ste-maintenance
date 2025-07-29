@@ -1178,11 +1178,15 @@ def calendrier():
             equipement_nom = intervention.maintenance.equipement.nom
             
             # Déterminer la sous-partie basée sur le nom de l'équipement
+            equipement_nom_upper = equipement_nom.upper()
             sous_partie = 'STE'  # Par défaut
-            if 'CAB' in equipement_nom.upper():
-                sous_partie = 'CAB'
-            elif 'STEP' in equipement_nom.upper():
+            
+            # Priorité : STEP > CAB > STE
+            if 'STEP' in equipement_nom_upper:
                 sous_partie = 'STEP'
+            elif 'CAB' in equipement_nom_upper:
+                sous_partie = 'CAB'
+            # Si ni STEP ni CAB, alors c'est STE
             
             # Classer selon CO6/CO7 et sous-partie
             if 'CO6' in localisation_nom:
