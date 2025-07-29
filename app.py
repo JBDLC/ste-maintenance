@@ -1177,14 +1177,16 @@ def calendrier():
             localisation_nom = intervention.maintenance.equipement.localisation.nom
             equipement_nom = intervention.maintenance.equipement.nom
             
-            # Déterminer la sous-partie basée sur le nom de l'équipement
+            # Déterminer la sous-partie basée sur le nom de l'équipement ET la localisation
             equipement_nom_upper = equipement_nom.upper()
+            localisation_nom_upper = localisation_nom.upper()
             sous_partie = 'STE'  # Par défaut
             
             # Priorité : STEP > CAB > STE
-            if 'STEP' in equipement_nom_upper:
+            # Vérifier d'abord dans le nom de l'équipement, puis dans la localisation
+            if 'STEP' in equipement_nom_upper or 'STEP' in localisation_nom_upper:
                 sous_partie = 'STEP'
-            elif 'CAB' in equipement_nom_upper:
+            elif 'CAB' in equipement_nom_upper or 'CAB' in localisation_nom_upper:
                 sous_partie = 'CAB'
             # Si ni STEP ni CAB, alors c'est STE
             
