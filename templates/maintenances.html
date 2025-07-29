@@ -15,12 +15,94 @@
     </div>
 </div>
 
+<!-- Filtres -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-filter"></i> Filtres</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('maintenances') }}" class="row g-3">
+            <div class="col-md-3">
+                <label for="localisation" class="form-label">Localisation</label>
+                <select class="form-select" id="localisation" name="localisation">
+                    <option value="">Toutes les localisations</option>
+                    {% for localisation in localisations %}
+                        <option value="{{ localisation.nom }}" {% if localisation_filter == localisation.nom %}selected{% endif %}>
+                            {{ localisation.nom }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="equipement" class="form-label">Équipement</label>
+                <select class="form-select" id="equipement" name="equipement">
+                    <option value="">Tous les équipements</option>
+                    {% for equipement in equipements %}
+                        <option value="{{ equipement.nom }}" {% if equipement_filter == equipement.nom %}selected{% endif %}>
+                            {{ equipement.nom }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="periodicite" class="form-label">Périodicité</label>
+                <select class="form-select" id="periodicite" name="periodicite">
+                    <option value="">Toutes les périodicités</option>
+                    {% for periodicite in periodicites %}
+                        <option value="{{ periodicite }}" {% if periodicite_filter == periodicite %}selected{% endif %}>
+                            {{ periodicite.replace('_', ' ').title() }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Filtrer
+                    </button>
+                    <a href="{{ url_for('maintenances') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> Effacer
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Actions en lot -->
+<div class="card mb-4" id="actions-lot" style="display: none;">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-tasks"></i> Actions en lot</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('definir_date_maintenance_lot') }}" id="form-actions-lot">
+            <div class="row align-items-end">
+                <div class="col-md-4">
+                    <label for="date_premiere_lot" class="form-label">Date de première maintenance</label>
+                    <input type="date" class="form-control" id="date_premiere_lot" name="date_premiere" required>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-calendar-check"></i> Définir la date pour les lignes sélectionnées
+                    </button>
+                </div>
+                <div class="col-md-4">
+                    <span id="selection-count" class="text-muted">0 ligne(s) sélectionnée(s)</span>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Tableau CO6 -->
 <h3 class="mb-3">CO6</h3>
 <div class="table-responsive">
     <table class="table table-hover table-sm align-middle" style="font-size: 70%;">
         <thead class="table-dark">
             <tr>
+                <th>
+                    <input type="checkbox" class="form-check-input" id="select-all-co6">
+                </th>
                 <th>Localisation</th>
                 <th>Équipement</th>
                 <th>Description équipement</th>
@@ -34,6 +116,11 @@
             {% if maintenances_co6 %}
                 {% for maintenance in maintenances_co6 %}
                 <tr class="{{ 'table-warning' if maintenance.date_importee and not maintenance.date_premiere else '' }}">
+                    <td>
+                        <input type="checkbox" class="form-check-input maintenance-checkbox" 
+                               name="maintenance_ids" value="{{ maintenance.id }}" 
+                               data-section="co6">
+                    </td>
                     <td>{{ maintenance.equipement.localisation.nom if maintenance.equipement and maintenance.equipement.localisation else '-' }}</td>
                     <td>
                         <strong>{{ maintenance.equipement.nom if maintenance.equipement else '-' }}</strong>
@@ -72,7 +159,7 @@
                 {% endfor %}
             {% else %}
             <tr>
-                <td colspan="7" class="text-center">
+                <td colspan="8" class="text-center">
                     <div class="alert alert-info mb-0">
                         <i class="fas fa-info-circle"></i> Aucune maintenance CO6 pour le moment.
                     </div>
@@ -89,6 +176,9 @@
     <table class="table table-hover table-sm align-middle" style="font-size: 70%;">
         <thead class="table-dark">
             <tr>
+                <th>
+                    <input type="checkbox" class="form-check-input" id="select-all-co7">
+                </th>
                 <th>Localisation</th>
                 <th>Équipement</th>
                 <th>Description équipement</th>
@@ -102,6 +192,11 @@
             {% if maintenances_co7 %}
                 {% for maintenance in maintenances_co7 %}
                 <tr class="{{ 'table-warning' if maintenance.date_importee and not maintenance.date_premiere else '' }}">
+                    <td>
+                        <input type="checkbox" class="form-check-input maintenance-checkbox" 
+                               name="maintenance_ids" value="{{ maintenance.id }}" 
+                               data-section="co7">
+                    </td>
                     <td>{{ maintenance.equipement.localisation.nom if maintenance.equipement and maintenance.equipement.localisation else '-' }}</td>
                     <td>{{ maintenance.equipement.nom if maintenance.equipement else '-' }}</td>
                     <td>{{ maintenance.equipement.description if maintenance.equipement and maintenance.equipement.description else 'Aucune description' }}</td>
@@ -138,7 +233,7 @@
                 {% endfor %}
             {% else %}
             <tr>
-                <td colspan="7" class="text-center">
+                <td colspan="8" class="text-center">
                     <div class="alert alert-info mb-0">
                         <i class="fas fa-info-circle"></i> Aucune maintenance CO7 pour le moment.
                     </div>
@@ -258,4 +353,95 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestion de la sélection multiple
+    const selectAllCo6 = document.getElementById('select-all-co6');
+    const selectAllCo7 = document.getElementById('select-all-co7');
+    const maintenanceCheckboxes = document.querySelectorAll('.maintenance-checkbox');
+    const actionsLot = document.getElementById('actions-lot');
+    const selectionCount = document.getElementById('selection-count');
+    const formActionsLot = document.getElementById('form-actions-lot');
+
+    // Fonction pour mettre à jour le compteur de sélection
+    function updateSelectionCount() {
+        const selectedCount = document.querySelectorAll('.maintenance-checkbox:checked').length;
+        selectionCount.textContent = `${selectedCount} ligne(s) sélectionnée(s)`;
+        
+        if (selectedCount > 0) {
+            actionsLot.style.display = 'block';
+        } else {
+            actionsLot.style.display = 'none';
+        }
+    }
+
+    // Gestion du "Sélectionner tout" pour CO6
+    if (selectAllCo6) {
+        selectAllCo6.addEventListener('change', function() {
+            const co6Checkboxes = document.querySelectorAll('.maintenance-checkbox[data-section="co6"]');
+            co6Checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateSelectionCount();
+        });
+    }
+
+    // Gestion du "Sélectionner tout" pour CO7
+    if (selectAllCo7) {
+        selectAllCo7.addEventListener('change', function() {
+            const co7Checkboxes = document.querySelectorAll('.maintenance-checkbox[data-section="co7"]');
+            co7Checkboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateSelectionCount();
+        });
+    }
+
+    // Gestion des checkboxes individuelles
+    maintenanceCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSelectionCount();
+            
+            // Mettre à jour l'état des "Sélectionner tout"
+            const section = this.getAttribute('data-section');
+            const selectAllCheckbox = section === 'co6' ? selectAllCo6 : selectAllCo7;
+            const sectionCheckboxes = document.querySelectorAll(`.maintenance-checkbox[data-section="${section}"]`);
+            const checkedSectionCheckboxes = document.querySelectorAll(`.maintenance-checkbox[data-section="${section}"]:checked`);
+            
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = sectionCheckboxes.length === checkedSectionCheckboxes.length;
+                selectAllCheckbox.indeterminate = checkedSectionCheckboxes.length > 0 && checkedSectionCheckboxes.length < sectionCheckboxes.length;
+            }
+        });
+    });
+
+    // Gestion du formulaire d'actions en lot
+    if (formActionsLot) {
+        formActionsLot.addEventListener('submit', function(e) {
+            const selectedCheckboxes = document.querySelectorAll('.maintenance-checkbox:checked');
+            if (selectedCheckboxes.length === 0) {
+                e.preventDefault();
+                alert('Veuillez sélectionner au moins une maintenance.');
+                return false;
+            }
+            
+            const datePremiere = document.getElementById('date_premiere_lot').value;
+            if (!datePremiere) {
+                e.preventDefault();
+                alert('Veuillez sélectionner une date de première maintenance.');
+                return false;
+            }
+            
+            if (!confirm(`Êtes-vous sûr de vouloir définir la date de première maintenance au ${datePremiere} pour ${selectedCheckboxes.length} maintenance(s) ?`)) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+
+    // Initialisation
+    updateSelectionCount();
+});
+</script>
 {% endblock %} 

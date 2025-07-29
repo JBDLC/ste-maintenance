@@ -587,7 +587,22 @@ def ajouter_piece():
 @app.route('/maintenances')
 @login_required
 def maintenances():
-    maintenances_list = Maintenance.query.all()
+    # Récupérer les paramètres de filtrage
+    localisation_filter = request.args.get('localisation', '')
+    equipement_filter = request.args.get('equipement', '')
+    periodicite_filter = request.args.get('periodicite', '')
+    
+    # Récupérer toutes les maintenances avec filtres
+    query = Maintenance.query.join(Equipement).join(Localisation)
+    
+    if localisation_filter:
+        query = query.filter(Localisation.nom.contains(localisation_filter))
+    if equipement_filter:
+        query = query.filter(Equipement.nom.contains(equipement_filter))
+    if periodicite_filter:
+        query = query.filter(Maintenance.periodicite == periodicite_filter)
+    
+    maintenances_list = query.all()
     
     # Séparer les maintenances CO6 et CO7
     maintenances_co6 = []
@@ -601,9 +616,25 @@ def maintenances():
             elif 'CO7' in localisation_nom:
                 maintenances_co7.append(maintenance)
     
+    # Récupérer les données pour les filtres
+    localisations = Localisation.query.filter(
+        Localisation.nom.contains('CO6') | Localisation.nom.contains('CO7')
+    ).all()
+    equipements = Equipement.query.join(Localisation).filter(
+        Localisation.nom.contains('CO6') | Localisation.nom.contains('CO7')
+    ).all()
+    periodicites = db.session.query(Maintenance.periodicite).distinct().all()
+    periodicites = [p[0] for p in periodicites if p[0]]
+    
     return render_template('maintenances.html', 
                          maintenances_co6=maintenances_co6, 
-                         maintenances_co7=maintenances_co7)
+                         maintenances_co7=maintenances_co7,
+                         localisations=localisations,
+                         equipements=equipements,
+                         periodicites=periodicites,
+                         localisation_filter=localisation_filter,
+                         equipement_filter=equipement_filter,
+                         periodicite_filter=periodicite_filter)
 
 def generate_interventions(maintenance, date_limite=datetime(2030, 12, 31).date()):
     """Génère toutes les interventions futures pour une maintenance jusqu'à la date limite (2030-12-31)."""
@@ -3918,6 +3949,44 @@ def modifier_piece(piece_id):
     lieux_stockage = LieuStockage.query.all()
     equipements = Equipement.query.all()
     return render_template('ajouter_piece.html', piece=piece, lieux_stockage=lieux_stockage, equipements=equipements, edition=True)
+
+@app.route('/maintenance/definir-date-lot', methods=['POST'])
+@login_required
+def definir_date_maintenance_lot():
+    """Définir la date de première maintenance pour plusieurs maintenances en lot"""
+    maintenance_ids = request.form.getlist('maintenance_ids')
+    date_premiere = request.form.get('date_premiere')
+    
+    if not maintenance_ids:
+        flash('Aucune maintenance sélectionnée.', 'warning')
+        return redirect(url_for('maintenances'))
+    
+    if not date_premiere:
+        flash('Date de première maintenance requise.', 'error')
+        return redirect(url_for('maintenances'))
+    
+    try:
+        date_premiere = datetime.strptime(date_premiere, '%Y-%m-%d').date()
+    except ValueError:
+        flash('Format de date invalide.', 'error')
+        return redirect(url_for('maintenances'))
+    
+    # Mettre à jour toutes les maintenances sélectionnées
+    maintenances_updated = 0
+    for maintenance_id in maintenance_ids:
+        maintenance = Maintenance.query.get(maintenance_id)
+        if maintenance:
+            maintenance.date_premiere = date_premiere
+            maintenance.date_prochaine = date_premiere
+            maintenances_updated += 1
+            
+            # Générer les interventions futures pour cette maintenance
+            generate_interventions(maintenance)
+    
+    db.session.commit()
+    
+    flash(f'Date de première maintenance définie pour {maintenances_updated} maintenance(s).', 'success')
+    return redirect(url_for('maintenances'))
 
 # Initialisation automatique au démarrage de l'application
 with app.app_context():
