@@ -26,7 +26,7 @@ def clean_text_for_pdf(text):
     # Convertir en string si ce n'est pas déjà le cas
     text = str(text)
     
-    # Remplacer les caractères problématiques spécifiques
+    # Remplacer seulement les caractères vraiment problématiques pour FPDF
     replacements = {
         '\u2019': "'",  # Apostrophe typographique
         '\u2018': "'",  # Apostrophe typographique
@@ -37,58 +37,14 @@ def clean_text_for_pdf(text):
         '\u2022': '-',  # Puce
         '\u2026': '...',  # Points de suspension
         '\u00a0': ' ',  # Espace insécable
-        '\u0153': 'oe',  # œ
-        '\u0152': 'OE',  # Œ
-        '\u00e6': 'ae',  # æ
-        '\u00c6': 'AE',  # Æ
-        '\u00e9': 'e',  # é
-        '\u00e8': 'e',  # è
-        '\u00ea': 'e',  # ê
-        '\u00eb': 'e',  # ë
-        '\u00e0': 'a',  # à
-        '\u00e2': 'a',  # â
-        '\u00e4': 'a',  # ä
-        '\u00ee': 'i',  # î
-        '\u00ef': 'i',  # ï
-        '\u00f4': 'o',  # ô
-        '\u00f6': 'o',  # ö
-        '\u00f9': 'u',  # ù
-        '\u00fb': 'u',  # û
-        '\u00fc': 'u',  # ü
-        '\u00e7': 'c',  # ç
-        '\u00c9': 'E',  # É
-        '\u00c8': 'E',  # È
-        '\u00ca': 'E',  # Ê
-        '\u00cb': 'E',  # Ë
-        '\u00c0': 'A',  # À
-        '\u00c2': 'A',  # Â
-        '\u00c4': 'A',  # Ä
-        '\u00ce': 'I',  # Î
-        '\u00cf': 'I',  # Ï
-        '\u00d4': 'O',  # Ô
-        '\u00d6': 'O',  # Ö
-        '\u00d9': 'U',  # Ù
-        '\u00db': 'U',  # Û
-        '\u00dc': 'U',  # Ü
-        '\u00c7': 'C',  # Ç
     }
     
     # Appliquer les remplacements spécifiques
     for unicode_char, replacement in replacements.items():
         text = text.replace(unicode_char, replacement)
     
-    # Méthode de fallback : normaliser les caractères Unicode restants
-    try:
-        # Essayer d'encoder en latin1 et décoder pour éliminer les caractères non supportés
-        text = text.encode('latin1', errors='replace').decode('latin1')
-    except:
-        # Si ça échoue, remplacer tous les caractères non-ASCII par des équivalents
-        import unicodedata
-        text = ''.join(
-            c if ord(c) < 128 else 
-            unicodedata.normalize('NFKD', c).encode('ascii', 'ignore').decode('ascii')
-            for c in text
-        )
+    # Ne pas supprimer les caractères accentués français, ils sont supportés par FPDF
+    # avec l'encodage UTF-8
     
     return text
 
