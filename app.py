@@ -37,14 +37,15 @@ def clean_text_for_pdf(text):
         '\u2022': '-',  # Puce
         '\u2026': '...',  # Points de suspension
         '\u00a0': ' ',  # Espace insécable
+        '\u0153': 'oe',  # œ
+        '\u0152': 'OE',  # Œ
+        '\u00e6': 'ae',  # æ
+        '\u00c6': 'AE',  # Æ
     }
     
     # Appliquer les remplacements spécifiques
     for unicode_char, replacement in replacements.items():
         text = text.replace(unicode_char, replacement)
-    
-    # Ne pas supprimer les caractères accentués français, ils sont supportés par FPDF
-    # avec l'encodage UTF-8
     
     return text
 
@@ -617,22 +618,7 @@ def ajouter_piece():
 @app.route('/maintenances')
 @login_required
 def maintenances():
-    # Récupérer les paramètres de filtrage
-    localisation_filter = request.args.get('localisation', '')
-    equipement_filter = request.args.get('equipement', '')
-    periodicite_filter = request.args.get('periodicite', '')
-    
-    # Récupérer toutes les maintenances avec filtres
-    query = Maintenance.query.join(Equipement).join(Localisation)
-    
-    if localisation_filter:
-        query = query.filter(Localisation.nom.contains(localisation_filter))
-    if equipement_filter:
-        query = query.filter(Equipement.nom.contains(equipement_filter))
-    if periodicite_filter:
-        query = query.filter(Maintenance.periodicite == periodicite_filter)
-    
-    maintenances_list = query.all()
+    maintenances_list = Maintenance.query.all()
     
     # Séparer les maintenances CO6 et CO7
     maintenances_co6 = []
@@ -646,25 +632,9 @@ def maintenances():
             elif 'CO7' in localisation_nom:
                 maintenances_co7.append(maintenance)
     
-    # Récupérer les données pour les filtres
-    localisations = Localisation.query.filter(
-        Localisation.nom.contains('CO6') | Localisation.nom.contains('CO7')
-    ).all()
-    equipements = Equipement.query.join(Localisation).filter(
-        Localisation.nom.contains('CO6') | Localisation.nom.contains('CO7')
-    ).all()
-    periodicites = db.session.query(Maintenance.periodicite).distinct().all()
-    periodicites = [p[0] for p in periodicites if p[0]]
-    
     return render_template('maintenances.html', 
                          maintenances_co6=maintenances_co6, 
-                         maintenances_co7=maintenances_co7,
-                         localisations=localisations,
-                         equipements=equipements,
-                         periodicites=periodicites,
-                         localisation_filter=localisation_filter,
-                         equipement_filter=equipement_filter,
-                         periodicite_filter=periodicite_filter)
+                         maintenances_co7=maintenances_co7)
 
 def generate_interventions(maintenance, date_limite=datetime(2030, 12, 31).date()):
     """Génère toutes les interventions futures pour une maintenance jusqu'à la date limite (2030-12-31)."""
@@ -842,15 +812,15 @@ def envoyer_rapport_maintenance_curative(maintenance_id):
         
         # Équipement
         pdf.cell(40, 8, 'Équipement:', 1, 0, 'L', True)
-        pdf.cell(0, 8, clean_text_for_pdf(maintenance_curative.equipement.nom), 1, 1, 'L')
+        pdf.cell(0, 8, maintenance_curative.equipement.nom, 1, 1, 'L')
         
         # Localisation
         pdf.cell(40, 8, 'Localisation:', 1, 0, 'L', True)
-        pdf.cell(0, 8, clean_text_for_pdf(maintenance_curative.equipement.localisation.nom), 1, 1, 'L')
+        pdf.cell(0, 8, maintenance_curative.equipement.localisation.nom, 1, 1, 'L')
         
         # Site
         pdf.cell(40, 8, 'Site:', 1, 0, 'L', True)
-        pdf.cell(0, 8, clean_text_for_pdf(maintenance_curative.equipement.localisation.site.nom), 1, 1, 'L')
+        pdf.cell(0, 8, maintenance_curative.equipement.localisation.site.nom, 1, 1, 'L')
         
         # Date d'intervention
         pdf.cell(40, 8, 'Date intervention:', 1, 0, 'L', True)
@@ -872,7 +842,7 @@ def envoyer_rapport_maintenance_curative(maintenance_id):
         pdf.set_fill_color(250, 250, 250)
         pdf.rect(10, pdf.get_y(), 190, 30, 'F')
         pdf.set_xy(15, pdf.get_y() + 5)
-        pdf.multi_cell(180, 8, clean_text_for_pdf(maintenance_curative.description_maintenance))
+        pdf.multi_cell(180, 8, maintenance_curative.description_maintenance)
         pdf.ln(35)
         
         # Informations techniques
@@ -909,7 +879,7 @@ def envoyer_rapport_maintenance_curative(maintenance_id):
             
             pdf.set_font('Helvetica', '', 10)
             for piece_utilisee in maintenance_curative.pieces_utilisees:
-                pdf.cell(80, 8, clean_text_for_pdf(piece_utilisee.piece.item)[:35], 1, 0, 'L')
+                pdf.cell(80, 8, piece_utilisee.piece.item[:35], 1, 0, 'L')
                 pdf.cell(50, 8, piece_utilisee.piece.reference_ste or "N/A", 1, 0, 'L')
                 pdf.cell(30, 8, str(piece_utilisee.quantite), 1, 1, 'C')
         else:
@@ -935,24 +905,24 @@ def envoyer_rapport_maintenance_curative(maintenance_id):
         
         # Envoyer l'email
         msg = Message(
-            subject=f'Rapport de Maintenance Curative - {maintenance_curative.equipement.nom}',
+            subject=f'Rapport de Maintenance Curative - {clean_text_for_pdf(maintenance_curative.equipement.nom)}',
             recipients=[email_dest],
             body=f"""
 Rapport de Maintenance Curative
 
-Équipement: {maintenance_curative.equipement.nom}
-Localisation: {maintenance_curative.equipement.localisation.nom}
-Site: {maintenance_curative.equipement.localisation.site.nom}
+Équipement: {clean_text_for_pdf(maintenance_curative.equipement.nom)}
+Localisation: {clean_text_for_pdf(maintenance_curative.equipement.localisation.nom)}
+Site: {clean_text_for_pdf(maintenance_curative.equipement.localisation.site.nom)}
 Date d'intervention: {maintenance_curative.date_intervention.strftime("%d/%m/%Y")}
 Date de saisie: {maintenance_curative.date_realisation.strftime("%d/%m/%Y %H:%M")}
 
-Description: {maintenance_curative.description_maintenance}
+Description: {clean_text_for_pdf(maintenance_curative.description_maintenance)}
 
 Temps passé: {maintenance_curative.temps_passe} heures
 Nombre de personnes: {maintenance_curative.nombre_personnes}
 
 Pièces utilisées:
-{chr(10).join([f'- {pu.piece.item} (Réf: {pu.piece.reference_ste or "N/A"}) - Quantité: {pu.quantite}' for pu in maintenance_curative.pieces_utilisees]) if maintenance_curative.pieces_utilisees else 'Aucune pièce utilisée'}
+{chr(10).join([f'- {clean_text_for_pdf(pu.piece.item)} (Réf: {pu.piece.reference_ste or "N/A"}) - Quantité: {pu.quantite}' for pu in maintenance_curative.pieces_utilisees]) if maintenance_curative.pieces_utilisees else 'Aucune pièce utilisée'}
             """,
             sender=app.config.get('MAIL_USERNAME')
         )
@@ -1187,63 +1157,12 @@ def calendrier():
     lundi = date_cible - timedelta(days=date_cible.weekday())
     dimanche = lundi + timedelta(days=6)
     lundi_courant = datetime.now().date() - timedelta(days=datetime.now().date().weekday())
-    
-    # Récupérer toutes les interventions de la semaine
-    interventions_list = Intervention.query.filter(
+    interventions = Intervention.query.filter(
         Intervention.date_planifiee >= lundi,
         Intervention.date_planifiee <= dimanche
     ).all()
-    
-    # Séparer les interventions CO6 et CO7 par sous-parties
-    interventions_co6_ste = []
-    interventions_co6_cab = []
-    interventions_co6_step = []
-    interventions_co7_ste = []
-    interventions_co7_cab = []
-    interventions_co7_step = []
-    
-    for intervention in interventions_list:
-        if intervention.maintenance.equipement and intervention.maintenance.equipement.localisation:
-            localisation_nom = intervention.maintenance.equipement.localisation.nom
-            equipement_nom = intervention.maintenance.equipement.nom
-            
-            # Déterminer la sous-partie basée sur le nom de l'équipement ET la localisation
-            equipement_nom_upper = equipement_nom.upper()
-            localisation_nom_upper = localisation_nom.upper()
-            sous_partie = 'STE'  # Par défaut
-            
-            # Priorité : STEP > CAB > STE
-            # Vérifier d'abord dans le nom de l'équipement, puis dans la localisation
-            if 'STEP' in equipement_nom_upper or 'STEP' in localisation_nom_upper:
-                sous_partie = 'STEP'
-            elif 'CAB' in equipement_nom_upper or 'CAB' in localisation_nom_upper:
-                sous_partie = 'CAB'
-            # Si ni STEP ni CAB, alors c'est STE
-            
-            # Classer selon CO6/CO7 et sous-partie
-            if 'CO6' in localisation_nom:
-                if sous_partie == 'STE':
-                    interventions_co6_ste.append(intervention)
-                elif sous_partie == 'CAB':
-                    interventions_co6_cab.append(intervention)
-                elif sous_partie == 'STEP':
-                    interventions_co6_step.append(intervention)
-            elif 'CO7' in localisation_nom:
-                if sous_partie == 'STE':
-                    interventions_co7_ste.append(intervention)
-                elif sous_partie == 'CAB':
-                    interventions_co7_cab.append(intervention)
-                elif sous_partie == 'STEP':
-                    interventions_co7_step.append(intervention)
-    
     # Calculer la prochaine maintenance pour chaque intervention
-    all_interventions = (interventions_co6_ste + interventions_co6_cab + interventions_co6_step + 
-                        interventions_co7_ste + interventions_co7_cab + interventions_co7_step)
-    
-    # Créer un dictionnaire pour stocker les dates de prochaine maintenance
-    prochaines_maintenances = {}
-    
-    for intervention in all_interventions:
+    for intervention in interventions:
         maintenance = intervention.maintenance
         prochaine_date = None
         if maintenance.periodicite == 'semaine':
@@ -1260,21 +1179,9 @@ def calendrier():
             prochaine_date = intervention.date_planifiee + timedelta(days=365)
         elif maintenance.periodicite == '2_ans':
             prochaine_date = intervention.date_planifiee + timedelta(days=730)
-        prochaines_maintenances[intervention.id] = prochaine_date
-    
+        intervention.prochaine_maintenance = prochaine_date
     pieces = Piece.query.all()
-    return render_template('calendrier.html', 
-                         interventions_co6_ste=interventions_co6_ste,
-                         interventions_co6_cab=interventions_co6_cab,
-                         interventions_co6_step=interventions_co6_step,
-                         interventions_co7_ste=interventions_co7_ste,
-                         interventions_co7_cab=interventions_co7_cab,
-                         interventions_co7_step=interventions_co7_step,
-                         pieces=pieces, 
-                         prochaines_maintenances=prochaines_maintenances,
-                         timedelta=timedelta, 
-                         semaine_lundi=lundi, 
-                         lundi_courant=lundi_courant)
+    return render_template('calendrier.html', interventions=interventions, pieces=pieces, timedelta=timedelta, semaine_lundi=lundi, lundi_courant=lundi_courant)
 
 @app.route('/intervention/realiser/<int:intervention_id>', methods=['POST'])
 @login_required
@@ -2059,10 +1966,10 @@ def envoyer_rapport():
             
             for maintenance in maintenances_a_afficher:
                 try:
-                    titre = clean_text_for_pdf(maintenance.titre or '')
-                    equip = clean_text_for_pdf(maintenance.equipement.nom if maintenance.equipement else 'N/A')
+                    titre = maintenance.titre or ''
+                    equip = maintenance.equipement.nom if maintenance.equipement else 'N/A'
                     statut = 'Active'
-                    commentaire = clean_text_for_pdf(maintenance.description or '-')
+                    commentaire = maintenance.description or '-'
                     pieces = 'N/A'
                     
                     print(f"📝 Ajout dans PDF: {titre} - {equip}")
@@ -2105,16 +2012,16 @@ def envoyer_rapport():
             
             for intervention in interventions:
                 try:
-                    titre = clean_text_for_pdf(intervention.maintenance.titre or '')
-                    equip = clean_text_for_pdf(intervention.maintenance.equipement.nom if intervention.maintenance.equipement else 'N/A')
+                    titre = intervention.maintenance.titre or ''
+                    equip = intervention.maintenance.equipement.nom if intervention.maintenance.equipement else 'N/A'
                     statut = 'Réalisée' if intervention.statut == 'realisee' else 'Non réalisée'
-                    commentaire = clean_text_for_pdf(intervention.commentaire or '-')
+                    commentaire = intervention.commentaire or '-'
                     pieces_list = []
                     for pu in intervention.pieces_utilisees:
                         try:
                             piece = pu.piece if hasattr(pu, 'piece') and pu.piece else Piece.query.get(pu.piece_id)
                             if piece:
-                                piece_name = clean_text_for_pdf(piece.item or piece.description or f"Pièce {piece.id}")
+                                piece_name = piece.item or piece.description or f"Pièce {piece.id}"
                                 pieces_list.append(f"{piece_name} ({pu.quantite})")
                         except:
                             pieces_list.append(f"Pièce {pu.piece_id} ({pu.quantite})")
@@ -2173,17 +2080,17 @@ def envoyer_rapport():
                     w_date, w_piece, w_type, w_qte, w_motif, w_interv = 30, 40, 20, 20, 40, 40
                     h = 8
                     date = mouvement.date.strftime('%d/%m/%Y')
-                    piece = clean_text_for_pdf(mouvement.piece.item)[:40] if mouvement.piece and mouvement.piece.item else 'N/A'
+                    piece = mouvement.piece.item[:40] if mouvement.piece and mouvement.piece.item else 'N/A'
                     type_mv = mouvement.type_mouvement.title()
                     qte = str(mouvement.quantite)
-                    motif = clean_text_for_pdf(mouvement.motif or '-')[:40]
+                    motif = (mouvement.motif or '-')[:40]
                     # Gestion de l'intervention
                     interv = None
                     if hasattr(mouvement, 'intervention') and mouvement.intervention:
                         interv = mouvement.intervention
                     elif mouvement.intervention_id:
                         interv = Intervention.query.get(mouvement.intervention_id)
-                    txt = f"{clean_text_for_pdf(interv.maintenance.titre)[:15]}" if interv and interv.maintenance else '-'
+                    txt = f"{interv.maintenance.titre[:15]}" if interv and interv.maintenance else '-'
                     # multi_cell pour chaque champ, on retient la hauteur max
                     pdf.multi_cell(w_date, h, date, border=1, align='L')
                     y_after = pdf.get_y()
@@ -4042,70 +3949,6 @@ def modifier_piece(piece_id):
     lieux_stockage = LieuStockage.query.all()
     equipements = Equipement.query.all()
     return render_template('ajouter_piece.html', piece=piece, lieux_stockage=lieux_stockage, equipements=equipements, edition=True)
-
-@app.route('/maintenance/definir-date-lot', methods=['POST'])
-@login_required
-def definir_date_maintenance_lot():
-    """Définir la date de première maintenance pour plusieurs maintenances en lot"""
-    maintenance_ids = request.form.getlist('maintenance_ids')
-    date_premiere = request.form.get('date_premiere')
-    
-    print(f"DEBUG: maintenance_ids reçus: {maintenance_ids}")
-    print(f"DEBUG: date_premiere reçue: {date_premiere}")
-    
-    if not maintenance_ids:
-        flash('Aucune maintenance sélectionnée.', 'warning')
-        return redirect(url_for('maintenances'))
-    
-    if not date_premiere:
-        flash('Date de première maintenance requise.', 'error')
-        return redirect(url_for('maintenances'))
-    
-    try:
-        date_premiere = datetime.strptime(date_premiere, '%Y-%m-%d').date()
-    except ValueError:
-        flash('Format de date invalide.', 'error')
-        return redirect(url_for('maintenances'))
-    
-    # Mettre à jour toutes les maintenances sélectionnées
-    maintenances_updated = 0
-    maintenances_not_found = []
-    
-    for maintenance_id in maintenance_ids:
-        try:
-            maintenance_id = int(maintenance_id)
-            maintenance = Maintenance.query.get(maintenance_id)
-            if maintenance:
-                maintenance.date_premiere = date_premiere
-                maintenance.date_prochaine = date_premiere
-                maintenance.date_importee = False  # Plus considérée comme importée
-                maintenances_updated += 1
-                
-                # Générer les interventions futures pour cette maintenance
-                generate_interventions(maintenance)
-                print(f"DEBUG: Maintenance {maintenance_id} mise à jour avec succès")
-            else:
-                maintenances_not_found.append(maintenance_id)
-                print(f"DEBUG: Maintenance {maintenance_id} non trouvée")
-        except (ValueError, TypeError) as e:
-            print(f"DEBUG: Erreur avec maintenance_id {maintenance_id}: {e}")
-            maintenances_not_found.append(maintenance_id)
-    
-    try:
-        db.session.commit()
-        print(f"DEBUG: Commit réussi pour {maintenances_updated} maintenances")
-    except Exception as e:
-        db.session.rollback()
-        print(f"DEBUG: Erreur lors du commit: {e}")
-        flash(f'Erreur lors de la sauvegarde : {str(e)}', 'danger')
-        return redirect(url_for('maintenances'))
-    
-    if maintenances_not_found:
-        flash(f'Date de première maintenance définie pour {maintenances_updated} maintenance(s). {len(maintenances_not_found)} maintenance(s) non trouvée(s).', 'warning')
-    else:
-        flash(f'Date de première maintenance définie pour {maintenances_updated} maintenance(s).', 'success')
-    
-    return redirect(url_for('maintenances'))
 
 # Initialisation automatique au démarrage de l'application
 with app.app_context():
