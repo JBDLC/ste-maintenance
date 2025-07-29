@@ -433,6 +433,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 return false;
             }
             
+            // Supprimer les anciens champs cachés s'ils existent
+            const existingHiddenFields = formActionsLot.querySelectorAll('input[name="maintenance_ids"]');
+            existingHiddenFields.forEach(field => field.remove());
+            
+            // Ajouter les checkboxes sélectionnées au formulaire
+            selectedCheckboxes.forEach(checkbox => {
+                const hiddenField = document.createElement('input');
+                hiddenField.type = 'hidden';
+                hiddenField.name = 'maintenance_ids';
+                hiddenField.value = checkbox.value;
+                formActionsLot.appendChild(hiddenField);
+            });
+            
             if (!confirm(`Êtes-vous sûr de vouloir définir la date de première maintenance au ${datePremiere} pour ${selectedCheckboxes.length} maintenance(s) ?`)) {
                 e.preventDefault();
                 return false;

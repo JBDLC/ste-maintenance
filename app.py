@@ -3957,6 +3957,9 @@ def definir_date_maintenance_lot():
     maintenance_ids = request.form.getlist('maintenance_ids')
     date_premiere = request.form.get('date_premiere')
     
+    print(f"DEBUG: maintenance_ids reçus: {maintenance_ids}")
+    print(f"DEBUG: date_premiere reçue: {date_premiere}")
+    
     if not maintenance_ids:
         flash('Aucune maintenance sélectionnée.', 'warning')
         return redirect(url_for('maintenances'))
@@ -3973,19 +3976,42 @@ def definir_date_maintenance_lot():
     
     # Mettre à jour toutes les maintenances sélectionnées
     maintenances_updated = 0
+    maintenances_not_found = []
+    
     for maintenance_id in maintenance_ids:
-        maintenance = Maintenance.query.get(maintenance_id)
-        if maintenance:
-            maintenance.date_premiere = date_premiere
-            maintenance.date_prochaine = date_premiere
-            maintenances_updated += 1
-            
-            # Générer les interventions futures pour cette maintenance
-            generate_interventions(maintenance)
+        try:
+            maintenance_id = int(maintenance_id)
+            maintenance = Maintenance.query.get(maintenance_id)
+            if maintenance:
+                maintenance.date_premiere = date_premiere
+                maintenance.date_prochaine = date_premiere
+                maintenance.date_importee = False  # Plus considérée comme importée
+                maintenances_updated += 1
+                
+                # Générer les interventions futures pour cette maintenance
+                generate_interventions(maintenance)
+                print(f"DEBUG: Maintenance {maintenance_id} mise à jour avec succès")
+            else:
+                maintenances_not_found.append(maintenance_id)
+                print(f"DEBUG: Maintenance {maintenance_id} non trouvée")
+        except (ValueError, TypeError) as e:
+            print(f"DEBUG: Erreur avec maintenance_id {maintenance_id}: {e}")
+            maintenances_not_found.append(maintenance_id)
     
-    db.session.commit()
+    try:
+        db.session.commit()
+        print(f"DEBUG: Commit réussi pour {maintenances_updated} maintenances")
+    except Exception as e:
+        db.session.rollback()
+        print(f"DEBUG: Erreur lors du commit: {e}")
+        flash(f'Erreur lors de la sauvegarde : {str(e)}', 'danger')
+        return redirect(url_for('maintenances'))
     
-    flash(f'Date de première maintenance définie pour {maintenances_updated} maintenance(s).', 'success')
+    if maintenances_not_found:
+        flash(f'Date de première maintenance définie pour {maintenances_updated} maintenance(s). {len(maintenances_not_found)} maintenance(s) non trouvée(s).', 'warning')
+    else:
+        flash(f'Date de première maintenance définie pour {maintenances_updated} maintenance(s).', 'success')
+    
     return redirect(url_for('maintenances'))
 
 # Initialisation automatique au démarrage de l'application
