@@ -1210,6 +1210,9 @@ def calendrier():
     all_interventions = (interventions_co6_ste + interventions_co6_cab + interventions_co6_step + 
                         interventions_co7_ste + interventions_co7_cab + interventions_co7_step)
     
+    # Créer un dictionnaire pour stocker les dates de prochaine maintenance
+    prochaines_maintenances = {}
+    
     for intervention in all_interventions:
         maintenance = intervention.maintenance
         prochaine_date = None
@@ -1227,7 +1230,7 @@ def calendrier():
             prochaine_date = intervention.date_planifiee + timedelta(days=365)
         elif maintenance.periodicite == '2_ans':
             prochaine_date = intervention.date_planifiee + timedelta(days=730)
-        intervention.prochaine_maintenance = prochaine_date
+        prochaines_maintenances[intervention.id] = prochaine_date
     
     pieces = Piece.query.all()
     return render_template('calendrier.html', 
@@ -1238,6 +1241,7 @@ def calendrier():
                          interventions_co7_cab=interventions_co7_cab,
                          interventions_co7_step=interventions_co7_step,
                          pieces=pieces, 
+                         prochaines_maintenances=prochaines_maintenances,
                          timedelta=timedelta, 
                          semaine_lundi=lundi, 
                          lundi_courant=lundi_courant)
