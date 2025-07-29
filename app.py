@@ -1157,31 +1157,65 @@ def calendrier():
     lundi = date_cible - timedelta(days=date_cible.weekday())
     dimanche = lundi + timedelta(days=6)
     lundi_courant = datetime.now().date() - timedelta(days=datetime.now().date().weekday())
+    
+    # Récupérer toutes les interventions de la semaine
     interventions = Intervention.query.filter(
         Intervention.date_planifiee >= lundi,
         Intervention.date_planifiee <= dimanche
     ).all()
-    # Calculer la prochaine maintenance pour chaque intervention
+    
+    # Séparer les interventions par CO6/CO7 et STE/CAB/STEP
+    interventions_co6_ste = []
+    interventions_co6_cab = []
+    interventions_co6_step = []
+    interventions_co7_ste = []
+    interventions_co7_cab = []
+    interventions_co7_step = []
+    
     for intervention in interventions:
-        maintenance = intervention.maintenance
-        prochaine_date = None
-        if maintenance.periodicite == 'semaine':
-            prochaine_date = intervention.date_planifiee + timedelta(weeks=1)
-        elif maintenance.periodicite == '2_semaines':
-            prochaine_date = intervention.date_planifiee + timedelta(weeks=2)
-        elif maintenance.periodicite == 'mois':
-            prochaine_date = intervention.date_planifiee + timedelta(days=30)
-        elif maintenance.periodicite == '2_mois':
-            prochaine_date = intervention.date_planifiee + timedelta(days=60)
-        elif maintenance.periodicite == '6_mois':
-            prochaine_date = intervention.date_planifiee + timedelta(days=182)
-        elif maintenance.periodicite == '1_an':
-            prochaine_date = intervention.date_planifiee + timedelta(days=365)
-        elif maintenance.periodicite == '2_ans':
-            prochaine_date = intervention.date_planifiee + timedelta(days=730)
-        intervention.prochaine_maintenance = prochaine_date
+        equipement_nom = intervention.maintenance.equipement.nom.upper()
+        localisation_nom = intervention.maintenance.equipement.localisation.nom.upper()
+        
+        # Déterminer si c'est CO6 ou CO7
+        is_co6 = 'CO6' in localisation_nom
+        is_co7 = 'CO7' in localisation_nom
+        
+        # Déterminer la sous-catégorie (priorité: STEP > CAB > STE)
+        if 'STEP' in equipement_nom or 'STEP' in localisation_nom:
+            category = 'step'
+        elif 'CAB' in equipement_nom or 'CAB' in localisation_nom:
+            category = 'cab'
+        else:
+            category = 'ste'
+        
+        # Classer l'intervention
+        if is_co6:
+            if category == 'ste':
+                interventions_co6_ste.append(intervention)
+            elif category == 'cab':
+                interventions_co6_cab.append(intervention)
+            elif category == 'step':
+                interventions_co6_step.append(intervention)
+        elif is_co7:
+            if category == 'ste':
+                interventions_co7_ste.append(intervention)
+            elif category == 'cab':
+                interventions_co7_cab.append(intervention)
+            elif category == 'step':
+                interventions_co7_step.append(intervention)
+    
     pieces = Piece.query.all()
-    return render_template('calendrier.html', interventions=interventions, pieces=pieces, timedelta=timedelta, semaine_lundi=lundi, lundi_courant=lundi_courant)
+    return render_template('calendrier.html', 
+                         interventions_co6_ste=interventions_co6_ste,
+                         interventions_co6_cab=interventions_co6_cab,
+                         interventions_co6_step=interventions_co6_step,
+                         interventions_co7_ste=interventions_co7_ste,
+                         interventions_co7_cab=interventions_co7_cab,
+                         interventions_co7_step=interventions_co7_step,
+                         pieces=pieces, 
+                         timedelta=timedelta, 
+                         semaine_lundi=lundi, 
+                         lundi_courant=lundi_courant)
 
 @app.route('/intervention/realiser/<int:intervention_id>', methods=['POST'])
 @login_required
