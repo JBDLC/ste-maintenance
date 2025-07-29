@@ -1157,12 +1157,27 @@ def calendrier():
     lundi = date_cible - timedelta(days=date_cible.weekday())
     dimanche = lundi + timedelta(days=6)
     lundi_courant = datetime.now().date() - timedelta(days=datetime.now().date().weekday())
-    interventions = Intervention.query.filter(
+    
+    # Récupérer toutes les interventions de la semaine
+    interventions_list = Intervention.query.filter(
         Intervention.date_planifiee >= lundi,
         Intervention.date_planifiee <= dimanche
     ).all()
+    
+    # Séparer les interventions CO6 et CO7
+    interventions_co6 = []
+    interventions_co7 = []
+    
+    for intervention in interventions_list:
+        if intervention.maintenance.equipement and intervention.maintenance.equipement.localisation:
+            localisation_nom = intervention.maintenance.equipement.localisation.nom
+            if 'CO6' in localisation_nom:
+                interventions_co6.append(intervention)
+            elif 'CO7' in localisation_nom:
+                interventions_co7.append(intervention)
+    
     # Calculer la prochaine maintenance pour chaque intervention
-    for intervention in interventions:
+    for intervention in interventions_co6 + interventions_co7:
         maintenance = intervention.maintenance
         prochaine_date = None
         if maintenance.periodicite == 'semaine':
@@ -1180,8 +1195,15 @@ def calendrier():
         elif maintenance.periodicite == '2_ans':
             prochaine_date = intervention.date_planifiee + timedelta(days=730)
         intervention.prochaine_maintenance = prochaine_date
+    
     pieces = Piece.query.all()
-    return render_template('calendrier.html', interventions=interventions, pieces=pieces, timedelta=timedelta, semaine_lundi=lundi, lundi_courant=lundi_courant)
+    return render_template('calendrier.html', 
+                         interventions_co6=interventions_co6, 
+                         interventions_co7=interventions_co7, 
+                         pieces=pieces, 
+                         timedelta=timedelta, 
+                         semaine_lundi=lundi, 
+                         lundi_courant=lundi_courant)
 
 @app.route('/intervention/realiser/<int:intervention_id>', methods=['POST'])
 @login_required
