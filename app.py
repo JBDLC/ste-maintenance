@@ -1164,20 +1164,47 @@ def calendrier():
         Intervention.date_planifiee <= dimanche
     ).all()
     
-    # Séparer les interventions CO6 et CO7
-    interventions_co6 = []
-    interventions_co7 = []
+    # Séparer les interventions CO6 et CO7 par sous-parties
+    interventions_co6_ste = []
+    interventions_co6_cab = []
+    interventions_co6_step = []
+    interventions_co7_ste = []
+    interventions_co7_cab = []
+    interventions_co7_step = []
     
     for intervention in interventions_list:
         if intervention.maintenance.equipement and intervention.maintenance.equipement.localisation:
             localisation_nom = intervention.maintenance.equipement.localisation.nom
+            equipement_nom = intervention.maintenance.equipement.nom
+            
+            # Déterminer la sous-partie basée sur le nom de l'équipement
+            sous_partie = 'STE'  # Par défaut
+            if 'CAB' in equipement_nom.upper():
+                sous_partie = 'CAB'
+            elif 'STEP' in equipement_nom.upper():
+                sous_partie = 'STEP'
+            
+            # Classer selon CO6/CO7 et sous-partie
             if 'CO6' in localisation_nom:
-                interventions_co6.append(intervention)
+                if sous_partie == 'STE':
+                    interventions_co6_ste.append(intervention)
+                elif sous_partie == 'CAB':
+                    interventions_co6_cab.append(intervention)
+                elif sous_partie == 'STEP':
+                    interventions_co6_step.append(intervention)
             elif 'CO7' in localisation_nom:
-                interventions_co7.append(intervention)
+                if sous_partie == 'STE':
+                    interventions_co7_ste.append(intervention)
+                elif sous_partie == 'CAB':
+                    interventions_co7_cab.append(intervention)
+                elif sous_partie == 'STEP':
+                    interventions_co7_step.append(intervention)
     
     # Calculer la prochaine maintenance pour chaque intervention
-    for intervention in interventions_co6 + interventions_co7:
+    all_interventions = (interventions_co6_ste + interventions_co6_cab + interventions_co6_step + 
+                        interventions_co7_ste + interventions_co7_cab + interventions_co7_step)
+    
+    for intervention in all_interventions:
         maintenance = intervention.maintenance
         prochaine_date = None
         if maintenance.periodicite == 'semaine':
@@ -1198,8 +1225,12 @@ def calendrier():
     
     pieces = Piece.query.all()
     return render_template('calendrier.html', 
-                         interventions_co6=interventions_co6, 
-                         interventions_co7=interventions_co7, 
+                         interventions_co6_ste=interventions_co6_ste,
+                         interventions_co6_cab=interventions_co6_cab,
+                         interventions_co6_step=interventions_co6_step,
+                         interventions_co7_ste=interventions_co7_ste,
+                         interventions_co7_cab=interventions_co7_cab,
+                         interventions_co7_step=interventions_co7_step,
                          pieces=pieces, 
                          timedelta=timedelta, 
                          semaine_lundi=lundi, 
