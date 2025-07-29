@@ -18,6 +18,62 @@ import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # Fonctions utilitaires pour remplacer pandas
+def clean_text_for_pdf(text):
+    """Nettoie le texte pour éviter les problèmes d'encodage dans FPDF"""
+    if text is None:
+        return ''
+    
+    # Convertir en string si ce n'est pas déjà le cas
+    text = str(text)
+    
+    # Remplacer les caractères problématiques
+    replacements = {
+        '\u2019': "'",  # Apostrophe typographique
+        '\u2018': "'",  # Apostrophe typographique
+        '\u201c': '"',  # Guillemet typographique
+        '\u201d': '"',  # Guillemet typographique
+        '\u2013': '-',  # Tiret en
+        '\u2014': '-',  # Tiret em
+        '\u2022': '-',  # Puce
+        '\u2026': '...',  # Points de suspension
+        '\u00a0': ' ',  # Espace insécable
+        '\u00e9': 'e',  # é
+        '\u00e8': 'e',  # è
+        '\u00ea': 'e',  # ê
+        '\u00eb': 'e',  # ë
+        '\u00e0': 'a',  # à
+        '\u00e2': 'a',  # â
+        '\u00e4': 'a',  # ä
+        '\u00ee': 'i',  # î
+        '\u00ef': 'i',  # ï
+        '\u00f4': 'o',  # ô
+        '\u00f6': 'o',  # ö
+        '\u00f9': 'u',  # ù
+        '\u00fb': 'u',  # û
+        '\u00fc': 'u',  # ü
+        '\u00e7': 'c',  # ç
+        '\u00c9': 'E',  # É
+        '\u00c8': 'E',  # È
+        '\u00ca': 'E',  # Ê
+        '\u00cb': 'E',  # Ë
+        '\u00c0': 'A',  # À
+        '\u00c2': 'A',  # Â
+        '\u00c4': 'A',  # Ä
+        '\u00ce': 'I',  # Î
+        '\u00cf': 'I',  # Ï
+        '\u00d4': 'O',  # Ô
+        '\u00d6': 'O',  # Ö
+        '\u00d9': 'U',  # Ù
+        '\u00db': 'U',  # Û
+        '\u00dc': 'U',  # Ü
+        '\u00c7': 'C',  # Ç
+    }
+    
+    for unicode_char, replacement in replacements.items():
+        text = text.replace(unicode_char, replacement)
+    
+    return text
+
 def create_dataframe(data, columns=None):
     """Crée une structure de données similaire à un DataFrame pandas"""
     if not data:
@@ -812,15 +868,15 @@ def envoyer_rapport_maintenance_curative(maintenance_id):
         
         # Équipement
         pdf.cell(40, 8, 'Équipement:', 1, 0, 'L', True)
-        pdf.cell(0, 8, maintenance_curative.equipement.nom, 1, 1, 'L')
+        pdf.cell(0, 8, clean_text_for_pdf(maintenance_curative.equipement.nom), 1, 1, 'L')
         
         # Localisation
         pdf.cell(40, 8, 'Localisation:', 1, 0, 'L', True)
-        pdf.cell(0, 8, maintenance_curative.equipement.localisation.nom, 1, 1, 'L')
+        pdf.cell(0, 8, clean_text_for_pdf(maintenance_curative.equipement.localisation.nom), 1, 1, 'L')
         
         # Site
         pdf.cell(40, 8, 'Site:', 1, 0, 'L', True)
-        pdf.cell(0, 8, maintenance_curative.equipement.localisation.site.nom, 1, 1, 'L')
+        pdf.cell(0, 8, clean_text_for_pdf(maintenance_curative.equipement.localisation.site.nom), 1, 1, 'L')
         
         # Date d'intervention
         pdf.cell(40, 8, 'Date intervention:', 1, 0, 'L', True)
@@ -842,7 +898,7 @@ def envoyer_rapport_maintenance_curative(maintenance_id):
         pdf.set_fill_color(250, 250, 250)
         pdf.rect(10, pdf.get_y(), 190, 30, 'F')
         pdf.set_xy(15, pdf.get_y() + 5)
-        pdf.multi_cell(180, 8, maintenance_curative.description_maintenance)
+        pdf.multi_cell(180, 8, clean_text_for_pdf(maintenance_curative.description_maintenance))
         pdf.ln(35)
         
         # Informations techniques
@@ -879,7 +935,7 @@ def envoyer_rapport_maintenance_curative(maintenance_id):
             
             pdf.set_font('Helvetica', '', 10)
             for piece_utilisee in maintenance_curative.pieces_utilisees:
-                pdf.cell(80, 8, piece_utilisee.piece.item[:35], 1, 0, 'L')
+                pdf.cell(80, 8, clean_text_for_pdf(piece_utilisee.piece.item)[:35], 1, 0, 'L')
                 pdf.cell(50, 8, piece_utilisee.piece.reference_ste or "N/A", 1, 0, 'L')
                 pdf.cell(30, 8, str(piece_utilisee.quantite), 1, 1, 'C')
         else:
@@ -901,7 +957,7 @@ def envoyer_rapport_maintenance_curative(maintenance_id):
         # Sauvegarder le PDF en mémoire
         pdf_data = pdf.output(dest='S')
         if isinstance(pdf_data, str):
-            pdf_data = pdf_data.encode('latin1')
+            pdf_data = pdf_data.encode('utf-8')
         
         # Envoyer l'email
         msg = Message(
@@ -2029,10 +2085,10 @@ def envoyer_rapport():
             
             for maintenance in maintenances_a_afficher:
                 try:
-                    titre = maintenance.titre or ''
-                    equip = maintenance.equipement.nom if maintenance.equipement else 'N/A'
+                    titre = clean_text_for_pdf(maintenance.titre or '')
+                    equip = clean_text_for_pdf(maintenance.equipement.nom if maintenance.equipement else 'N/A')
                     statut = 'Active'
-                    commentaire = maintenance.description or '-'
+                    commentaire = clean_text_for_pdf(maintenance.description or '-')
                     pieces = 'N/A'
                     
                     print(f"📝 Ajout dans PDF: {titre} - {equip}")
@@ -2075,16 +2131,16 @@ def envoyer_rapport():
             
             for intervention in interventions:
                 try:
-                    titre = intervention.maintenance.titre or ''
-                    equip = intervention.maintenance.equipement.nom if intervention.maintenance.equipement else 'N/A'
+                    titre = clean_text_for_pdf(intervention.maintenance.titre or '')
+                    equip = clean_text_for_pdf(intervention.maintenance.equipement.nom if intervention.maintenance.equipement else 'N/A')
                     statut = 'Réalisée' if intervention.statut == 'realisee' else 'Non réalisée'
-                    commentaire = intervention.commentaire or '-'
+                    commentaire = clean_text_for_pdf(intervention.commentaire or '-')
                     pieces_list = []
                     for pu in intervention.pieces_utilisees:
                         try:
                             piece = pu.piece if hasattr(pu, 'piece') and pu.piece else Piece.query.get(pu.piece_id)
                             if piece:
-                                piece_name = piece.item or piece.description or f"Pièce {piece.id}"
+                                piece_name = clean_text_for_pdf(piece.item or piece.description or f"Pièce {piece.id}")
                                 pieces_list.append(f"{piece_name} ({pu.quantite})")
                         except:
                             pieces_list.append(f"Pièce {pu.piece_id} ({pu.quantite})")
@@ -2143,17 +2199,17 @@ def envoyer_rapport():
                     w_date, w_piece, w_type, w_qte, w_motif, w_interv = 30, 40, 20, 20, 40, 40
                     h = 8
                     date = mouvement.date.strftime('%d/%m/%Y')
-                    piece = mouvement.piece.item[:40] if mouvement.piece and mouvement.piece.item else 'N/A'
+                    piece = clean_text_for_pdf(mouvement.piece.item)[:40] if mouvement.piece and mouvement.piece.item else 'N/A'
                     type_mv = mouvement.type_mouvement.title()
                     qte = str(mouvement.quantite)
-                    motif = (mouvement.motif or '-')[:40]
+                    motif = clean_text_for_pdf(mouvement.motif or '-')[:40]
                     # Gestion de l'intervention
                     interv = None
                     if hasattr(mouvement, 'intervention') and mouvement.intervention:
                         interv = mouvement.intervention
                     elif mouvement.intervention_id:
                         interv = Intervention.query.get(mouvement.intervention_id)
-                    txt = f"{interv.maintenance.titre[:15]}" if interv and interv.maintenance else '-'
+                    txt = f"{clean_text_for_pdf(interv.maintenance.titre)[:15]}" if interv and interv.maintenance else '-'
                     # multi_cell pour chaque champ, on retient la hauteur max
                     pdf.multi_cell(w_date, h, date, border=1, align='L')
                     y_after = pdf.get_y()
@@ -2181,7 +2237,7 @@ def envoyer_rapport():
         # Sauvegarder le PDF en mémoire
         pdf_data = pdf.output(dest='S')
         if isinstance(pdf_data, str):
-            pdf_data = pdf_data.encode('latin1')
+            pdf_data = pdf_data.encode('utf-8')
         
         # Envoyer le mail avec le PDF en pièce jointe
         msg = Message(
