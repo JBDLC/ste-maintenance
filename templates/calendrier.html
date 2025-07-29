@@ -32,21 +32,20 @@
 
 {% if interventions %}
 <div class="table-responsive">
-    <table class="table table-hover table-sm align-middle">
+    <table class="table table-hover table-sm align-middle" style="font-size: 75%;">
         <thead class="table-dark">
             <tr>
-                <th class="d-none d-md-table-cell">Localisation</th>
-                <th>Équipement</th>
-                <th class="d-none d-lg-table-cell">Description</th>
-                <th class="d-none d-sm-table-cell">Action de maintenance</th>
-                <th>Statut</th>
-                <th>Actions</th>
-                <th class="d-none d-lg-table-cell">Prochaine maintenance</th>
+                <th class="d-none d-md-table-cell" style="font-size: 70%;">Localisation</th>
+                <th style="font-size: 70%;">Équipement</th>
+                <th class="d-none d-lg-table-cell" style="font-size: 70%;">Description</th>
+                <th class="d-none d-sm-table-cell" style="font-size: 70%;">Action de maintenance</th>
+                <th style="font-size: 70%;">Statut</th>
+                <th style="font-size: 70%;">Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for intervention in interventions %}
-            <tr style="cursor: pointer;" 
+            <tr style="cursor: pointer; height: 35px;" 
                 data-maintenance-id="{{ intervention.maintenance.id }}"
                 data-titre="{{ intervention.maintenance.titre }}"
                 data-equipement="{{ intervention.maintenance.equipement.nom }}"
@@ -59,35 +58,28 @@
                 data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
                 data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
                 onclick="showMaintenanceDetails(this)">
-                <td class="d-none d-md-table-cell">{{ intervention.maintenance.equipement.localisation.nom }}</td>
-                <td>
+                <td class="d-none d-md-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.localisation.nom }}</td>
+                <td style="font-size: 70%;">
                     <strong>{{ intervention.maintenance.equipement.nom }}</strong>
-                    <div class="d-md-none small text-muted">
+                    <div class="d-md-none small text-muted" style="font-size: 65%;">
                         {{ intervention.maintenance.equipement.localisation.nom }}
                     </div>
                 </td>
-                <td class="d-none d-lg-table-cell">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
-                <td class="d-none d-sm-table-cell">{{ intervention.maintenance.titre }}</td>
-                <td>
-                    <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}">
+                <td class="d-none d-lg-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
+                <td class="d-none d-sm-table-cell" style="font-size: 70%;">{{ intervention.maintenance.titre }}</td>
+                <td style="font-size: 70%;">
+                    <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}" style="font-size: 65%;">
                         {{ intervention.statut|title }}
                     </span>
                 </td>
-                <td>
+                <td style="font-size: 70%;">
                     {% if intervention.statut == 'planifiee' %}
-                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                    <button type="button" class="btn btn-primary btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
                         <i class="fas fa-check"></i>
                         <span class="d-none d-sm-inline ms-1">Réaliser</span>
                     </button>
                     {% else %}
                     <span class="text-muted">-</span>
-                    {% endif %}
-                </td>
-                <td class="d-none d-lg-table-cell">
-                    {% if intervention.prochaine_maintenance %}
-                        Semaine {{ intervention.prochaine_maintenance.isocalendar()[1] }}
-                    {% else %}
-                        -
                     {% endif %}
                 </td>
             </tr>
@@ -169,7 +161,7 @@
             </div>
             {% else %}
             <tr>
-                <td colspan="7" class="text-center">
+                <td colspan="6" class="text-center">
                     <div class="alert alert-info mb-0">
                         <i class="fas fa-info-circle"></i> Aucune intervention planifiée pour cette semaine.
                     </div>
