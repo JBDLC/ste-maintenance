@@ -12,4 +12,5 @@ fpdf==1.7.2
 python-dateutil==2.8.2
 psycopg[binary]
 gunicorn==21.2.0
-xlrd==2.0.1 
+xlrd==2.0.1
+playwright==1.40.0 
