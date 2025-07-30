@@ -2023,22 +2023,20 @@ def envoyer_rapport():
             bottom=Side(style='thin')
         )
         
-        # Fonction pour configurer une feuille A4
-        def setup_a4_sheet(ws):
-            # Configuration A4
-            ws.page_setup.paperSize = 9  # 9 = A4
-            ws.page_setup.fitToPage = True
-            ws.page_setup.fitToHeight = 1
-            ws.page_setup.fitToWidth = 1
-            ws.page_setup.orientation = 'portrait'
-            ws.page_setup.margins.top = 0.5
-            ws.page_setup.margins.bottom = 0.5
-            ws.page_setup.margins.left = 0.5
-            ws.page_setup.margins.right = 0.5
-        
-        # Configuration des 3 feuilles
+        # Configuration simple des 3 feuilles
         for ws in [ws_co6, ws_co7, ws_mouvements]:
-            setup_a4_sheet(ws)
+            # Ajuster automatiquement la largeur des colonnes
+            for column in ws.columns:
+                max_length = 0
+                column_letter = get_column_letter(column[0].column)
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                ws.column_dimensions[column_letter].width = adjusted_width
         
         # === ONGLET CO6 ===
         headers_co6 = [
@@ -2160,19 +2158,7 @@ def envoyer_rapport():
             
             row += 1
         
-        # Ajuster la largeur des colonnes pour tous les onglets
-        for ws in [ws_co6, ws_co7, ws_mouvements]:
-            for column in ws.columns:
-                max_length = 0
-                column_letter = get_column_letter(column[0].column)
-                for cell in column:
-                    try:
-                        if len(str(cell.value)) > max_length:
-                            max_length = len(str(cell.value))
-                    except:
-                        pass
-                adjusted_width = min(max_length + 2, 50)
-                ws.column_dimensions[column_letter].width = adjusted_width
+
         
         # Sauvegarder le fichier Excel
         excel_filename = f"rapport_maintenance_semaine_{lundi.isocalendar()[1]}_{lundi.strftime('%Y%m%d')}.xlsx"
