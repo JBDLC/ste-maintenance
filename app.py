@@ -1965,7 +1965,7 @@ def envoyer_rapport():
         else:
             date_cible = datetime.now().date()
         
-        # Calculer le lundi et dimanche de la semaine cible (même logique que le calendrier)
+        # Calculer le lundi et dimanche de la semaine cible
         lundi = date_cible - timedelta(days=date_cible.weekday())
         dimanche = lundi + timedelta(days=6)
         
@@ -1976,60 +1976,6 @@ def envoyer_rapport():
         ).all()
         
         print(f"🔍 Debug: {len(interventions)} interventions trouvées pour la semaine {lundi.isocalendar()[1]}")
-        for interv in interventions:
-            print(f"  - Intervention {interv.id}: {interv.maintenance.titre} le {interv.date_planifiee}")
-        
-        # Si pas d'interventions, récupérer les maintenances actives qui devraient avoir des interventions cette semaine
-        maintenances_semaine = []
-        if not interventions:
-            print("🔍 Aucune intervention trouvée, récupération des maintenances actives...")
-            maintenances_actives = Maintenance.query.filter_by(active=True).all()
-            print(f"🔍 {len(maintenances_actives)} maintenances actives trouvées")
-            
-            # Debug: afficher toutes les maintenances (actives et inactives)
-            all_maintenances = Maintenance.query.all()
-            print(f"🔍 TOTAL: {len(all_maintenances)} maintenances dans la base")
-            for m in all_maintenances:
-                equip = m.equipement.nom if m.equipement else 'N/A'
-                print(f"  - Maintenance {m.id}: {m.titre} (Équipement: {equip}, Active: {m.active}, Date première: {m.date_premiere})")
-            
-            # Filtrer les maintenances qui devraient avoir des interventions cette semaine
-            for maintenance in maintenances_actives:
-                try:
-                    # Si la maintenance a une date de première intervention
-                    if maintenance.date_premiere:
-                        current_date = maintenance.date_premiere
-                        while current_date <= dimanche:
-                            if lundi <= current_date <= dimanche:
-                                maintenances_semaine.append(maintenance)
-                                print(f"✅ Maintenance {maintenance.id} ajoutée pour la semaine")
-                                break
-                            # Calculer la prochaine date selon la périodicité
-                            if maintenance.periodicite == 'semaine':
-                                current_date += timedelta(days=7)
-                            elif maintenance.periodicite == '2_semaines':
-                                current_date += timedelta(days=14)
-                            elif maintenance.periodicite == 'mois':
-                                current_date += timedelta(days=30)
-                            elif maintenance.periodicite == '2_mois':
-                                current_date += timedelta(days=60)
-                            elif maintenance.periodicite == '6_mois':
-                                current_date += timedelta(days=182)
-                            elif maintenance.periodicite == '1_an':
-                                current_date += timedelta(days=365)
-                            elif maintenance.periodicite == '2_ans':
-                                current_date += timedelta(days=730)
-                            else:
-                                break
-                    else:
-                        # Si pas de date de première, inclure toutes les maintenances actives
-                        maintenances_semaine.append(maintenance)
-                        print(f"✅ Maintenance {maintenance.id} ajoutée (pas de date première)")
-                except Exception as e:
-                    print(f"Erreur lors du calcul pour maintenance {maintenance.id}: {e}")
-                    maintenances_semaine.append(maintenance)
-            
-            print(f"🔍 {len(maintenances_semaine)} maintenances trouvées pour la semaine")
         
         # Récupérer les mouvements de la semaine
         mouvements = MouvementPiece.query.filter(
@@ -2049,217 +1995,226 @@ def envoyer_rapport():
         # Charger la config SMTP dynamique
         charger_config_smtp()
         
-        # Générer le PDF avec FPDF
-        pdf = FPDF()
-        pdf.set_auto_page_break(auto=True, margin=15)
-        pdf.add_page()
+        # Créer le fichier Excel avec 3 onglets
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+        from openpyxl.utils import get_column_letter
         
-        # Logo si présent
-        try:
-            pdf.image('static/logo.png', x=10, y=8, w=25)
-        except:
-            pass
+        wb = Workbook()
         
-        pdf.set_font('Arial', 'B', 16)
-        pdf.cell(0, 10, f'Rapport de maintenance - Semaine {lundi.isocalendar()[1]}', ln=1, align='C')
-        pdf.set_font('Arial', '', 12)
-        pdf.cell(0, 8, f'Période du {lundi.strftime("%d/%m/%Y")} au {dimanche.strftime("%d/%m/%Y")}', ln=1, align='C')
-        pdf.ln(5)
+        # Supprimer la feuille par défaut
+        wb.remove(wb.active)
         
-        # Section maintenances
-        pdf.set_font('Arial', 'B', 14)
-        pdf.cell(0, 10, 'Maintenances de la semaine', ln=1)
-        pdf.set_font('Arial', 'B', 10)
-        pdf.cell(50, 8, 'Titre', 1)
-        pdf.cell(35, 8, 'Équipement', 1)
-        pdf.cell(25, 8, 'Statut', 1)
-        pdf.cell(50, 8, 'Commentaire', 1)
-        pdf.cell(0, 8, 'Pièces utilisées', 1, ln=1)
-        pdf.set_font('Arial', '', 10)
+        # Créer les 3 onglets
+        ws_co6 = wb.create_sheet("CO6")
+        ws_co7 = wb.create_sheet("CO7")
+        ws_mouvements = wb.create_sheet("Mouvements de magasin")
         
-        # Si pas d'interventions, utiliser les maintenances trouvées
-        if not interventions:
-            print("🔍 Aucune intervention trouvée, utilisation des maintenances calculées...")
-            maintenances_a_afficher = maintenances_semaine
-            print(f"🔍 {len(maintenances_a_afficher)} maintenances à afficher dans le PDF")
-            
-            for maintenance in maintenances_a_afficher:
-                try:
-                    titre = clean_text_for_pdf(maintenance.titre or '')
-                    equip = clean_text_for_pdf(maintenance.equipement.nom if maintenance.equipement else 'N/A')
-                    statut = 'Active'
-                    commentaire = clean_text_for_pdf(maintenance.description or '-')
-                    pieces = 'N/A'
-                    
-                    print(f"📝 Ajout dans PDF: {titre} - {equip}")
-                    
-                    # Calculer la hauteur max de la ligne
-                    y_before = pdf.get_y()
-                    x = pdf.get_x()
-                    w_titre, w_equip, w_statut, w_com, w_pieces = 50, 35, 25, 50, 40
-                    h = 8
-                    
-                    # multi_cell pour chaque champ, on retient la hauteur max
-                    pdf.multi_cell(w_titre, h, titre, border=1, align='L')
-                    y_after = pdf.get_y()
-                    max_h = y_after - y_before
-                    
-                    pdf.set_xy(x + w_titre, y_before)
-                    pdf.multi_cell(w_equip, h, equip, border=1, align='L')
-                    max_h = max(max_h, pdf.get_y() - y_before)
-                    
-                    pdf.set_xy(x + w_titre + w_equip, y_before)
-                    pdf.multi_cell(w_statut, h, statut, border=1, align='L')
-                    max_h = max(max_h, pdf.get_y() - y_before)
-                    
-                    pdf.set_xy(x + w_titre + w_equip + w_statut, y_before)
-                    pdf.multi_cell(w_com, h, commentaire, border=1, align='L')
-                    max_h = max(max_h, pdf.get_y() - y_before)
-                    
-                    pdf.set_xy(x + w_titre + w_equip + w_statut + w_com, y_before)
-                    pdf.multi_cell(w_pieces, h, pieces, border=1, align='L')
-                    max_h = max(max_h, pdf.get_y() - y_before)
-                    
-                    # Passer à la ligne suivante
-                    pdf.set_y(y_before + max_h)
-                    print(f"✅ Ligne ajoutée au PDF")
-                except Exception as e:
-                    print(f"Erreur lors du traitement de la maintenance {maintenance.id}: {e}")
-                    continue
-        else:
-            print(f"🔍 {len(interventions)} interventions trouvées, génération du rapport...")
-            
-            for intervention in interventions:
-                try:
-                    titre = clean_text_for_pdf(intervention.maintenance.titre or '')
-                    equip = clean_text_for_pdf(intervention.maintenance.equipement.nom if intervention.maintenance.equipement else 'N/A')
-                    statut = 'Réalisée' if intervention.statut == 'realisee' else 'Non réalisée'
-                    commentaire = clean_text_for_pdf(intervention.commentaire or '-')
-                    pieces_list = []
-                    for pu in intervention.pieces_utilisees:
-                        try:
-                            piece = pu.piece if hasattr(pu, 'piece') and pu.piece else Piece.query.get(pu.piece_id)
-                            if piece:
-                                piece_name = clean_text_for_pdf(piece.item or piece.description or f"Pièce {piece.id}")
-                                pieces_list.append(f"{piece_name} ({pu.quantite})")
-                        except:
-                            pieces_list.append(f"Pièce {pu.piece_id} ({pu.quantite})")
-                    pieces = ', '.join(pieces_list) if pieces_list else 'Aucune'
-                    
-                    # Calculer la hauteur max de la ligne
-                    y_before = pdf.get_y()
-                    x = pdf.get_x()
-                    w_titre, w_equip, w_statut, w_com, w_pieces = 50, 35, 25, 50, 40
-                    h = 8
-                    
-                    # multi_cell pour chaque champ, on retient la hauteur max
-                    pdf.multi_cell(w_titre, h, titre, border=1, align='L')
-                    y_after = pdf.get_y()
-                    max_h = y_after - y_before
-                    
-                    pdf.set_xy(x + w_titre, y_before)
-                    pdf.multi_cell(w_equip, h, equip, border=1, align='L')
-                    max_h = max(max_h, pdf.get_y() - y_before)
-                    
-                    pdf.set_xy(x + w_titre + w_equip, y_before)
-                    pdf.multi_cell(w_statut, h, statut, border=1, align='L')
-                    max_h = max(max_h, pdf.get_y() - y_before)
-                    
-                    pdf.set_xy(x + w_titre + w_equip + w_statut, y_before)
-                    pdf.multi_cell(w_com, h, commentaire, border=1, align='L')
-                    max_h = max(max_h, pdf.get_y() - y_before)
-                    
-                    pdf.set_xy(x + w_titre + w_equip + w_statut + w_com, y_before)
-                    pdf.multi_cell(w_pieces, h, pieces, border=1, align='L')
-                    max_h = max(max_h, pdf.get_y() - y_before)
-                    
-                    # Passer à la ligne suivante
-                    pdf.set_y(y_before + max_h)
-                except Exception as e:
-                    print(f"Erreur lors du traitement de l'intervention {intervention.id}: {e}")
-                    continue
+        # Styles pour les en-têtes
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center")
         
-        # Nouvelle page pour les mouvements de stock
-        if mouvements:
-            pdf.add_page()
-            pdf.set_font('Arial', 'B', 14)
-            pdf.cell(0, 10, 'Mouvements de stock de la semaine', ln=1)
-            pdf.set_font('Arial', 'B', 10)
-            pdf.cell(30, 8, 'Date', 1)
-            pdf.cell(40, 8, 'Pièce', 1)
-            pdf.cell(20, 8, 'Type', 1)
-            pdf.cell(20, 8, 'Quantité', 1)
-            pdf.cell(40, 8, 'Motif', 1)
-            pdf.cell(0, 8, 'Intervention', 1, ln=1)
-            pdf.set_font('Arial', '', 10)
-            for mouvement in mouvements:
-                try:
-                    y_before = pdf.get_y()
-                    x = pdf.get_x()
-                    w_date, w_piece, w_type, w_qte, w_motif, w_interv = 30, 40, 20, 20, 40, 40
-                    h = 8
-                    date = mouvement.date.strftime('%d/%m/%Y')
-                    piece = clean_text_for_pdf(mouvement.piece.item)[:40] if mouvement.piece and mouvement.piece.item else 'N/A'
-                    type_mv = mouvement.type_mouvement.title()
-                    qte = str(mouvement.quantite)
-                    motif = clean_text_for_pdf(mouvement.motif or '-')[:40]
-                    # Gestion de l'intervention
-                    interv = None
-                    if hasattr(mouvement, 'intervention') and mouvement.intervention:
-                        interv = mouvement.intervention
-                    elif mouvement.intervention_id:
-                        interv = Intervention.query.get(mouvement.intervention_id)
-                    txt = f"{clean_text_for_pdf(interv.maintenance.titre)[:15]}" if interv and interv.maintenance else '-'
-                    # multi_cell pour chaque champ, on retient la hauteur max
-                    pdf.multi_cell(w_date, h, date, border=1, align='L')
-                    y_after = pdf.get_y()
-                    max_h = y_after - y_before
-                    pdf.set_xy(x + w_date, y_before)
-                    pdf.multi_cell(w_piece, h, piece, border=1, align='L')
-                    max_h = max(max_h, pdf.get_y() - y_before)
-                    pdf.set_xy(x + w_date + w_piece, y_before)
-                    pdf.multi_cell(w_type, h, type_mv, border=1, align='L')
-                    max_h = max(max_h, pdf.get_y() - y_before)
-                    pdf.set_xy(x + w_date + w_piece + w_type, y_before)
-                    pdf.multi_cell(w_qte, h, qte, border=1, align='L')
-                    max_h = max(max_h, pdf.get_y() - y_before)
-                    pdf.set_xy(x + w_date + w_piece + w_type + w_qte, y_before)
-                    pdf.multi_cell(w_motif, h, motif, border=1, align='L')
-                    max_h = max(max_h, pdf.get_y() - y_before)
-                    pdf.set_xy(x + w_date + w_piece + w_type + w_qte + w_motif, y_before)
-                    pdf.multi_cell(w_interv, h, txt, border=1, align='L')
-                    max_h = max(max_h, pdf.get_y() - y_before)
-                    pdf.set_y(y_before + max_h)
-                except Exception as e:
-                    print(f"Erreur lors du traitement du mouvement {mouvement.id}: {e}")
-                    continue
-        
-        # Sauvegarder le PDF en mémoire
-        pdf_data = pdf.output(dest='S')
-        if isinstance(pdf_data, str):
-            pdf_data = pdf_data.encode('utf-8')
-        
-        # Envoyer le mail avec le PDF en pièce jointe
-        msg = Message(
-            subject=f"Rapport de maintenance semaine {lundi.isocalendar()[1]}",
-            recipients=[email_dest],
-            body=f"Veuillez trouver ci-joint le rapport de maintenance de la semaine {lundi.strftime('%d/%m/%Y')} au {dimanche.strftime('%d/%m/%Y')}.",
-            sender=app.config.get('MAIL_USERNAME')
+        # Styles pour les bordures
+        thin_border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
         )
-        msg.attach(f"rapport_maintenance_semaine_{lundi.isocalendar()[1]}.pdf", "application/pdf", pdf_data)
         
-        try:
-            mail.send(msg)
-            flash('Rapport envoyé avec succès !', 'success')
-        except Exception as e:
-            flash(f'Erreur lors de l\'envoi du rapport : {str(e)}', 'danger')
+        # Fonction pour configurer une feuille A4
+        def setup_a4_sheet(ws):
+            # Configuration A4
+            ws.page_setup.paperSize = ws.page_setup.PAPERSIZE_A4
+            ws.page_setup.fitToPage = True
+            ws.page_setup.fitToHeight = 1
+            ws.page_setup.fitToWidth = 1
+            ws.page_setup.orientation = ws.page_setup.ORIENTATION_PORTRAIT
+            ws.page_setup.margins.top = 0.5
+            ws.page_setup.margins.bottom = 0.5
+            ws.page_setup.margins.left = 0.5
+            ws.page_setup.margins.right = 0.5
         
-        return redirect(url_for('calendrier'))
+        # Configuration des 3 feuilles
+        for ws in [ws_co6, ws_co7, ws_mouvements]:
+            setup_a4_sheet(ws)
+        
+        # === ONGLET CO6 ===
+        headers_co6 = [
+            "ID Maintenance", "Titre", "Équipement", "Localisation", "Site", "Périodicité",
+            "Date première", "Date prochaine", "Statut", "Date planifiée", "Date réalisée",
+            "Commentaire", "Pièces utilisées"
+        ]
+        
+        # Ajouter les en-têtes CO6
+        for col, header in enumerate(headers_co6, 1):
+            cell = ws_co6.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+        
+        # Remplir les données CO6
+        row = 2
+        for intervention in interventions:
+            if intervention.maintenance.equipement.localisation.nom.upper().find('CO6') != -1:
+                pieces_utilisees = []
+                for piece_utilisee in intervention.pieces_utilisees:
+                    pieces_utilisees.append(f"{piece_utilisee.piece.description} (x{piece_utilisee.quantite})")
+                
+                ws_co6.cell(row=row, column=1, value=intervention.maintenance.id)
+                ws_co6.cell(row=row, column=2, value=intervention.maintenance.titre)
+                ws_co6.cell(row=row, column=3, value=intervention.maintenance.equipement.nom)
+                ws_co6.cell(row=row, column=4, value=intervention.maintenance.equipement.localisation.nom)
+                ws_co6.cell(row=row, column=5, value=intervention.maintenance.equipement.localisation.site.nom)
+                ws_co6.cell(row=row, column=6, value=intervention.maintenance.periodicite)
+                ws_co6.cell(row=row, column=7, value=intervention.maintenance.date_premiere)
+                ws_co6.cell(row=row, column=8, value=intervention.maintenance.date_prochaine)
+                ws_co6.cell(row=row, column=9, value=intervention.statut)
+                ws_co6.cell(row=row, column=10, value=intervention.date_planifiee)
+                ws_co6.cell(row=row, column=11, value=intervention.date_realisee)
+                ws_co6.cell(row=row, column=12, value=intervention.commentaire)
+                ws_co6.cell(row=row, column=13, value=", ".join(pieces_utilisees) if pieces_utilisees else "")
+                
+                # Appliquer les bordures
+                for col in range(1, 14):
+                    ws_co6.cell(row=row, column=col).border = thin_border
+                
+                row += 1
+        
+        # === ONGLET CO7 ===
+        headers_co7 = [
+            "ID Maintenance", "Titre", "Équipement", "Localisation", "Site", "Périodicité",
+            "Date première", "Date prochaine", "Statut", "Date planifiée", "Date réalisée",
+            "Commentaire", "Pièces utilisées"
+        ]
+        
+        # Ajouter les en-têtes CO7
+        for col, header in enumerate(headers_co7, 1):
+            cell = ws_co7.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+        
+        # Remplir les données CO7
+        row = 2
+        for intervention in interventions:
+            if intervention.maintenance.equipement.localisation.nom.upper().find('CO7') != -1:
+                pieces_utilisees = []
+                for piece_utilisee in intervention.pieces_utilisees:
+                    pieces_utilisees.append(f"{piece_utilisee.piece.description} (x{piece_utilisee.quantite})")
+                
+                ws_co7.cell(row=row, column=1, value=intervention.maintenance.id)
+                ws_co7.cell(row=row, column=2, value=intervention.maintenance.titre)
+                ws_co7.cell(row=row, column=3, value=intervention.maintenance.equipement.nom)
+                ws_co7.cell(row=row, column=4, value=intervention.maintenance.equipement.localisation.nom)
+                ws_co7.cell(row=row, column=5, value=intervention.maintenance.equipement.localisation.site.nom)
+                ws_co7.cell(row=row, column=6, value=intervention.maintenance.periodicite)
+                ws_co7.cell(row=row, column=7, value=intervention.maintenance.date_premiere)
+                ws_co7.cell(row=row, column=8, value=intervention.maintenance.date_prochaine)
+                ws_co7.cell(row=row, column=9, value=intervention.statut)
+                ws_co7.cell(row=row, column=10, value=intervention.date_planifiee)
+                ws_co7.cell(row=row, column=11, value=intervention.date_realisee)
+                ws_co7.cell(row=row, column=12, value=intervention.commentaire)
+                ws_co7.cell(row=row, column=13, value=", ".join(pieces_utilisees) if pieces_utilisees else "")
+                
+                # Appliquer les bordures
+                for col in range(1, 14):
+                    ws_co7.cell(row=row, column=col).border = thin_border
+                
+                row += 1
+        
+        # === ONGLET MOUVEMENTS DE MAGASIN ===
+        headers_mouvements = [
+            "Date", "Pièce", "Référence STE", "Référence Magasin", "Type", "Quantité",
+            "Motif", "Intervention", "Localisation", "Site"
+        ]
+        
+        # Ajouter les en-têtes mouvements
+        for col, header in enumerate(headers_mouvements, 1):
+            cell = ws_mouvements.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = thin_border
+        
+        # Remplir les données mouvements
+        row = 2
+        for mouvement in mouvements:
+            ws_mouvements.cell(row=row, column=1, value=mouvement.date.strftime("%d/%m/%Y %H:%M"))
+            ws_mouvements.cell(row=row, column=2, value=mouvement.piece.description)
+            ws_mouvements.cell(row=row, column=3, value=mouvement.piece.reference_ste)
+            ws_mouvements.cell(row=row, column=4, value=mouvement.piece.reference_magasin)
+            ws_mouvements.cell(row=row, column=5, value=mouvement.type_mouvement)
+            ws_mouvements.cell(row=row, column=6, value=mouvement.quantite)
+            ws_mouvements.cell(row=row, column=7, value=mouvement.motif)
+            ws_mouvements.cell(row=row, column=8, value=mouvement.intervention_id if mouvement.intervention_id else "")
+            ws_mouvements.cell(row=row, column=9, value=mouvement.piece.lieu_stockage.nom if mouvement.piece.lieu_stockage else "")
+            ws_mouvements.cell(row=row, column=10, value=mouvement.piece.lieu_stockage.site.nom if mouvement.piece.lieu_stockage and mouvement.piece.lieu_stockage.site else "")
+            
+            # Appliquer les bordures
+            for col in range(1, 11):
+                ws_mouvements.cell(row=row, column=col).border = thin_border
+            
+            row += 1
+        
+        # Ajuster la largeur des colonnes pour tous les onglets
+        for ws in [ws_co6, ws_co7, ws_mouvements]:
+            for column in ws.columns:
+                max_length = 0
+                column_letter = get_column_letter(column[0].column)
+                for cell in column:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                adjusted_width = min(max_length + 2, 50)
+                ws.column_dimensions[column_letter].width = adjusted_width
+        
+        # Sauvegarder le fichier Excel
+        excel_filename = f"rapport_maintenance_semaine_{lundi.isocalendar()[1]}_{lundi.strftime('%Y%m%d')}.xlsx"
+        excel_path = os.path.join(app.config['UPLOAD_FOLDER'], excel_filename)
+        wb.save(excel_path)
+        
+        # Envoyer par email
+        msg = Message(
+            f'Rapport de maintenance - Semaine {lundi.isocalendar()[1]}',
+            recipients=[email_dest],
+            body=f"""
+            Bonjour,
+            
+            Veuillez trouver ci-joint le rapport de maintenance pour la semaine {lundi.isocalendar()[1]}.
+            
+            Période : du {lundi.strftime('%d/%m/%Y')} au {dimanche.strftime('%d/%m/%Y')}
+            
+            Le fichier Excel contient 3 onglets :
+            - CO6 : Maintenances CO6
+            - CO7 : Maintenances CO7  
+            - Mouvements de magasin : Mouvements de pièces
+            
+            Cordialement,
+            Système de maintenance STE
+            """
+        )
+        
+        with open(excel_path, 'rb') as f:
+            msg.attach(excel_filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', f.read())
+        
+        mail.send(msg)
+        
+        # Nettoyer le fichier temporaire
+        os.remove(excel_path)
+        
+        flash(f'Rapport Excel envoyé avec succès à {email_dest}', 'success')
         
     except Exception as e:
         print(f"Erreur lors de la génération du rapport: {e}")
-        flash(f'Erreur lors de la génération du rapport : {str(e)}', 'danger')
-        return redirect(url_for('calendrier'))
+        flash(f'Erreur lors de la génération du rapport: {str(e)}', 'danger')
+    
+    return redirect(url_for('calendrier'))
 
 @app.route('/piece/supprimer/<int:piece_id>', methods=['POST'])
 @login_required
