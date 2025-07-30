@@ -30,494 +30,895 @@
     </div>
 </div>
 
-<style>
-.table-sm td, .table-sm th {
-    padding: 0.3rem 0.5rem;
-    font-size: 0.875rem;
-    height: 35px;
-}
-.btn-sm {
-    padding: 0.25rem 0.5rem;
-    font-size: 0.75rem;
-}
-</style>
-
 {% if interventions_co6_ste or interventions_co6_cab or interventions_co6_step or interventions_co7_ste or interventions_co7_cab or interventions_co7_step %}
-
-<!-- Section CO6 -->
-<div class="mb-4">
-    <h3 class="text-primary mb-3">CO6</h3>
+    <!-- Section CO6 -->
+    <h3 class="mb-3">CO6</h3>
     
-    <!-- CO6 STE -->
+    <!-- Sous-partie STE -->
     {% if interventions_co6_ste %}
-    <h5 class="text-secondary mb-2">STE</h5>
-    <div class="table-responsive mb-3">
-        <table class="table table-hover table-sm align-middle">
+    <h5 class="mb-2 text-primary">STE</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-hover table-sm align-middle" style="font-size: 75%;">
             <thead class="table-dark">
                 <tr>
-                    <th class="d-none d-md-table-cell">Localisation</th>
-                    <th>Équipement</th>
-                    <th class="d-none d-lg-table-cell">Description</th>
-                    <th>Action de maintenance</th>
-                    <th>Statut</th>
-                    <th>Actions</th>
+                    <th class="d-none d-md-table-cell" style="font-size: 70%;">Localisation</th>
+                    <th style="font-size: 70%;">Équipement</th>
+                    <th class="d-none d-lg-table-cell" style="font-size: 70%;">Description</th>
+                    <th style="font-size: 70%;">Action de maintenance</th>
+                    <th style="font-size: 70%;">Statut</th>
+                    <th style="font-size: 70%;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for intervention in interventions_co6_ste %}
-                <tr style="cursor: pointer;" 
-                    data-maintenance-id="{{ intervention.maintenance.id }}"
-                    data-titre="{{ intervention.maintenance.titre }}"
-                    data-equipement="{{ intervention.maintenance.equipement.nom }}"
-                    data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
-                    data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
-                    data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
-                    data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
-                    data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
-                    data-statut="{{ intervention.statut }}"
-                    data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
-                    data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
-                    onclick="showMaintenanceDetails(this)">
-                    <td class="d-none d-md-table-cell">{{ intervention.maintenance.equipement.localisation.nom }}</td>
-                    <td>
-                        <strong>{{ intervention.maintenance.equipement.nom }}</strong>
-                        <div class="d-md-none small text-muted">
-                            {{ intervention.maintenance.equipement.localisation.nom }}
+                    <tr style="cursor: pointer; height: 35px;" 
+                        data-maintenance-id="{{ intervention.maintenance.id }}"
+                        data-titre="{{ intervention.maintenance.titre }}"
+                        data-equipement="{{ intervention.maintenance.equipement.nom }}"
+                        data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
+                        data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
+                        data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
+                        data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
+                        data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
+                        data-statut="{{ intervention.statut }}"
+                        data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
+                        data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
+                        onclick="showMaintenanceDetails(this)">
+                        <td class="d-none d-md-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.localisation.nom }}</td>
+                        <td style="font-size: 70%;">
+                            <strong>{{ intervention.maintenance.equipement.nom }}</strong>
+                            <div class="d-md-none small text-muted" style="font-size: 65%;">
+                                {{ intervention.maintenance.equipement.localisation.nom }}
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
+                        <td style="font-size: 70%;">
+                            <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
+                            <span class="d-sm-none" style="font-size: 60%;">{{ intervention.maintenance.titre }}</span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}" style="font-size: 65%;">
+                                <span class="d-none d-sm-inline">{{ intervention.statut|title }}</span>
+                                <span class="d-sm-none">
+                                    {% if intervention.statut == 'realisee' %}✅
+                                    {% elif intervention.statut == 'planifiee' %}⏰
+                                    {% else %}❌
+                                    {% endif %}
+                                </span>
+                            </span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            {% if intervention.statut == 'planifiee' %}
+                            <button type="button" class="btn btn-primary btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <i class="fas fa-check"></i>
+                                <span class="d-none d-sm-inline ms-1">Réaliser</span>
+                            </button>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Modal pour réaliser l'intervention -->
+                    <div class="modal fade" id="realiserModal{{ intervention.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Réaliser la maintenance - {{ intervention.maintenance.titre }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                                    <div class="modal-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                                <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                                <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                                <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                                <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="commentaire" class="form-label">Commentaire</label>
+                                            <textarea class="form-control" id="commentaire" name="commentaire" rows="3"></textarea>
+                                        </div>
+                                        
+                                        <h6>Pièces utilisées:</h6>
+                                        <div id="pieces-container">
+                                            <div class="row mb-2 piece-row">
+                                                <div class="col-md-6">
+                                                    <select class="form-select" name="pieces_utilisees">
+                                                        <option value="">Aucune pièce</option>
+                                                        {% for piece in pieces %}
+                                                            {% if piece.id in intervention.maintenance.equipement.pieces|map(attribute='piece_id')|list %}
+                                                            <option value="{{ piece.id }}" class="text-primary fw-bold">{{ piece.item }} (Stock: {{ piece.quantite_stock }}) - ASSOCIÉE</option>
+                                                            {% else %}
+                                                            <option value="{{ piece.id }}">{{ piece.item }} (Stock: {{ piece.quantite_stock }})</option>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <input type="number" class="form-control" name="quantites" placeholder="Quantité" min="1">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="alert alert-info mt-2">
+                                            <small>
+                                                <i class="fas fa-info-circle"></i> 
+                                                Les pièces marquées "ASSOCIÉE" sont spécifiquement liées à cet équipement.
+                                            </small>
+                                        </div>
+                                        
+                                        <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece">
+                                            <i class="fas fa-plus"></i> Ajouter une pièce
+                                        </button>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-check"></i> Marquer comme réalisée
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                    </td>
-                    <td class="d-none d-lg-table-cell">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
-                    <td>
-                        <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
-                        <span class="d-sm-none text-truncate d-inline-block" style="max-width: 150px;" title="{{ intervention.maintenance.titre }}">{{ intervention.maintenance.titre }}</span>
-                    </td>
-                    <td>
-                        <span class="d-none d-sm-inline badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}">
-                            {{ intervention.statut|title }}
-                        </span>
-                        <span class="d-sm-none">
-                            {% if intervention.statut == 'realisee' %}✅{% elif intervention.statut == 'planifiee' %}⏰{% else %}❓{% endif %}
-                        </span>
-                    </td>
-                    <td>
-                        {% if intervention.statut == 'planifiee' %}
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
-                            <i class="fas fa-check"></i>
-                            <span class="d-none d-sm-inline ms-1">Réaliser</span>
-                        </button>
-                        {% else %}
-                        <span class="text-muted">-</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
+                    </div>
+                    {% endfor %}
             </tbody>
         </table>
     </div>
     {% endif %}
 
-    <!-- CO6 CAB -->
+    <!-- Sous-partie CAB -->
     {% if interventions_co6_cab %}
-    <h5 class="text-secondary mb-2">CAB</h5>
-    <div class="table-responsive mb-3">
-        <table class="table table-hover table-sm align-middle">
+    <h5 class="mb-2 text-success">CAB</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-hover table-sm align-middle" style="font-size: 75%;">
             <thead class="table-dark">
                 <tr>
-                    <th class="d-none d-md-table-cell">Localisation</th>
-                    <th>Équipement</th>
-                    <th class="d-none d-lg-table-cell">Description</th>
-                    <th>Action de maintenance</th>
-                    <th>Statut</th>
-                    <th>Actions</th>
+                    <th class="d-none d-md-table-cell" style="font-size: 70%;">Localisation</th>
+                    <th style="font-size: 70%;">Équipement</th>
+                    <th class="d-none d-lg-table-cell" style="font-size: 70%;">Description</th>
+                    <th style="font-size: 70%;">Action de maintenance</th>
+                    <th style="font-size: 70%;">Statut</th>
+                    <th style="font-size: 70%;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for intervention in interventions_co6_cab %}
-                <tr style="cursor: pointer;" 
-                    data-maintenance-id="{{ intervention.maintenance.id }}"
-                    data-titre="{{ intervention.maintenance.titre }}"
-                    data-equipement="{{ intervention.maintenance.equipement.nom }}"
-                    data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
-                    data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
-                    data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
-                    data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
-                    data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
-                    data-statut="{{ intervention.statut }}"
-                    data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
-                    data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
-                    onclick="showMaintenanceDetails(this)">
-                    <td class="d-none d-md-table-cell">{{ intervention.maintenance.equipement.localisation.nom }}</td>
-                    <td>
-                        <strong>{{ intervention.maintenance.equipement.nom }}</strong>
-                        <div class="d-md-none small text-muted">
-                            {{ intervention.maintenance.equipement.localisation.nom }}
+                    <tr style="cursor: pointer; height: 35px;" 
+                        data-maintenance-id="{{ intervention.maintenance.id }}"
+                        data-titre="{{ intervention.maintenance.titre }}"
+                        data-equipement="{{ intervention.maintenance.equipement.nom }}"
+                        data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
+                        data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
+                        data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
+                        data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
+                        data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
+                        data-statut="{{ intervention.statut }}"
+                        data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
+                        data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
+                        onclick="showMaintenanceDetails(this)">
+                        <td class="d-none d-md-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.localisation.nom }}</td>
+                        <td style="font-size: 70%;">
+                            <strong>{{ intervention.maintenance.equipement.nom }}</strong>
+                            <div class="d-md-none small text-muted" style="font-size: 65%;">
+                                {{ intervention.maintenance.equipement.localisation.nom }}
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
+                        <td style="font-size: 70%;">
+                            <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
+                            <span class="d-sm-none" style="font-size: 60%;">{{ intervention.maintenance.titre }}</span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}" style="font-size: 65%;">
+                                <span class="d-none d-sm-inline">{{ intervention.statut|title }}</span>
+                                <span class="d-sm-none">
+                                    {% if intervention.statut == 'realisee' %}✅
+                                    {% elif intervention.statut == 'planifiee' %}⏰
+                                    {% else %}❌
+                                    {% endif %}
+                                </span>
+                            </span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            {% if intervention.statut == 'planifiee' %}
+                            <button type="button" class="btn btn-primary btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <i class="fas fa-check"></i>
+                                <span class="d-none d-sm-inline ms-1">Réaliser</span>
+                            </button>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Modal pour réaliser l'intervention -->
+                    <div class="modal fade" id="realiserModal{{ intervention.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Réaliser la maintenance - {{ intervention.maintenance.titre }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                                    <div class="modal-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                                <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                                <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                                <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                                <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="commentaire" class="form-label">Commentaire</label>
+                                            <textarea class="form-control" id="commentaire" name="commentaire" rows="3"></textarea>
+                                        </div>
+                                        
+                                        <h6>Pièces utilisées:</h6>
+                                        <div id="pieces-container">
+                                            <div class="row mb-2 piece-row">
+                                                <div class="col-md-6">
+                                                    <select class="form-select" name="pieces_utilisees">
+                                                        <option value="">Aucune pièce</option>
+                                                        {% for piece in pieces %}
+                                                            {% if piece.id in intervention.maintenance.equipement.pieces|map(attribute='piece_id')|list %}
+                                                            <option value="{{ piece.id }}" class="text-primary fw-bold">{{ piece.item }} (Stock: {{ piece.quantite_stock }}) - ASSOCIÉE</option>
+                                                            {% else %}
+                                                            <option value="{{ piece.id }}">{{ piece.item }} (Stock: {{ piece.quantite_stock }})</option>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <input type="number" class="form-control" name="quantites" placeholder="Quantité" min="1">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="alert alert-info mt-2">
+                                            <small>
+                                                <i class="fas fa-info-circle"></i> 
+                                                Les pièces marquées "ASSOCIÉE" sont spécifiquement liées à cet équipement.
+                                            </small>
+                                        </div>
+                                        
+                                        <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece">
+                                            <i class="fas fa-plus"></i> Ajouter une pièce
+                                        </button>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-check"></i> Marquer comme réalisée
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                    </td>
-                    <td class="d-none d-lg-table-cell">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
-                    <td>
-                        <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
-                        <span class="d-sm-none text-truncate d-inline-block" style="max-width: 150px;" title="{{ intervention.maintenance.titre }}">{{ intervention.maintenance.titre }}</span>
-                    </td>
-                    <td>
-                        <span class="d-none d-sm-inline badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}">
-                            {{ intervention.statut|title }}
-                        </span>
-                        <span class="d-sm-none">
-                            {% if intervention.statut == 'realisee' %}✅{% elif intervention.statut == 'planifiee' %}⏰{% else %}❓{% endif %}
-                        </span>
-                    </td>
-                    <td>
-                        {% if intervention.statut == 'planifiee' %}
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
-                            <i class="fas fa-check"></i>
-                            <span class="d-none d-sm-inline ms-1">Réaliser</span>
-                        </button>
-                        {% else %}
-                        <span class="text-muted">-</span>
-                        {% endif %}
-                    </td>
-                </tr>
+                    </div>
                 {% endfor %}
             </tbody>
         </table>
     </div>
     {% endif %}
 
-    <!-- CO6 STEP -->
+    <!-- Sous-partie STEP -->
     {% if interventions_co6_step %}
-    <h5 class="text-secondary mb-2">STEP</h5>
-    <div class="table-responsive mb-3">
-        <table class="table table-hover table-sm align-middle">
+    <h5 class="mb-2 text-warning">STEP</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-hover table-sm align-middle" style="font-size: 75%;">
             <thead class="table-dark">
                 <tr>
-                    <th class="d-none d-md-table-cell">Localisation</th>
-                    <th>Équipement</th>
-                    <th class="d-none d-lg-table-cell">Description</th>
-                    <th>Action de maintenance</th>
-                    <th>Statut</th>
-                    <th>Actions</th>
+                    <th class="d-none d-md-table-cell" style="font-size: 70%;">Localisation</th>
+                    <th style="font-size: 70%;">Équipement</th>
+                    <th class="d-none d-lg-table-cell" style="font-size: 70%;">Description</th>
+                    <th style="font-size: 70%;">Action de maintenance</th>
+                    <th style="font-size: 70%;">Statut</th>
+                    <th style="font-size: 70%;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for intervention in interventions_co6_step %}
-                <tr style="cursor: pointer;" 
-                    data-maintenance-id="{{ intervention.maintenance.id }}"
-                    data-titre="{{ intervention.maintenance.titre }}"
-                    data-equipement="{{ intervention.maintenance.equipement.nom }}"
-                    data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
-                    data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
-                    data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
-                    data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
-                    data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
-                    data-statut="{{ intervention.statut }}"
-                    data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
-                    data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
-                    onclick="showMaintenanceDetails(this)">
-                    <td class="d-none d-md-table-cell">{{ intervention.maintenance.equipement.localisation.nom }}</td>
-                    <td>
-                        <strong>{{ intervention.maintenance.equipement.nom }}</strong>
-                        <div class="d-md-none small text-muted">
-                            {{ intervention.maintenance.equipement.localisation.nom }}
+                    <tr style="cursor: pointer; height: 35px;" 
+                        data-maintenance-id="{{ intervention.maintenance.id }}"
+                        data-titre="{{ intervention.maintenance.titre }}"
+                        data-equipement="{{ intervention.maintenance.equipement.nom }}"
+                        data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
+                        data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
+                        data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
+                        data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
+                        data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
+                        data-statut="{{ intervention.statut }}"
+                        data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
+                        data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
+                        onclick="showMaintenanceDetails(this)">
+                        <td class="d-none d-md-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.localisation.nom }}</td>
+                        <td style="font-size: 70%;">
+                            <strong>{{ intervention.maintenance.equipement.nom }}</strong>
+                            <div class="d-md-none small text-muted" style="font-size: 65%;">
+                                {{ intervention.maintenance.equipement.localisation.nom }}
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
+                        <td style="font-size: 70%;">
+                            <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
+                            <span class="d-sm-none" style="font-size: 60%;">{{ intervention.maintenance.titre }}</span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}" style="font-size: 65%;">
+                                <span class="d-none d-sm-inline">{{ intervention.statut|title }}</span>
+                                <span class="d-sm-none">
+                                    {% if intervention.statut == 'realisee' %}✅
+                                    {% elif intervention.statut == 'planifiee' %}⏰
+                                    {% else %}❌
+                                    {% endif %}
+                                </span>
+                            </span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            {% if intervention.statut == 'planifiee' %}
+                            <button type="button" class="btn btn-primary btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <i class="fas fa-check"></i>
+                                <span class="d-none d-sm-inline ms-1">Réaliser</span>
+                            </button>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Modal pour réaliser l'intervention -->
+                    <div class="modal fade" id="realiserModal{{ intervention.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Réaliser la maintenance - {{ intervention.maintenance.titre }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                                    <div class="modal-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                                <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                                <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                                <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                                <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="commentaire" class="form-label">Commentaire</label>
+                                            <textarea class="form-control" id="commentaire" name="commentaire" rows="3"></textarea>
+                                        </div>
+                                        
+                                        <h6>Pièces utilisées:</h6>
+                                        <div id="pieces-container">
+                                            <div class="row mb-2 piece-row">
+                                                <div class="col-md-6">
+                                                    <select class="form-select" name="pieces_utilisees">
+                                                        <option value="">Aucune pièce</option>
+                                                        {% for piece in pieces %}
+                                                            {% if piece.id in intervention.maintenance.equipement.pieces|map(attribute='piece_id')|list %}
+                                                            <option value="{{ piece.id }}" class="text-primary fw-bold">{{ piece.item }} (Stock: {{ piece.quantite_stock }}) - ASSOCIÉE</option>
+                                                            {% else %}
+                                                            <option value="{{ piece.id }}">{{ piece.item }} (Stock: {{ piece.quantite_stock }})</option>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <input type="number" class="form-control" name="quantites" placeholder="Quantité" min="1">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="alert alert-info mt-2">
+                                            <small>
+                                                <i class="fas fa-info-circle"></i> 
+                                                Les pièces marquées "ASSOCIÉE" sont spécifiquement liées à cet équipement.
+                                            </small>
+                                        </div>
+                                        
+                                        <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece">
+                                            <i class="fas fa-plus"></i> Ajouter une pièce
+                                        </button>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-check"></i> Marquer comme réalisée
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                    </td>
-                    <td class="d-none d-lg-table-cell">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
-                    <td>
-                        <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
-                        <span class="d-sm-none text-truncate d-inline-block" style="max-width: 150px;" title="{{ intervention.maintenance.titre }}">{{ intervention.maintenance.titre }}</span>
-                    </td>
-                    <td>
-                        <span class="d-none d-sm-inline badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}">
-                            {{ intervention.statut|title }}
-                        </span>
-                        <span class="d-sm-none">
-                            {% if intervention.statut == 'realisee' %}✅{% elif intervention.statut == 'planifiee' %}⏰{% else %}❓{% endif %}
-                        </span>
-                    </td>
-                    <td>
-                        {% if intervention.statut == 'planifiee' %}
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
-                            <i class="fas fa-check"></i>
-                            <span class="d-none d-sm-inline ms-1">Réaliser</span>
-                        </button>
-                        {% else %}
-                        <span class="text-muted">-</span>
-                        {% endif %}
-                    </td>
-                </tr>
+                    </div>
                 {% endfor %}
             </tbody>
         </table>
     </div>
     {% endif %}
-</div>
 
-<!-- Section CO7 -->
-<div class="mb-4">
-    <h3 class="text-success mb-3">CO7</h3>
+    <!-- Section CO7 -->
+    <h3 class="mb-3">CO7</h3>
     
-    <!-- CO7 STE -->
+    <!-- Sous-partie STE -->
     {% if interventions_co7_ste %}
-    <h5 class="text-secondary mb-2">STE</h5>
-    <div class="table-responsive mb-3">
-        <table class="table table-hover table-sm align-middle">
+    <h5 class="mb-2 text-primary">STE</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-hover table-sm align-middle" style="font-size: 75%;">
             <thead class="table-dark">
                 <tr>
-                    <th class="d-none d-md-table-cell">Localisation</th>
-                    <th>Équipement</th>
-                    <th class="d-none d-lg-table-cell">Description</th>
-                    <th>Action de maintenance</th>
-                    <th>Statut</th>
-                    <th>Actions</th>
+                    <th class="d-none d-md-table-cell" style="font-size: 70%;">Localisation</th>
+                    <th style="font-size: 70%;">Équipement</th>
+                    <th class="d-none d-lg-table-cell" style="font-size: 70%;">Description</th>
+                    <th style="font-size: 70%;">Action de maintenance</th>
+                    <th style="font-size: 70%;">Statut</th>
+                    <th style="font-size: 70%;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for intervention in interventions_co7_ste %}
-                <tr style="cursor: pointer;" 
-                    data-maintenance-id="{{ intervention.maintenance.id }}"
-                    data-titre="{{ intervention.maintenance.titre }}"
-                    data-equipement="{{ intervention.maintenance.equipement.nom }}"
-                    data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
-                    data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
-                    data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
-                    data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
-                    data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
-                    data-statut="{{ intervention.statut }}"
-                    data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
-                    data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
-                    onclick="showMaintenanceDetails(this)">
-                    <td class="d-none d-md-table-cell">{{ intervention.maintenance.equipement.localisation.nom }}</td>
-                    <td>
-                        <strong>{{ intervention.maintenance.equipement.nom }}</strong>
-                        <div class="d-md-none small text-muted">
-                            {{ intervention.maintenance.equipement.localisation.nom }}
+                    <tr style="cursor: pointer; height: 35px;" 
+                        data-maintenance-id="{{ intervention.maintenance.id }}"
+                        data-titre="{{ intervention.maintenance.titre }}"
+                        data-equipement="{{ intervention.maintenance.equipement.nom }}"
+                        data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
+                        data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
+                        data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
+                        data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
+                        data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
+                        data-statut="{{ intervention.statut }}"
+                        data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
+                        data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
+                        onclick="showMaintenanceDetails(this)">
+                        <td class="d-none d-md-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.localisation.nom }}</td>
+                        <td style="font-size: 70%;">
+                            <strong>{{ intervention.maintenance.equipement.nom }}</strong>
+                            <div class="d-md-none small text-muted" style="font-size: 65%;">
+                                {{ intervention.maintenance.equipement.localisation.nom }}
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
+                        <td style="font-size: 70%;">
+                            <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
+                            <span class="d-sm-none" style="font-size: 60%;">{{ intervention.maintenance.titre }}</span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}" style="font-size: 65%;">
+                                <span class="d-none d-sm-inline">{{ intervention.statut|title }}</span>
+                                <span class="d-sm-none">
+                                    {% if intervention.statut == 'realisee' %}✅
+                                    {% elif intervention.statut == 'planifiee' %}⏰
+                                    {% else %}❌
+                                    {% endif %}
+                                </span>
+                            </span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            {% if intervention.statut == 'planifiee' %}
+                            <button type="button" class="btn btn-primary btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <i class="fas fa-check"></i>
+                                <span class="d-none d-sm-inline ms-1">Réaliser</span>
+                            </button>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Modal pour réaliser l'intervention -->
+                    <div class="modal fade" id="realiserModal{{ intervention.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Réaliser la maintenance - {{ intervention.maintenance.titre }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                                    <div class="modal-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                                <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                                <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                                <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                                <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="commentaire" class="form-label">Commentaire</label>
+                                            <textarea class="form-control" id="commentaire" name="commentaire" rows="3"></textarea>
+                                        </div>
+                                        
+                                        <h6>Pièces utilisées:</h6>
+                                        <div id="pieces-container">
+                                            <div class="row mb-2 piece-row">
+                                                <div class="col-md-6">
+                                                    <select class="form-select" name="pieces_utilisees">
+                                                        <option value="">Aucune pièce</option>
+                                                        {% for piece in pieces %}
+                                                            {% if piece.id in intervention.maintenance.equipement.pieces|map(attribute='piece_id')|list %}
+                                                            <option value="{{ piece.id }}" class="text-primary fw-bold">{{ piece.item }} (Stock: {{ piece.quantite_stock }}) - ASSOCIÉE</option>
+                                                            {% else %}
+                                                            <option value="{{ piece.id }}">{{ piece.item }} (Stock: {{ piece.quantite_stock }})</option>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <input type="number" class="form-control" name="quantites" placeholder="Quantité" min="1">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="alert alert-info mt-2">
+                                            <small>
+                                                <i class="fas fa-info-circle"></i> 
+                                                Les pièces marquées "ASSOCIÉE" sont spécifiquement liées à cet équipement.
+                                            </small>
+                                        </div>
+                                        
+                                        <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece">
+                                            <i class="fas fa-plus"></i> Ajouter une pièce
+                                        </button>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-check"></i> Marquer comme réalisée
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                    </td>
-                    <td class="d-none d-lg-table-cell">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
-                    <td>
-                        <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
-                        <span class="d-sm-none text-truncate d-inline-block" style="max-width: 150px;" title="{{ intervention.maintenance.titre }}">{{ intervention.maintenance.titre }}</span>
-                    </td>
-                    <td>
-                        <span class="d-none d-sm-inline badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}">
-                            {{ intervention.statut|title }}
-                        </span>
-                        <span class="d-sm-none">
-                            {% if intervention.statut == 'realisee' %}✅{% elif intervention.statut == 'planifiee' %}⏰{% else %}❓{% endif %}
-                        </span>
-                    </td>
-                    <td>
-                        {% if intervention.statut == 'planifiee' %}
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
-                            <i class="fas fa-check"></i>
-                            <span class="d-none d-sm-inline ms-1">Réaliser</span>
-                        </button>
-                        {% else %}
-                        <span class="text-muted">-</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
+                    </div>
+                    {% endfor %}
             </tbody>
         </table>
     </div>
     {% endif %}
 
-    <!-- CO7 CAB -->
+    <!-- Sous-partie CAB -->
     {% if interventions_co7_cab %}
-    <h5 class="text-secondary mb-2">CAB</h5>
-    <div class="table-responsive mb-3">
-        <table class="table table-hover table-sm align-middle">
+    <h5 class="mb-2 text-success">CAB</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-hover table-sm align-middle" style="font-size: 75%;">
             <thead class="table-dark">
                 <tr>
-                    <th class="d-none d-md-table-cell">Localisation</th>
-                    <th>Équipement</th>
-                    <th class="d-none d-lg-table-cell">Description</th>
-                    <th>Action de maintenance</th>
-                    <th>Statut</th>
-                    <th>Actions</th>
+                    <th class="d-none d-md-table-cell" style="font-size: 70%;">Localisation</th>
+                    <th style="font-size: 70%;">Équipement</th>
+                    <th class="d-none d-lg-table-cell" style="font-size: 70%;">Description</th>
+                    <th style="font-size: 70%;">Action de maintenance</th>
+                    <th style="font-size: 70%;">Statut</th>
+                    <th style="font-size: 70%;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for intervention in interventions_co7_cab %}
-                <tr style="cursor: pointer;" 
-                    data-maintenance-id="{{ intervention.maintenance.id }}"
-                    data-titre="{{ intervention.maintenance.titre }}"
-                    data-equipement="{{ intervention.maintenance.equipement.nom }}"
-                    data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
-                    data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
-                    data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
-                    data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
-                    data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
-                    data-statut="{{ intervention.statut }}"
-                    data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
-                    data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
-                    onclick="showMaintenanceDetails(this)">
-                    <td class="d-none d-md-table-cell">{{ intervention.maintenance.equipement.localisation.nom }}</td>
-                    <td>
-                        <strong>{{ intervention.maintenance.equipement.nom }}</strong>
-                        <div class="d-md-none small text-muted">
-                            {{ intervention.maintenance.equipement.localisation.nom }}
+                    <tr style="cursor: pointer; height: 35px;" 
+                        data-maintenance-id="{{ intervention.maintenance.id }}"
+                        data-titre="{{ intervention.maintenance.titre }}"
+                        data-equipement="{{ intervention.maintenance.equipement.nom }}"
+                        data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
+                        data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
+                        data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
+                        data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
+                        data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
+                        data-statut="{{ intervention.statut }}"
+                        data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
+                        data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
+                        onclick="showMaintenanceDetails(this)">
+                        <td class="d-none d-md-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.localisation.nom }}</td>
+                        <td style="font-size: 70%;">
+                            <strong>{{ intervention.maintenance.equipement.nom }}</strong>
+                            <div class="d-md-none small text-muted" style="font-size: 65%;">
+                                {{ intervention.maintenance.equipement.localisation.nom }}
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
+                        <td style="font-size: 70%;">
+                            <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
+                            <span class="d-sm-none" style="font-size: 60%;">{{ intervention.maintenance.titre }}</span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}" style="font-size: 65%;">
+                                <span class="d-none d-sm-inline">{{ intervention.statut|title }}</span>
+                                <span class="d-sm-none">
+                                    {% if intervention.statut == 'realisee' %}✅
+                                    {% elif intervention.statut == 'planifiee' %}⏰
+                                    {% else %}❌
+                                    {% endif %}
+                                </span>
+                            </span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            {% if intervention.statut == 'planifiee' %}
+                            <button type="button" class="btn btn-primary btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <i class="fas fa-check"></i>
+                                <span class="d-none d-sm-inline ms-1">Réaliser</span>
+                            </button>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Modal pour réaliser l'intervention -->
+                    <div class="modal fade" id="realiserModal{{ intervention.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Réaliser la maintenance - {{ intervention.maintenance.titre }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                                    <div class="modal-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                                <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                                <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                                <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                                <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="commentaire" class="form-label">Commentaire</label>
+                                            <textarea class="form-control" id="commentaire" name="commentaire" rows="3"></textarea>
+                                        </div>
+                                        
+                                        <h6>Pièces utilisées:</h6>
+                                        <div id="pieces-container">
+                                            <div class="row mb-2 piece-row">
+                                                <div class="col-md-6">
+                                                    <select class="form-select" name="pieces_utilisees">
+                                                        <option value="">Aucune pièce</option>
+                                                        {% for piece in pieces %}
+                                                            {% if piece.id in intervention.maintenance.equipement.pieces|map(attribute='piece_id')|list %}
+                                                            <option value="{{ piece.id }}" class="text-primary fw-bold">{{ piece.item }} (Stock: {{ piece.quantite_stock }}) - ASSOCIÉE</option>
+                                                            {% else %}
+                                                            <option value="{{ piece.id }}">{{ piece.item }} (Stock: {{ piece.quantite_stock }})</option>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <input type="number" class="form-control" name="quantites" placeholder="Quantité" min="1">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="alert alert-info mt-2">
+                                            <small>
+                                                <i class="fas fa-info-circle"></i> 
+                                                Les pièces marquées "ASSOCIÉE" sont spécifiquement liées à cet équipement.
+                                            </small>
+                                        </div>
+                                        
+                                        <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece">
+                                            <i class="fas fa-plus"></i> Ajouter une pièce
+                                        </button>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-check"></i> Marquer comme réalisée
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                    </td>
-                    <td class="d-none d-lg-table-cell">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
-                    <td>
-                        <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
-                        <span class="d-sm-none text-truncate d-inline-block" style="max-width: 150px;" title="{{ intervention.maintenance.titre }}">{{ intervention.maintenance.titre }}</span>
-                    </td>
-                    <td>
-                        <span class="d-none d-sm-inline badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}">
-                            {{ intervention.statut|title }}
-                        </span>
-                        <span class="d-sm-none">
-                            {% if intervention.statut == 'realisee' %}✅{% elif intervention.statut == 'planifiee' %}⏰{% else %}❓{% endif %}
-                        </span>
-                    </td>
-                    <td>
-                        {% if intervention.statut == 'planifiee' %}
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
-                            <i class="fas fa-check"></i>
-                            <span class="d-none d-sm-inline ms-1">Réaliser</span>
-                        </button>
-                        {% else %}
-                        <span class="text-muted">-</span>
-                        {% endif %}
-                    </td>
-                </tr>
+                    </div>
                 {% endfor %}
             </tbody>
         </table>
     </div>
     {% endif %}
 
-    <!-- CO7 STEP -->
+    <!-- Sous-partie STEP -->
     {% if interventions_co7_step %}
-    <h5 class="text-secondary mb-2">STEP</h5>
-    <div class="table-responsive mb-3">
-        <table class="table table-hover table-sm align-middle">
+    <h5 class="mb-2 text-warning">STEP</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-hover table-sm align-middle" style="font-size: 75%;">
             <thead class="table-dark">
                 <tr>
-                    <th class="d-none d-md-table-cell">Localisation</th>
-                    <th>Équipement</th>
-                    <th class="d-none d-lg-table-cell">Description</th>
-                    <th>Action de maintenance</th>
-                    <th>Statut</th>
-                    <th>Actions</th>
+                    <th class="d-none d-md-table-cell" style="font-size: 70%;">Localisation</th>
+                    <th style="font-size: 70%;">Équipement</th>
+                    <th class="d-none d-lg-table-cell" style="font-size: 70%;">Description</th>
+                    <th style="font-size: 70%;">Action de maintenance</th>
+                    <th style="font-size: 70%;">Statut</th>
+                    <th style="font-size: 70%;">Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for intervention in interventions_co7_step %}
-                <tr style="cursor: pointer;" 
-                    data-maintenance-id="{{ intervention.maintenance.id }}"
-                    data-titre="{{ intervention.maintenance.titre }}"
-                    data-equipement="{{ intervention.maintenance.equipement.nom }}"
-                    data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
-                    data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
-                    data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
-                    data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
-                    data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
-                    data-statut="{{ intervention.statut }}"
-                    data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
-                    data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
-                    onclick="showMaintenanceDetails(this)">
-                    <td class="d-none d-md-table-cell">{{ intervention.maintenance.equipement.localisation.nom }}</td>
-                    <td>
-                        <strong>{{ intervention.maintenance.equipement.nom }}</strong>
-                        <div class="d-md-none small text-muted">
-                            {{ intervention.maintenance.equipement.localisation.nom }}
+                    <tr style="cursor: pointer; height: 35px;" 
+                        data-maintenance-id="{{ intervention.maintenance.id }}"
+                        data-titre="{{ intervention.maintenance.titre }}"
+                        data-equipement="{{ intervention.maintenance.equipement.nom }}"
+                        data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
+                        data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
+                        data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
+                        data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
+                        data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
+                        data-statut="{{ intervention.statut }}"
+                        data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
+                        data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
+                        onclick="showMaintenanceDetails(this)">
+                        <td class="d-none d-md-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.localisation.nom }}</td>
+                        <td style="font-size: 70%;">
+                            <strong>{{ intervention.maintenance.equipement.nom }}</strong>
+                            <div class="d-md-none small text-muted" style="font-size: 65%;">
+                                {{ intervention.maintenance.equipement.localisation.nom }}
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
+                        <td style="font-size: 70%;">
+                            <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
+                            <span class="d-sm-none" style="font-size: 60%;">{{ intervention.maintenance.titre }}</span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}" style="font-size: 65%;">
+                                <span class="d-none d-sm-inline">{{ intervention.statut|title }}</span>
+                                <span class="d-sm-none">
+                                    {% if intervention.statut == 'realisee' %}✅
+                                    {% elif intervention.statut == 'planifiee' %}⏰
+                                    {% else %}❌
+                                    {% endif %}
+                                </span>
+                            </span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            {% if intervention.statut == 'planifiee' %}
+                            <button type="button" class="btn btn-primary btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <i class="fas fa-check"></i>
+                                <span class="d-none d-sm-inline ms-1">Réaliser</span>
+                            </button>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Modal pour réaliser l'intervention -->
+                    <div class="modal fade" id="realiserModal{{ intervention.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Réaliser la maintenance - {{ intervention.maintenance.titre }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                                    <div class="modal-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                                <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                                <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                                <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                                <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label for="commentaire" class="form-label">Commentaire</label>
+                                            <textarea class="form-control" id="commentaire" name="commentaire" rows="3"></textarea>
+                                        </div>
+                                        
+                                        <h6>Pièces utilisées:</h6>
+                                        <div id="pieces-container">
+                                            <div class="row mb-2 piece-row">
+                                                <div class="col-md-6">
+                                                    <select class="form-select" name="pieces_utilisees">
+                                                        <option value="">Aucune pièce</option>
+                                                        {% for piece in pieces %}
+                                                            {% if piece.id in intervention.maintenance.equipement.pieces|map(attribute='piece_id')|list %}
+                                                            <option value="{{ piece.id }}" class="text-primary fw-bold">{{ piece.item }} (Stock: {{ piece.quantite_stock }}) - ASSOCIÉE</option>
+                                                            {% else %}
+                                                            <option value="{{ piece.id }}">{{ piece.item }} (Stock: {{ piece.quantite_stock }})</option>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <input type="number" class="form-control" name="quantites" placeholder="Quantité" min="1">
+                                                </div>
+                                                <div class="col-md-2">
+                                                    <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="alert alert-info mt-2">
+                                            <small>
+                                                <i class="fas fa-info-circle"></i> 
+                                                Les pièces marquées "ASSOCIÉE" sont spécifiquement liées à cet équipement.
+                                            </small>
+                                        </div>
+                                        
+                                        <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece">
+                                            <i class="fas fa-plus"></i> Ajouter une pièce
+                                        </button>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="fas fa-check"></i> Marquer comme réalisée
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                    </td>
-                    <td class="d-none d-lg-table-cell">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
-                    <td>
-                        <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
-                        <span class="d-sm-none text-truncate d-inline-block" style="max-width: 150px;" title="{{ intervention.maintenance.titre }}">{{ intervention.maintenance.titre }}</span>
-                    </td>
-                    <td>
-                        <span class="d-none d-sm-inline badge bg-{{ 'success' if intervention.statut == 'realisee' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}">
-                            {{ intervention.statut|title }}
-                        </span>
-                        <span class="d-sm-none">
-                            {% if intervention.statut == 'realisee' %}✅{% elif intervention.statut == 'planifiee' %}⏰{% else %}❓{% endif %}
-                        </span>
-                    </td>
-                    <td>
-                        {% if intervention.statut == 'planifiee' %}
-                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
-                            <i class="fas fa-check"></i>
-                            <span class="d-none d-sm-inline ms-1">Réaliser</span>
-                        </button>
-                        {% else %}
-                        <span class="text-muted">-</span>
-                        {% endif %}
-                    </td>
-                </tr>
+                    </div>
                 {% endfor %}
             </tbody>
         </table>
     </div>
     {% endif %}
-</div>
-
 {% else %}
 <div class="alert alert-info">
     <i class="fas fa-info-circle"></i> Aucune maintenance prévue cette semaine.
 </div>
 {% endif %}
 
-<!-- Modals pour réaliser les interventions -->
-{% for intervention in interventions_co6_ste + interventions_co6_cab + interventions_co6_step + interventions_co7_ste + interventions_co7_cab + interventions_co7_step %}
-<div class="modal fade" id="realiserModal{{ intervention.id }}" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Réaliser la maintenance - {{ intervention.maintenance.titre }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Informations de la maintenance</h6>
-                            <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
-                            <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
-                            <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
-                            <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Détails de l'intervention</h6>
-                            <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
-                            <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
-                        </div>
-                    </div>
-                    
-                    <hr>
-                    
-                    <div class="mb-3">
-                        <label for="commentaire{{ intervention.id }}" class="form-label">Commentaire de réalisation</label>
-                        <textarea class="form-control" id="commentaire{{ intervention.id }}" name="commentaire" rows="3" placeholder="Commentaire sur la réalisation de la maintenance..."></textarea>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="pieces_utilisees{{ intervention.id }}" class="form-label">Pièces utilisées (optionnel)</label>
-                        <select class="form-select" id="pieces_utilisees{{ intervention.id }}" name="pieces_utilisees" multiple>
-                            {% for piece in pieces %}
-                            <option value="{{ piece.id }}">{{ piece.item }} ({{ piece.reference_ste or 'N/A' }})</option>
-                            {% endfor %}
-                        </select>
-                        <div class="form-text">Maintenez Ctrl (ou Cmd sur Mac) pour sélectionner plusieurs pièces</div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                    <button type="submit" class="btn btn-success">
-                        <i class="fas fa-check"></i> Marquer comme réalisée
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endfor %}
-
-<!-- Modal pour afficher les détails de la maintenance -->
+<!-- Modal pour les détails de maintenance -->
 <div class="modal fade" id="maintenanceDetailsModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -525,8 +926,30 @@
                 <h5 class="modal-title">Détails de la maintenance</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="maintenanceDetailsContent">
-                <!-- Le contenu sera rempli par JavaScript -->
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-tools"></i> Informations générales</h6>
+                        <p><strong>Titre:</strong> <span id="modal-titre"></span></p>
+                        <p><strong>Équipement:</strong> <span id="modal-equipement"></span></p>
+                        <p><strong>Localisation:</strong> <span id="modal-localisation"></span></p>
+                        <p><strong>Site:</strong> <span id="modal-site"></span></p>
+                        <p><strong>Date planifiée:</strong> <span id="modal-date-planifiee"></span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="fas fa-info-circle"></i> Détails techniques</h6>
+                        <p><strong>Description:</strong> <span id="modal-description"></span></p>
+                        <p><strong>Périodicité:</strong> <span id="modal-periodicite"></span></p>
+                        <p><strong>Statut:</strong> <span id="modal-statut"></span></p>
+                        <p><strong>Commentaire:</strong> <span id="modal-commentaire"></span></p>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6><i class="fas fa-cogs"></i> Pièces utilisées</h6>
+                        <p><strong>Pièces:</strong> <span id="modal-pieces-utilisees"></span></p>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
@@ -537,31 +960,64 @@
 
 <script>
 function showMaintenanceDetails(element) {
-    const data = element.dataset;
-    const content = `
-        <div class="row">
-            <div class="col-md-6">
-                <h6>Informations générales</h6>
-                <p><strong>Titre:</strong> ${data.titre}</p>
-                <p><strong>Équipement:</strong> ${data.equipement}</p>
-                <p><strong>Localisation:</strong> ${data.localisation}</p>
-                <p><strong>Site:</strong> ${data.site}</p>
-                <p><strong>Périodicité:</strong> ${data.periodicite}</p>
-            </div>
-            <div class="col-md-6">
-                <h6>Détails de l'intervention</h6>
-                <p><strong>Date planifiée:</strong> ${data.datePlanifiee}</p>
-                <p><strong>Statut:</strong> ${data.statut}</p>
-                <p><strong>Description:</strong> ${data.description}</p>
-                <p><strong>Commentaire:</strong> ${data.commentaire}</p>
-            </div>
-        </div>
-        ${data.piecesUtilisees ? `<hr><h6>Pièces utilisées</h6><p>${data.piecesUtilisees}</p>` : ''}
-    `;
+    console.log("Clic sur une ligne de maintenance !", element); // DEBUG
     
-    document.getElementById('maintenanceDetailsContent').innerHTML = content;
-    new bootstrap.Modal(document.getElementById('maintenanceDetailsModal')).show();
+    // Récupérer les données depuis les data attributes
+    const titre = element.getAttribute('data-titre');
+    const equipement = element.getAttribute('data-equipement');
+    const localisation = element.getAttribute('data-localisation');
+    const site = element.getAttribute('data-site');
+    const description = element.getAttribute('data-description');
+    const periodicite = element.getAttribute('data-periodicite');
+    const datePlanifiee = element.getAttribute('data-date-planifiee');
+    const statut = element.getAttribute('data-statut');
+    const commentaire = element.getAttribute('data-commentaire');
+    const piecesUtilisees = element.getAttribute('data-pieces-utilisees');
+    
+    console.log("Données récupérées:", { titre, equipement, localisation, site, description, periodicite, datePlanifiee, statut, commentaire, piecesUtilisees }); // DEBUG
+    
+    // Remplir le modal avec les données
+    document.getElementById('modal-titre').textContent = titre;
+    document.getElementById('modal-equipement').textContent = equipement;
+    document.getElementById('modal-localisation').textContent = localisation;
+    document.getElementById('modal-site').textContent = site;
+    document.getElementById('modal-description').textContent = description;
+    document.getElementById('modal-periodicite').textContent = periodicite;
+    document.getElementById('modal-date-planifiee').textContent = datePlanifiee;
+    document.getElementById('modal-statut').textContent = statut;
+    document.getElementById('modal-commentaire').textContent = commentaire;
+    document.getElementById('modal-pieces-utilisees').textContent = piecesUtilisees;
+    
+    // Afficher le modal
+    const modal = new bootstrap.Modal(document.getElementById('maintenanceDetailsModal'));
+    modal.show();
 }
-</script>
 
+document.addEventListener('DOMContentLoaded', function() {
+    // Ajouter une nouvelle ligne de pièce
+    const addPieceBtn = document.getElementById('add-piece');
+    if (addPieceBtn) {
+        addPieceBtn.addEventListener('click', function() {
+            const container = document.getElementById('pieces-container');
+            const newRow = container.querySelector('.piece-row').cloneNode(true);
+            
+            // Vider les valeurs
+            newRow.querySelector('select').value = '';
+            newRow.querySelector('input').value = '';
+            
+            container.appendChild(newRow);
+        });
+    }
+    
+    // Supprimer une ligne de pièce
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-piece')) {
+            const container = document.getElementById('pieces-container');
+            if (container.querySelectorAll('.piece-row').length > 1) {
+                e.target.closest('.piece-row').remove();
+            }
+        }
+    });
+});
+</script>
 {% endblock %} 
