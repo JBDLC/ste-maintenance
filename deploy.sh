@@ -1,43 +1,51 @@
 #!/bin/bash
 
-# Script de déploiement pour Maintenance STE
-# Usage: ./deploy.sh "Message de commit"
+echo "🚀 Déploiement sur Render.com..."
 
-echo "🚀 Déploiement de Maintenance STE..."
-
-# Vérifier si un message de commit est fourni
-if [ -z "$1" ]; then
-    echo "❌ Erreur: Veuillez fournir un message de commit"
-    echo "Usage: ./deploy.sh \"Message de commit\""
+# Vérifier que tous les fichiers sont présents
+echo "📋 Vérification des fichiers..."
+if [ ! -f "app.py" ]; then
+    echo "❌ app.py manquant"
     exit 1
 fi
 
-COMMIT_MESSAGE="$1"
-
-# Vérifier si Git est initialisé
-if [ ! -d ".git" ]; then
-    echo "📁 Initialisation de Git..."
-    git init
+if [ ! -f "requirements.txt" ]; then
+    echo "❌ requirements.txt manquant"
+    exit 1
 fi
 
-# Ajouter tous les fichiers
-echo "📦 Ajout des fichiers..."
-git add .
-
-# Commiter les changements
-echo "💾 Commit avec le message: $COMMIT_MESSAGE"
-git commit -m "$COMMIT_MESSAGE"
-
-# Vérifier si la branche main existe
-if git branch --list | grep -q "main"; then
-    echo "🔄 Mise à jour de la branche main..."
-    git push origin main
-else
-    echo "🌿 Création de la branche main..."
-    git branch -M main
-    git push -u origin main
+if [ ! -f "Procfile" ]; then
+    echo "❌ Procfile manquant"
+    exit 1
 fi
 
-echo "✅ Déploiement terminé!"
-echo "🔗 Vérifiez votre application sur Render dans quelques minutes"
-echo "📋 Logs disponibles dans le dashboard Render" 
+if [ ! -f "runtime.txt" ]; then
+    echo "❌ runtime.txt manquant"
+    exit 1
+fi
+
+echo "✅ Tous les fichiers sont présents"
+
+# Afficher les configurations
+echo "📋 Configuration actuelle :"
+echo "  - Python: $(cat runtime.txt)"
+echo "  - Dependencies: $(wc -l < requirements.txt) packages"
+echo "  - Procfile: $(cat Procfile)"
+
+echo ""
+echo "🎯 Pour déployer sur Render.com :"
+echo "1. Poussez ces changements sur votre repository Git"
+echo "2. Connectez-vous à Render.com"
+echo "3. Créez un nouveau service Web"
+echo "4. Connectez votre repository"
+echo "5. Le déploiement se fera automatiquement"
+
+echo ""
+echo "🔧 Les changements apportés :"
+echo "  - Python 3.11.7 (plus stable)"
+echo "  - psycopg[binary]==3.1.13 (version fixe)"
+echo "  - greenlet==3.0.1 (version compatible)"
+echo "  - render.yaml ajouté pour la configuration"
+
+echo ""
+echo "✅ Prêt pour le déploiement !" 

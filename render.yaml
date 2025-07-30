@@ -1,13 +1,11 @@
 services:
   - type: web
-    name: maintenance-app
+    name: ste-maintenance
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
-      - key: DATABASE_URL
-        sync: false
-      - key: SECRET_KEY
-        generateValue: true 
+        value: 3.11.7
+      - key: FLASK_ENV
+        value: production 

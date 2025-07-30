@@ -10,7 +10,8 @@ Werkzeug==2.3.7
 openpyxl==3.1.2
 fpdf==1.7.2
 python-dateutil==2.8.2
-psycopg[binary]
+psycopg[binary]==3.1.13
 gunicorn==21.2.0
 xlrd==2.0.1
-playwright==1.40.0 
+playwright==1.40.0
+greenlet==3.0.1 
