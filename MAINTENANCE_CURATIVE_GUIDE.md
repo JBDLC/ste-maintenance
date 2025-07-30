@@ -11,7 +11,7 @@ La fonctionnalité de **Maintenance Curative** permet d'enregistrer les maintena
 - **Page principale** : Liste de toutes les maintenances curatives avec possibilité de voir les détails
 - **Ajout de maintenance curative** : Formulaire complet avec tous les champs demandés
 - **Gestion des pièces** : Utilisation du stock existant avec mise à jour automatique
-- **Envoi de rapports** : Génération et envoi de rapports PDF par email
+- **Envoi de rapports** : Génération et envoi de rapports Excel par email
 - **Intégration complète** : Fonctionne avec le système de permissions existant
 
 ### 🎯 Champs du formulaire
@@ -61,7 +61,7 @@ La fonctionnalité de **Maintenance Curative** permet d'enregistrer les maintena
 ### 5. Envoyer un rapport
 
 - Cliquez sur l'icône 📧 pour envoyer le rapport par email
-- Le rapport PDF est généré automatiquement
+- Le rapport Excel est généré automatiquement
 - L'email est envoyé à l'adresse configurée dans les paramètres
 
 ## 📊 Intégration avec le système existant
@@ -78,7 +78,7 @@ La fonctionnalité de **Maintenance Curative** permet d'enregistrer les maintena
 1. **Sélection d'équipement** → Récupération automatique de la description
 2. **Utilisation de pièces** → Mise à jour automatique du stock
 3. **Enregistrement** → Création d'un mouvement de sortie
-4. **Rapport** → Génération PDF et envoi email
+4. **Rapport** → Génération Excel et envoi email
 
 ## 🎨 Interface utilisateur
 

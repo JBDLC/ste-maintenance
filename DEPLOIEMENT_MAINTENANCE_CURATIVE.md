@@ -53,7 +53,7 @@ python migrate_postgresql.py
 - **Page principale** : Liste des maintenances curatives avec date d'intervention
 - **Formulaire d'ajout** : Champ date d'intervention obligatoire
 - **Modal de détails** : Affichage des deux dates (intervention + saisie)
-- **Rapports PDF** : Incluent la date d'intervention
+- **Rapports Excel** : Incluent la date d'intervention
 
 #### ✅ Intégration
 
@@ -107,7 +107,7 @@ piece_utilisee_curative
 
 #### C. Actions
 - **Voir détails** : Modal avec toutes les informations
-- **Envoyer rapport** : PDF par email avec date d'intervention
+- **Envoyer rapport** : Excel par email avec date d'intervention
 
 ### 6. Dépannage
 
