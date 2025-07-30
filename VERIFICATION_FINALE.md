@@ -13,6 +13,11 @@
 ### 3. **Dépendances Nettoyées** ✅
 - **Supprimé** : `playwright==1.40.0` (non utilisé)
 - **Supprimé** : `xlrd==2.0.1` (non utilisé)
+- **Supprimé** : `greenlet==3.0.1` (problème compilation)
+
+### 4. **Python Version** ✅
+- **Avant** : `python-3.10.12` (problème greenlet)
+- **Après** : `python-3.9.18` (stable)
 
 ## 📋 Configuration Finale
 
@@ -32,12 +37,11 @@ fpdf==1.7.2
 python-dateutil==2.8.2
 psycopg2-binary==2.9.9
 gunicorn==21.2.0
-greenlet==3.0.1
 ```
 
 ### `runtime.txt` ✅
 ```
-python-3.10.12
+python-3.9.18
 ```
 
 ### `render.yaml` ✅
@@ -50,7 +54,7 @@ services:
     startCommand: gunicorn app:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10.12
+        value: 3.9.18
       - key: FLASK_ENV
         value: production
 ```
@@ -65,7 +69,7 @@ web: gunicorn app:app --bind 0.0.0.0:$PORT
 ### Commandes à Exécuter
 ```bash
 git add .
-git commit -m "Fix: psycopg2-binary et configuration PostgreSQL pour Render.com"
+git commit -m "Fix: Python 3.9.18 et suppression greenlet pour Render.com"
 git push origin main
 ```
 
@@ -79,7 +83,7 @@ FLASK_ENV=production
 ## ✅ Résultat Attendu
 
 - ✅ **Build réussi** sur Render.com
-- ✅ **Plus d'erreur psycopg/greenlet**
+- ✅ **Plus d'erreur greenlet/compilation**
 - ✅ **Application accessible**
 - ✅ **Rapport Excel fonctionnel** (3 onglets)
 - ✅ **Calendrier CO6/CO7** avec sous-sections STE/CAB/STEP
