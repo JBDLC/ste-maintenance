@@ -2026,11 +2026,11 @@ def envoyer_rapport():
         # Fonction pour configurer une feuille A4
         def setup_a4_sheet(ws):
             # Configuration A4
-            ws.page_setup.paperSize = ws.page_setup.PAPERSIZE_A4
+            ws.page_setup.paperSize = 9  # 9 = A4
             ws.page_setup.fitToPage = True
             ws.page_setup.fitToHeight = 1
             ws.page_setup.fitToWidth = 1
-            ws.page_setup.orientation = ws.page_setup.ORIENTATION_PORTRAIT
+            ws.page_setup.orientation = 'portrait'
             ws.page_setup.margins.top = 0.5
             ws.page_setup.margins.bottom = 0.5
             ws.page_setup.margins.left = 0.5
