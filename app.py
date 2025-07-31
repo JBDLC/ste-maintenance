@@ -2957,10 +2957,11 @@ def export_pieces_equipements():
         # Instructions
         ws_template.cell(row=6, column=1, value="Instructions:")
         ws_template.cell(row=6, column=1).font = Font(bold=True)
-        ws_template.cell(row=7, column=1, value="1. Utilisez les IDs des pièces et équipements des onglets précédents")
-        ws_template.cell(row=8, column=1, value="2. Dans la colonne 'Action', mettez 'Ajouter' pour créer une liaison")
-        ws_template.cell(row=9, column=1, value="3. Laissez vide ou mettez 'Supprimer' pour retirer une liaison")
-        ws_template.cell(row=10, column=1, value="4. Sauvegardez et importez ce fichier pour appliquer les changements")
+        ws_template.cell(row=7, column=1, value="1. Vous pouvez utiliser soit les IDs, soit la référence STE + nom équipement")
+        ws_template.cell(row=8, column=1, value="2. Si vous utilisez les références, laissez les colonnes ID vides")
+        ws_template.cell(row=9, column=1, value="3. Dans la colonne 'Action', mettez 'Ajouter' pour créer une liaison")
+        ws_template.cell(row=10, column=1, value="4. Laissez vide ou mettez 'Supprimer' pour retirer une liaison")
+        ws_template.cell(row=11, column=1, value="5. Sauvegardez et importez ce fichier pour appliquer les changements")
         
         # Sauvegarder le fichier
         output = io.BytesIO()
@@ -3023,7 +3024,8 @@ def import_pieces_equipements():
                 nom_equipement = row[4]
                 action = row[5] if len(row) > 5 else None
                 
-                if piece_id is not None and equipement_id is not None:
+                # Accepter soit les IDs, soit la référence STE + nom équipement
+                if (piece_id is not None and equipement_id is not None) or (reference_ste and nom_equipement):
                     liaisons_data.append({
                         'piece_id': int(piece_id) if isinstance(piece_id, (int, float)) else None,
                         'reference_ste': reference_ste,
@@ -3041,28 +3043,45 @@ def import_pieces_equipements():
         for liaison_data in liaisons_data:
             try:
                 piece_id = liaison_data['piece_id']
+                reference_ste = liaison_data['reference_ste']
                 equipement_id = liaison_data['equipement_id']
+                nom_equipement = liaison_data['nom_equipement']
                 action = liaison_data['action']
                 
-                if piece_id is None or equipement_id is None:
+                # Déterminer la pièce et l'équipement
+                piece = None
+                equipement = None
+                
+                # Si on a les IDs, les utiliser en priorité
+                if piece_id is not None and equipement_id is not None:
+                    piece = Piece.query.get(piece_id)
+                    equipement = Equipement.query.get(equipement_id)
+                # Sinon, chercher par référence STE et nom d'équipement
+                elif reference_ste and nom_equipement:
+                    piece = Piece.query.filter_by(reference_ste=reference_ste).first()
+                    equipement = Equipement.query.filter_by(nom=nom_equipement).first()
+                else:
+                    erreurs.append(f"Données insuffisantes pour la ligne : référence STE '{reference_ste}' et nom équipement '{nom_equipement}'")
                     continue
                 
-                # Vérifier que la pièce et l'équipement existent
-                piece = Piece.query.get(piece_id)
-                equipement = Equipement.query.get(equipement_id)
-                
                 if not piece:
-                    erreurs.append(f"Pièce ID {piece_id} non trouvée")
+                    if piece_id:
+                        erreurs.append(f"Pièce ID {piece_id} non trouvée")
+                    else:
+                        erreurs.append(f"Pièce avec référence STE '{reference_ste}' non trouvée")
                     continue
                 
                 if not equipement:
-                    erreurs.append(f"Équipement ID {equipement_id} non trouvé")
+                    if equipement_id:
+                        erreurs.append(f"Équipement ID {equipement_id} non trouvé")
+                    else:
+                        erreurs.append(f"Équipement avec nom '{nom_equipement}' non trouvé")
                     continue
                 
                 # Vérifier si la liaison existe déjà
                 liaison_existante = PieceEquipement.query.filter_by(
-                    piece_id=piece_id, 
-                    equipement_id=equipement_id
+                    piece_id=piece.id, 
+                    equipement_id=equipement.id
                 ).first()
                 
                 if action and action.lower().strip() == 'supprimer':
@@ -3074,8 +3093,8 @@ def import_pieces_equipements():
                     # Ajouter la liaison (si elle n'existe pas déjà)
                     if not liaison_existante:
                         nouvelle_liaison = PieceEquipement(
-                            piece_id=piece_id,
-                            equipement_id=equipement_id
+                            piece_id=piece.id,
+                            equipement_id=equipement.id
                         )
                         db.session.add(nouvelle_liaison)
                         ajoutees += 1
