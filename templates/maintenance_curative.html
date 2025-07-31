@@ -50,11 +50,7 @@
                         <a href="{{ url_for('modifier_maintenance_curative', maintenance_id=maintenance.id) }}" class="btn btn-outline-warning" title="Modifier">
                             <i class="fas fa-edit"></i>
                         </a>
-                        <form method="POST" action="{{ url_for('envoyer_rapport_maintenance_curative', maintenance_id=maintenance.id) }}" class="d-inline">
-                            <button type="submit" class="btn btn-outline-success" title="Envoyer le rapport">
-                                <i class="fas fa-envelope"></i>
-                            </button>
-                        </form>
+
                         <form method="POST" action="{{ url_for('supprimer_maintenance_curative', maintenance_id=maintenance.id) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette maintenance curative ?')">
                             <button type="submit" class="btn btn-outline-danger" title="Supprimer">
                                 <i class="fas fa-trash"></i>
@@ -94,11 +90,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
-                            <form method="POST" action="{{ url_for('envoyer_rapport_maintenance_curative', maintenance_id=maintenance.id) }}" class="d-inline">
-                                <button type="submit" class="btn btn-success">
-                                    <i class="fas fa-envelope"></i> Envoyer le rapport
-                                </button>
-                            </form>
+
                         </div>
                     </div>
                 </div>
