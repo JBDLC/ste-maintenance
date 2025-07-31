@@ -22,7 +22,9 @@
             </a>
             <a href="{{ url_for('export_calendrier_excel', date=semaine_lundi.strftime('%Y-%m-%d')) }}" class="btn btn-success btn-sm" title="Exporter Excel">
                 <i class="fas fa-file-excel"></i>
-                <span class="d-none d-sm-inline ms-1">Excel</span>
+            </a>
+            <a href="{{ url_for('envoyer_calendrier_excel', date=semaine_lundi.strftime('%Y-%m-%d')) }}" class="btn btn-info btn-sm" title="Envoyer Excel par email">
+                <i class="fas fa-envelope"></i>
             </a>
         </div>
 

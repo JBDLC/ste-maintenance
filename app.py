@@ -1187,9 +1187,6 @@ def export_calendrier_excel():
             section_cell.font = section_font
             section_cell.fill = section_fill
             section_cell.alignment = Alignment(horizontal="center")
-            
-            # Fusionner les cellules pour l'en-tête de section
-            ws.merge_cells(start_row=current_row, start_column=1, end_row=current_row, end_column=len(headers))
             current_row += 1
             
             # Ajouter les données de la section
@@ -1280,6 +1277,239 @@ def export_calendrier_excel():
         download_name=filename,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
+@app.route('/calendrier/envoyer-excel')
+@login_required
+def envoyer_calendrier_excel():
+    """Générer et envoyer l'Excel des maintenances de la semaine par email"""
+    date_str = request.args.get('date')
+    if date_str:
+        date_cible = datetime.strptime(date_str, '%Y-%m-%d').date()
+    else:
+        date_cible = datetime.now().date()
+    
+    # Trouver le lundi de la semaine cible
+    lundi = date_cible - timedelta(days=date_cible.weekday())
+    dimanche = lundi + timedelta(days=6)
+    
+    # Récupérer les interventions de la semaine
+    interventions_list = Intervention.query.filter(
+        Intervention.date_planifiee >= lundi,
+        Intervention.date_planifiee <= dimanche
+    ).all()
+    
+    if not interventions_list:
+        flash('Aucune maintenance trouvée pour cette semaine.', 'warning')
+        return redirect(url_for('calendrier', date=date_str))
+    
+    try:
+        # Charger la configuration SMTP
+        charger_config_smtp()
+        
+        # Récupérer l'email de destination depuis les paramètres
+        email_param = Parametre.query.filter_by(cle='email_rapport').first()
+        email_dest = email_param.valeur if email_param else None
+        if not email_dest:
+            flash('Aucune adresse email de rapport n\'est configurée dans les paramètres.', 'danger')
+            return redirect(url_for('calendrier', date=date_str))
+        
+        # Générer l'Excel (même logique que export_calendrier_excel)
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+        
+        wb = Workbook()
+        wb.remove(wb.active)  # Supprimer la feuille par défaut
+        
+        # Styles
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        section_font = Font(bold=True, color="FFFFFF")
+        section_fill = PatternFill(start_color="70AD47", end_color="70AD47", fill_type="solid")
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # En-têtes des colonnes
+        headers = [
+            'Site', 'Partie', 'Localisation', 'Équipement', 'Titre de maintenance',
+            'Description équipement', 'Description maintenance', 'Périodicité',
+            'Date planifiée', 'Statut', 'Commentaire', 'Pièces utilisées'
+        ]
+        
+        def get_sous_partie(intervention):
+            """Détermine la sous-partie (STE, CAB, STEP) basée sur la localisation"""
+            localisation_nom = intervention.maintenance.equipement.localisation.nom
+            if 'STE' in localisation_nom:
+                return 'STE'
+            elif 'CAB' in localisation_nom:
+                return 'CAB'
+            elif 'STEP' in localisation_nom:
+                return 'STEP'
+            else:
+                return 'Autre'
+        
+        def create_site_worksheet(site_name, interventions):
+            """Crée un onglet pour un site donné"""
+            ws = wb.create_sheet(title=site_name)
+            
+            # Séparer les interventions par partie
+            interventions_ste = [i for i in interventions if get_sous_partie(i) == 'STE']
+            interventions_cab = [i for i in interventions if get_sous_partie(i) == 'CAB']
+            interventions_step = [i for i in interventions if get_sous_partie(i) == 'STEP']
+            
+            current_row = 1
+            
+            def add_section(section_name, section_interventions):
+                nonlocal current_row
+                
+                if not section_interventions:
+                    return
+                
+                # En-tête de section
+                section_cell = ws.cell(row=current_row, column=1, value=f"=== {section_name} ===")
+                section_cell.font = section_font
+                section_cell.fill = section_fill
+                section_cell.alignment = Alignment(horizontal="center")
+                current_row += 1
+                
+                # Ajouter les données de la section
+                for intervention in section_interventions:
+                    maintenance = intervention.maintenance
+                    equipement = maintenance.equipement
+                    localisation = equipement.localisation
+                    site = localisation.site
+                    
+                    # Récupérer les pièces utilisées
+                    pieces_utilisees = []
+                    for pu in intervention.pieces_utilisees:
+                        pieces_utilisees.append(f"{pu.piece.item} ({pu.quantite})")
+                    pieces_str = ", ".join(pieces_utilisees) if pieces_utilisees else "Aucune"
+                    
+                    # Récupérer la sous-partie
+                    sous_partie = get_sous_partie(intervention)
+                    
+                    # Données de la ligne
+                    row_data = [
+                        site.nom,
+                        sous_partie,
+                        localisation.nom,
+                        equipement.nom,
+                        maintenance.titre,
+                        equipement.description or "Aucune description",
+                        maintenance.description or "Aucune description",
+                        maintenance.periodicite.replace('_', ' '),
+                        intervention.date_planifiee.strftime('%d/%m/%Y'),
+                        intervention.statut.title(),
+                        intervention.commentaire or "Aucun commentaire",
+                        pieces_str
+                    ]
+                    
+                    # Écrire la ligne
+                    for col, value in enumerate(row_data, 1):
+                        cell = ws.cell(row=current_row, column=col, value=value)
+                        cell.border = border
+                        cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+                    
+                    current_row += 1
+                
+                current_row += 1  # Ligne vide après la section
+            
+            # Ajouter les sections dans l'ordre : STE, CAB, STEP
+            add_section("STE", interventions_ste)
+            add_section("CAB", interventions_cab)
+            add_section("STEP", interventions_step)
+            
+            return ws
+        
+        # Séparer les interventions par site
+        interventions_co6 = []
+        interventions_co7 = []
+        
+        for intervention in interventions_list:
+            if intervention.maintenance.equipement and intervention.maintenance.equipement.localisation:
+                localisation_nom = intervention.maintenance.equipement.localisation.nom
+                if 'CO6' in localisation_nom:
+                    interventions_co6.append(intervention)
+                elif 'CO7' in localisation_nom:
+                    interventions_co7.append(intervention)
+        
+        # Créer les onglets
+        if interventions_co6:
+            create_site_worksheet("CO6", interventions_co6)
+        
+        if interventions_co7:
+            create_site_worksheet("CO7", interventions_co7)
+        
+        # Si aucun onglet n'a été créé, créer un onglet vide
+        if len(wb.sheetnames) == 0:
+            ws = wb.create_sheet(title="Aucune donnée")
+            ws.cell(row=1, column=1, value="Aucune maintenance trouvée pour cette semaine")
+        
+        # Sauvegarder le fichier en mémoire
+        from io import BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Nom du fichier
+        filename = f"maintenances_semaine_{lundi.isocalendar()[1]}_{lundi.strftime('%Y%m%d')}.xlsx"
+        
+        # Envoyer l'email avec le fichier Excel en pièce jointe
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        from email.mime.base import MIMEBase
+        from email import encoders
+        
+        # Créer le message
+        msg = MIMEMultipart()
+        msg['From'] = app.config['MAIL_USERNAME']
+        msg['To'] = email_dest
+        msg['Subject'] = f"Rapport de maintenance - Semaine {lundi.isocalendar()[1]} ({lundi.strftime('%d/%m/%Y')} - {dimanche.strftime('%d/%m/%Y')})"
+        
+        # Corps du message
+        body = f"""
+        Bonjour,
+        
+        Veuillez trouver ci-joint le rapport de maintenance pour la semaine {lundi.isocalendar()[1]} 
+        (du {lundi.strftime('%d/%m/%Y')} au {dimanche.strftime('%d/%m/%Y')}).
+        
+        Ce rapport contient {len(interventions_list)} intervention(s) planifiée(s).
+        
+        Cordialement,
+        Système de maintenance STE
+        """
+        
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        # Attacher le fichier Excel
+        part = MIMEBase('application', 'octet-stream')
+        part.set_payload(output.getvalue())
+        encoders.encode_base64(part)
+        part.add_header(
+            'Content-Disposition',
+            f'attachment; filename= {filename}'
+        )
+        msg.attach(part)
+        
+        # Envoyer l'email
+        server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+        server.starttls()
+        server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+        text = msg.as_string()
+        server.sendmail(app.config['MAIL_USERNAME'], email_dest, text)
+        server.quit()
+        
+        flash(f'Rapport Excel envoyé avec succès à {email_dest}', 'success')
+        
+    except Exception as e:
+        flash(f'Erreur lors de l\'envoi du rapport : {str(e)}', 'danger')
+        print(f"Erreur envoi Excel: {e}")
+    
+    return redirect(url_for('calendrier', date=date_str))
 
 @app.route('/intervention/realiser/<int:intervention_id>', methods=['POST'])
 @login_required
