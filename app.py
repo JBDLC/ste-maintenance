@@ -513,7 +513,7 @@ def ajouter_equipement():
     
     localisations = Localisation.query.all()
     pieces = Piece.query.all()
-    return render_template('ajouter_equipement.html', localisations=localisations, pieces=pieces)
+    return render_template('ajouter_equipement.html', localisations=localisations, pieces=pieces, edition=False)
 
 @app.route('/pieces')
 @login_required

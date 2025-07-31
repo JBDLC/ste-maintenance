@@ -42,24 +42,81 @@
                     
                     <div class="mb-3">
                         <label class="form-label">Pièces de rechange associées</label>
-                        <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
-                            {% if pieces %}
-                                <div class="row">
-                                    {% for piece in pieces %}
-                                    <div class="col-md-6 mb-2">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" name="pieces_ids" value="{{ piece.id }}" id="piece_{{ piece.id }}" {% if edition and piece.id in equipement.pieces_ids %}checked{% endif %}>
-                                            <label class="form-check-label" for="piece_{{ piece.id }}">
-                                                <strong>{{ piece.item }}</strong><br>
-                                                <small class="text-muted">{{ piece.reference_ste }} - Stock: {{ piece.quantite_stock }}</small>
-                                            </label>
-                                        </div>
-                                    </div>
-                                    {% endfor %}
+                        
+                        <!-- Pièces actuellement associées (en mode édition) -->
+                        {% if edition and equipement.pieces %}
+                        <div class="card mb-3">
+                            <div class="card-header bg-success text-white">
+                                <h6 class="mb-0"><i class="fas fa-check-circle"></i> Pièces actuellement associées</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Pièce</th>
+                                                <th>Référence</th>
+                                                <th>Stock</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for piece_assoc in equipement.pieces %}
+                                            <tr>
+                                                <td><strong>{{ piece_assoc.piece.item }}</strong></td>
+                                                <td>{{ piece_assoc.piece.reference_ste }}</td>
+                                                <td>
+                                                    {% if piece_assoc.piece.quantite_stock <= piece_assoc.piece.stock_mini %}
+                                                        <span class="badge bg-danger">{{ piece_assoc.piece.quantite_stock }}</span>
+                                                    {% elif piece_assoc.piece.quantite_stock <= piece_assoc.piece.stock_mini + 2 %}
+                                                        <span class="badge bg-warning">{{ piece_assoc.piece.quantite_stock }}</span>
+                                                    {% else %}
+                                                        <span class="badge bg-success">{{ piece_assoc.piece.quantite_stock }}</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="supprimerPiece({{ piece_assoc.piece.id }})">
+                                                        <i class="fas fa-times"></i> Retirer
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
                                 </div>
-                            {% else %}
-                                <p class="text-muted">Aucune pièce de rechange disponible. <a href="{{ url_for('ajouter_piece') }}">Ajouter des pièces</a></p>
-                            {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Ajouter de nouvelles pièces -->
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0"><i class="fas fa-plus-circle"></i> Ajouter des pièces</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <input type="text" class="form-control" id="searchPiece" placeholder="Rechercher une pièce..." onkeyup="filterPieces()">
+                                </div>
+                                <div class="border rounded p-3" style="max-height: 200px; overflow-y: auto;" id="piecesContainer">
+                                    {% if pieces %}
+                                        <div class="row">
+                                            {% for piece in pieces %}
+                                            <div class="col-md-6 mb-2 piece-item" data-piece-name="{{ piece.item|lower }}" data-piece-ref="{{ piece.reference_ste|lower }}">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="pieces_ids" value="{{ piece.id }}" id="piece_{{ piece.id }}">
+                                                    <label class="form-check-label" for="piece_{{ piece.id }}">
+                                                        <strong>{{ piece.item }}</strong><br>
+                                                        <small class="text-muted">{{ piece.reference_ste }} - Stock: {{ piece.quantite_stock }}</small>
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        <p class="text-muted">Aucune pièce de rechange disponible. <a href="{{ url_for('ajouter_piece') }}">Ajouter des pièces</a></p>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -74,4 +131,38 @@
         </div>
     </div>
 </div>
+
+<script>
+function filterPieces() {
+    const searchTerm = document.getElementById('searchPiece').value.toLowerCase();
+    const pieces = document.querySelectorAll('.piece-item');
+    
+    pieces.forEach(piece => {
+        const pieceName = piece.getAttribute('data-piece-name');
+        const pieceRef = piece.getAttribute('data-piece-ref');
+        
+        if (pieceName.includes(searchTerm) || pieceRef.includes(searchTerm)) {
+            piece.style.display = 'block';
+        } else {
+            piece.style.display = 'none';
+        }
+    });
+}
+
+function supprimerPiece(pieceId) {
+    if (confirm('Êtes-vous sûr de vouloir retirer cette pièce de l\'équipement ?')) {
+        // Décocher la checkbox correspondante
+        const checkbox = document.getElementById('piece_' + pieceId);
+        if (checkbox) {
+            checkbox.checked = false;
+        }
+        
+        // Masquer visuellement la ligne dans le tableau
+        const row = event.target.closest('tr');
+        if (row) {
+            row.style.display = 'none';
+        }
+    }
+}
+</script>
 {% endblock %} 
