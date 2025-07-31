@@ -64,6 +64,9 @@
                 data-statut="{{ intervention.statut }}"
                 data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
                 data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
+                data-pieces-associees="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='id')|list|tojson }}"
+                data-pieces-noms="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='item')|list|tojson }}"
+                data-pieces-stock="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='quantite_stock')|list|tojson }}"
                 onclick="showMaintenanceDetails(this)">
                         <td class="d-none d-md-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.localisation.nom }}</td>
                         <td style="font-size: 70%;">
@@ -134,12 +137,8 @@
                                                 <div class="col-md-6">
                                                     <select class="form-select" name="pieces_utilisees">
                                                         <option value="">Aucune pièce</option>
-                                                        {% for piece in pieces %}
-                                                            {% if piece.id in intervention.maintenance.equipement.pieces|map(attribute='piece_id')|list %}
-                                                            <option value="{{ piece.id }}" class="text-primary fw-bold">{{ piece.item }} (Stock: {{ piece.quantite_stock }}) - ASSOCIÉE</option>
-                                                            {% else %}
-                                                            <option value="{{ piece.id }}">{{ piece.item }} (Stock: {{ piece.quantite_stock }})</option>
-                                                            {% endif %}
+                                                        {% for piece_assoc in intervention.maintenance.equipement.pieces %}
+                                                            <option value="{{ piece_assoc.piece.id }}">{{ piece_assoc.piece.item }} (Stock: {{ piece_assoc.piece.quantite_stock }})</option>
                                                         {% endfor %}
                                                     </select>
                                                 </div>
@@ -157,11 +156,14 @@
                                         <div class="alert alert-info mt-2">
                                             <small>
                                                 <i class="fas fa-info-circle"></i> 
-                                                Les pièces marquées "ASSOCIÉE" sont spécifiquement liées à cet équipement.
+                                                Seules les pièces associées à cet équipement sont affichées.
                                             </small>
                                         </div>
                                         
-                                        <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece" 
+                                                data-pieces-associees="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='id')|list|tojson }}"
+                                                data-pieces-noms="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='item')|list|tojson }}"
+                                                data-pieces-stock="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='quantite_stock')|list|tojson }}">
                                             <i class="fas fa-plus"></i> Ajouter une pièce
                                         </button>
                                     </div>
@@ -996,19 +998,34 @@ function showMaintenanceDetails(element) {
 
 document.addEventListener('DOMContentLoaded', function() {
     // Ajouter une nouvelle ligne de pièce
-    const addPieceBtn = document.getElementById('add-piece');
-    if (addPieceBtn) {
-        addPieceBtn.addEventListener('click', function() {
+    document.addEventListener('click', function(e) {
+        if (e.target.id === 'add-piece') {
             const container = document.getElementById('pieces-container');
-            const newRow = container.querySelector('.piece-row').cloneNode(true);
+            const firstRow = container.querySelector('.piece-row');
+            const newRow = firstRow.cloneNode(true);
+            
+            // Récupérer les données des pièces associées depuis le bouton
+            const piecesAssociees = JSON.parse(e.target.getAttribute('data-pieces-associees') || '[]');
+            const piecesNoms = JSON.parse(e.target.getAttribute('data-pieces-noms') || '[]');
+            const piecesStock = JSON.parse(e.target.getAttribute('data-pieces-stock') || '[]');
             
             // Vider les valeurs
-            newRow.querySelector('select').value = '';
+            const select = newRow.querySelector('select');
+            select.value = '';
             newRow.querySelector('input').value = '';
             
+            // Régénérer les options avec les pièces associées
+            select.innerHTML = '<option value="">Aucune pièce</option>';
+            for (let i = 0; i < piecesAssociees.length; i++) {
+                const option = document.createElement('option');
+                option.value = piecesAssociees[i];
+                option.textContent = `${piecesNoms[i]} (Stock: ${piecesStock[i]})`;
+                select.appendChild(option);
+            }
+            
             container.appendChild(newRow);
-        });
-    }
+        }
+    });
     
     // Supprimer une ligne de pièce
     document.addEventListener('click', function(e) {
