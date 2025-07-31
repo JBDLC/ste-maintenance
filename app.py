@@ -1468,7 +1468,7 @@ def envoyer_calendrier_excel():
         msg = MIMEMultipart()
         msg['From'] = app.config['MAIL_USERNAME']
         msg['To'] = email_dest
-        msg['Subject'] = f"Rapport de maintenance - Semaine {lundi.isocalendar()[1]} ({lundi.strftime('%d/%m/%Y')} - {dimanche.strftime('%d/%m/%Y')})"
+        msg['Subject'] = f"Rapport maintenance - Semaine {lundi.isocalendar()[1]} ({lundi.strftime('%d/%m/%Y')} - {dimanche.strftime('%d/%m/%Y')})"
         
         # Corps du message
         body = f"""
@@ -1477,13 +1477,13 @@ def envoyer_calendrier_excel():
         Veuillez trouver ci-joint le rapport de maintenance pour la semaine {lundi.isocalendar()[1]} 
         (du {lundi.strftime('%d/%m/%Y')} au {dimanche.strftime('%d/%m/%Y')}).
         
-        Ce rapport contient {len(interventions_list)} intervention(s) planifiée(s).
+        Ce rapport contient {len(interventions_list)} intervention(s) planifiee(s).
         
         Cordialement,
-        Système de maintenance STE
+        Systeme de maintenance STE
         """
         
-        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        msg.attach(MIMEText(body, 'plain', 'ascii'))
         
         # Attacher le fichier Excel
         part = MIMEBase('application', 'octet-stream')
