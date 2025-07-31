@@ -37,6 +37,10 @@ def clean_text_for_pdf(text):
         '\u2022': '-',  # Puce
         '\u2026': '...',  # Points de suspension
         '\u00a0': ' ',  # Espace insécable
+        '\u0153': 'oe',  # œ (ligature oe)
+        '\u0152': 'OE',  # Œ (ligature OE)
+        '\u00e6': 'ae',  # æ (ligature ae)
+        '\u00c6': 'AE',  # Æ (ligature AE)
         '\u00e9': 'e',  # é
         '\u00e8': 'e',  # è
         '\u00ea': 'e',  # ê
@@ -67,6 +71,10 @@ def clean_text_for_pdf(text):
         '\u00db': 'U',  # Û
         '\u00dc': 'U',  # Ü
         '\u00c7': 'C',  # Ç
+        '\u00b0': ' degres',  # ° (degré)
+        '\u20ac': 'EUR',  # € (euro)
+        '\u00a3': 'GBP',  # £ (livre)
+        '\u0024': 'USD',  # $ (dollar)
     }
     
     for unicode_char, replacement in replacements.items():
