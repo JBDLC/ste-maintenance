@@ -170,6 +170,36 @@ document.addEventListener('DOMContentLoaded', function() {
                         </button>
                     </form>
                 </div>
+
+                <!-- Section pour l'import/export des liaisons pièces-équipements -->
+                <div class="mb-4 border-bottom pb-3">
+                    <h5 class="mb-3 text-primary">
+                        <i class="fas fa-link"></i> Liaisons Pièces-Équipements
+                    </h5>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Gestion des liaisons :</strong> Téléchargez un fichier Excel contenant les pièces et équipements existants, 
+                        puis utilisez l'onglet "Liaisons" pour définir quelles pièces sont compatibles avec quels équipements.
+                        <br><strong>Fonctionnalités :</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Export des données actuelles (pièces, équipements et leurs liaisons)</li>
+                            <li>Onglet "Liaisons" pour définir les associations pièce-équipement</li>
+                            <li>Import avec mise à jour automatique des liaisons</li>
+                            <li>Support de plusieurs pièces par équipement</li>
+                        </ul>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <a href="{{ url_for('export_pieces_equipements') }}" class="btn btn-primary btn-sm">
+                            <i class="fas fa-download"></i> Télécharger Excel (Pièces + Équipements + Liaisons)
+                        </a>
+                    </div>
+                    <form action="{{ url_for('import_pieces_equipements') }}" method="post" enctype="multipart/form-data" class="d-flex flex-wrap gap-2 align-items-center mb-2">
+                        <input type="file" name="fichier" accept=".xlsx" class="form-control form-control-sm w-auto" required>
+                        <button type="submit" class="btn btn-success btn-sm">
+                            <i class="fas fa-upload"></i> Importer et Mettre à jour les Liaisons
+                        </button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>

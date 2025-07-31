@@ -2846,6 +2846,273 @@ def download_modele_maintenances():
         tmp.flush()
         return send_file(tmp.name, as_attachment=True, download_name='modele_maintenances_simplifie.xlsx')
 
+@app.route('/parametres/export-pieces-equipements')
+@login_required
+def export_pieces_equipements():
+    """Export des pièces, équipements et leurs liaisons en Excel"""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.utils import get_column_letter
+        
+        wb = Workbook()
+        
+        # Supprimer la feuille par défaut
+        wb.remove(wb.active)
+        
+        # Feuille 1: Pièces
+        ws_pieces = wb.create_sheet("Pièces")
+        pieces = Piece.query.all()
+        
+        # En-têtes pour les pièces
+        headers_pieces = ['ID', 'Référence STE', 'Référence Magasin', 'Item', 'Description', 'Lieu de Stockage', 'Quantité Stock', 'Stock Mini', 'Stock Maxi']
+        for col, header in enumerate(headers_pieces, 1):
+            cell = ws_pieces.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+        
+        # Données des pièces
+        for row, piece in enumerate(pieces, 2):
+            lieu_stockage = piece.lieu_stockage.nom if piece.lieu_stockage else ""
+            ws_pieces.cell(row=row, column=1, value=piece.id)
+            ws_pieces.cell(row=row, column=2, value=piece.reference_ste)
+            ws_pieces.cell(row=row, column=3, value=piece.reference_magasin)
+            ws_pieces.cell(row=row, column=4, value=piece.item)
+            ws_pieces.cell(row=row, column=5, value=piece.description)
+            ws_pieces.cell(row=row, column=6, value=lieu_stockage)
+            ws_pieces.cell(row=row, column=7, value=piece.quantite_stock)
+            ws_pieces.cell(row=row, column=8, value=piece.stock_mini)
+            ws_pieces.cell(row=row, column=9, value=piece.stock_maxi)
+        
+        # Ajuster la largeur des colonnes pour les pièces
+        for col in range(1, len(headers_pieces) + 1):
+            ws_pieces.column_dimensions[get_column_letter(col)].width = 15
+        
+        # Feuille 2: Équipements
+        ws_equipements = wb.create_sheet("Équipements")
+        equipements = Equipement.query.all()
+        
+        # En-têtes pour les équipements
+        headers_equipements = ['ID', 'Nom', 'Description', 'Localisation', 'Site']
+        for col, header in enumerate(headers_equipements, 1):
+            cell = ws_equipements.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+        
+        # Données des équipements
+        for row, equipement in enumerate(equipements, 2):
+            localisation = equipement.localisation.nom if equipement.localisation else ""
+            site = equipement.localisation.site.nom if equipement.localisation and equipement.localisation.site else ""
+            ws_equipements.cell(row=row, column=1, value=equipement.id)
+            ws_equipements.cell(row=row, column=2, value=equipement.nom)
+            ws_equipements.cell(row=row, column=3, value=equipement.description)
+            ws_equipements.cell(row=row, column=4, value=localisation)
+            ws_equipements.cell(row=row, column=5, value=site)
+        
+        # Ajuster la largeur des colonnes pour les équipements
+        for col in range(1, len(headers_equipements) + 1):
+            ws_equipements.column_dimensions[get_column_letter(col)].width = 20
+        
+        # Feuille 3: Liaisons actuelles
+        ws_liaisons = wb.create_sheet("Liaisons_Actuelles")
+        liaisons = PieceEquipement.query.all()
+        
+        # En-têtes pour les liaisons
+        headers_liaisons = ['ID Pièce', 'Référence STE', 'Item', 'ID Équipement', 'Nom Équipement']
+        for col, header in enumerate(headers_liaisons, 1):
+            cell = ws_liaisons.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="CCCCCC", end_color="CCCCCC", fill_type="solid")
+        
+        # Données des liaisons actuelles
+        for row, liaison in enumerate(liaisons, 2):
+            ws_liaisons.cell(row=row, column=1, value=liaison.piece_id)
+            ws_liaisons.cell(row=row, column=2, value=liaison.piece.reference_ste)
+            ws_liaisons.cell(row=row, column=3, value=liaison.piece.item)
+            ws_liaisons.cell(row=row, column=4, value=liaison.equipement_id)
+            ws_liaisons.cell(row=row, column=5, value=liaison.equipement.nom)
+        
+        # Ajuster la largeur des colonnes pour les liaisons
+        for col in range(1, len(headers_liaisons) + 1):
+            ws_liaisons.column_dimensions[get_column_letter(col)].width = 20
+        
+        # Feuille 4: Template pour nouvelles liaisons
+        ws_template = wb.create_sheet("Liaisons")
+        
+        # En-têtes pour le template
+        headers_template = ['ID Pièce', 'Référence STE', 'Item', 'ID Équipement', 'Nom Équipement', 'Action (Ajouter/Supprimer)']
+        for col, header in enumerate(headers_template, 1):
+            cell = ws_template.cell(row=1, column=col, value=header)
+            cell.font = Font(bold=True)
+            cell.fill = PatternFill(start_color="E6F3FF", end_color="E6F3FF", fill_type="solid")
+        
+        # Ajouter quelques lignes d'exemple
+        for row in range(2, 5):
+            ws_template.cell(row=row, column=6, value="Ajouter")
+        
+        # Ajuster la largeur des colonnes pour le template
+        for col in range(1, len(headers_template) + 1):
+            ws_template.column_dimensions[get_column_letter(col)].width = 20
+        
+        # Instructions
+        ws_template.cell(row=6, column=1, value="Instructions:")
+        ws_template.cell(row=6, column=1).font = Font(bold=True)
+        ws_template.cell(row=7, column=1, value="1. Utilisez les IDs des pièces et équipements des onglets précédents")
+        ws_template.cell(row=8, column=1, value="2. Dans la colonne 'Action', mettez 'Ajouter' pour créer une liaison")
+        ws_template.cell(row=9, column=1, value="3. Laissez vide ou mettez 'Supprimer' pour retirer une liaison")
+        ws_template.cell(row=10, column=1, value="4. Sauvegardez et importez ce fichier pour appliquer les changements")
+        
+        # Sauvegarder le fichier
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=f'pieces_equipements_liaisons_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+        )
+        
+    except Exception as e:
+        flash(f'Erreur lors de l\'export : {str(e)}', 'error')
+        return redirect(url_for('parametres'))
+
+@app.route('/parametres/import-pieces-equipements', methods=['POST'])
+@login_required
+def import_pieces_equipements():
+    """Import des liaisons pièces-équipements depuis Excel"""
+    try:
+        if 'fichier' not in request.files:
+            flash('Aucun fichier sélectionné', 'error')
+            return redirect(url_for('parametres'))
+        
+        file = request.files['fichier']
+        if file.filename == '':
+            flash('Aucun fichier sélectionné', 'error')
+            return redirect(url_for('parametres'))
+        
+        if not file.filename.endswith('.xlsx'):
+            flash('Le fichier doit être au format Excel (.xlsx)', 'error')
+            return redirect(url_for('parametres'))
+        
+        # Sauvegarder le fichier temporairement
+        temp_path = tempfile.mktemp(suffix='.xlsx')
+        file.save(temp_path)
+        
+        # Lire le fichier Excel
+        from openpyxl import load_workbook
+        wb = load_workbook(temp_path, data_only=True)
+        
+        # Vérifier que l'onglet Liaisons existe
+        if 'Liaisons' not in wb.sheetnames:
+            flash('L\'onglet "Liaisons" est manquant dans le fichier Excel', 'error')
+            os.unlink(temp_path)
+            return redirect(url_for('parametres'))
+        
+        ws_liaisons = wb['Liaisons']
+        
+        # Récupérer les données
+        liaisons_data = []
+        for row in ws_liaisons.iter_rows(min_row=2, values_only=True):
+            if any(cell is not None for cell in row[:5]):  # Au moins une des 5 premières colonnes a une valeur
+                piece_id = row[0]
+                reference_ste = row[1]
+                item = row[2]
+                equipement_id = row[3]
+                nom_equipement = row[4]
+                action = row[5] if len(row) > 5 else None
+                
+                if piece_id is not None and equipement_id is not None:
+                    liaisons_data.append({
+                        'piece_id': int(piece_id) if isinstance(piece_id, (int, float)) else None,
+                        'reference_ste': reference_ste,
+                        'item': item,
+                        'equipement_id': int(equipement_id) if isinstance(equipement_id, (int, float)) else None,
+                        'nom_equipement': nom_equipement,
+                        'action': action
+                    })
+        
+        # Traiter les liaisons
+        ajoutees = 0
+        supprimees = 0
+        erreurs = []
+        
+        for liaison_data in liaisons_data:
+            try:
+                piece_id = liaison_data['piece_id']
+                equipement_id = liaison_data['equipement_id']
+                action = liaison_data['action']
+                
+                if piece_id is None or equipement_id is None:
+                    continue
+                
+                # Vérifier que la pièce et l'équipement existent
+                piece = Piece.query.get(piece_id)
+                equipement = Equipement.query.get(equipement_id)
+                
+                if not piece:
+                    erreurs.append(f"Pièce ID {piece_id} non trouvée")
+                    continue
+                
+                if not equipement:
+                    erreurs.append(f"Équipement ID {equipement_id} non trouvé")
+                    continue
+                
+                # Vérifier si la liaison existe déjà
+                liaison_existante = PieceEquipement.query.filter_by(
+                    piece_id=piece_id, 
+                    equipement_id=equipement_id
+                ).first()
+                
+                if action and action.lower().strip() == 'supprimer':
+                    # Supprimer la liaison
+                    if liaison_existante:
+                        db.session.delete(liaison_existante)
+                        supprimees += 1
+                else:
+                    # Ajouter la liaison (si elle n'existe pas déjà)
+                    if not liaison_existante:
+                        nouvelle_liaison = PieceEquipement(
+                            piece_id=piece_id,
+                            equipement_id=equipement_id
+                        )
+                        db.session.add(nouvelle_liaison)
+                        ajoutees += 1
+                
+            except Exception as e:
+                erreurs.append(f"Erreur pour la ligne {liaison_data}: {str(e)}")
+        
+        # Valider les changements
+        try:
+            db.session.commit()
+            
+            # Nettoyer le fichier temporaire
+            os.unlink(temp_path)
+            
+            # Message de succès
+            message = f"Import terminé avec succès ! {ajoutees} liaison(s) ajoutée(s), {supprimees} liaison(s) supprimée(s)."
+            if erreurs:
+                message += f"\n\nErreurs rencontrées : {len(erreurs)}"
+                for erreur in erreurs[:10]:  # Limiter à 10 erreurs dans le message
+                    message += f"\n- {erreur}"
+                if len(erreurs) > 10:
+                    message += f"\n... et {len(erreurs) - 10} autres erreurs"
+            
+            flash(message, 'success' if not erreurs else 'warning')
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur lors de la sauvegarde : {str(e)}', 'error')
+            os.unlink(temp_path)
+            
+    except Exception as e:
+        flash(f'Erreur lors de l\'import : {str(e)}', 'error')
+        if 'temp_path' in locals():
+            os.unlink(temp_path)
+    
+    return redirect(url_for('parametres'))
+
 @app.route('/parametres/export/<entite>.xlsx')
 @login_required
 def export_donnees(entite):
