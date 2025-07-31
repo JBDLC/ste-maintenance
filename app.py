@@ -1511,6 +1511,150 @@ def envoyer_calendrier_excel():
     
     return redirect(url_for('calendrier', date=date_str))
 
+@app.route('/maintenance-curative/envoyer-excel/<int:maintenance_id>')
+@login_required
+def envoyer_maintenance_curative_excel(maintenance_id):
+    """Générer et envoyer l'Excel d'une maintenance curative par email"""
+    maintenance_curative = MaintenanceCurative.query.get_or_404(maintenance_id)
+    
+    try:
+        # Charger la configuration SMTP
+        charger_config_smtp()
+        
+        # Récupérer l'email de destination depuis les paramètres
+        email_param = Parametre.query.filter_by(cle='email_rapport').first()
+        email_dest = email_param.valeur if email_param else None
+        if not email_dest:
+            flash('Aucune adresse email de rapport n\'est configurée dans les paramètres.', 'danger')
+            return redirect(url_for('maintenance_curative'))
+        
+        # Générer l'Excel
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Maintenance Curative"
+        
+        # Styles
+        header_font = Font(bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        border = Border(
+            left=Side(style='thin'),
+            right=Side(style='thin'),
+            top=Side(style='thin'),
+            bottom=Side(style='thin')
+        )
+        
+        # En-têtes
+        headers = [
+            'Site', 'Localisation', 'Équipement', 'Description équipement',
+            'Date intervention', 'Temps passé (h)', 'Nombre personnes',
+            'Description maintenance', 'Pièces utilisées'
+        ]
+        
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = border
+            cell.alignment = Alignment(horizontal="center")
+        
+        # Récupérer les pièces utilisées
+        pieces_utilisees = []
+        for pu in maintenance_curative.pieces_utilisees:
+            pieces_utilisees.append(f"{pu.piece.item} ({pu.quantite})")
+        pieces_str = ", ".join(pieces_utilisees) if pieces_utilisees else "Aucune"
+        
+        # Données
+        row_data = [
+            maintenance_curative.equipement.localisation.site.nom,
+            maintenance_curative.equipement.localisation.nom,
+            maintenance_curative.equipement.nom,
+            maintenance_curative.equipement.description or "Aucune description",
+            maintenance_curative.date_intervention.strftime('%d/%m/%Y'),
+            maintenance_curative.temps_passe,
+            maintenance_curative.nombre_personnes,
+            maintenance_curative.description_maintenance,
+            pieces_str
+        ]
+        
+        # Écrire la ligne de données
+        for col, value in enumerate(row_data, 1):
+            cell = ws.cell(row=2, column=col, value=value)
+            cell.border = border
+            cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+        
+        # Ajuster la largeur des colonnes
+        for col in range(1, len(headers) + 1):
+            ws.column_dimensions[chr(64 + col)].width = 20
+        
+        # Sauvegarder le fichier en mémoire
+        from io import BytesIO
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # Nom du fichier
+        filename = f"maintenance_curative_{maintenance_curative.equipement.nom}_{maintenance_curative.date_intervention.strftime('%Y%m%d')}.xlsx"
+        
+        # Envoyer l'email avec le fichier Excel en pièce jointe
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        from email.mime.base import MIMEBase
+        from email import encoders
+        
+        # Créer le message
+        msg = MIMEMultipart()
+        msg['From'] = app.config['MAIL_USERNAME']
+        msg['To'] = email_dest
+        msg['Subject'] = f"Maintenance curative - {maintenance_curative.equipement.nom} ({maintenance_curative.date_intervention.strftime('%d/%m/%Y')})"
+        
+        # Corps du message
+        body = f"""
+        Bonjour,
+        
+        Veuillez trouver ci-joint le rapport de maintenance curative pour l'equipement {maintenance_curative.equipement.nom}.
+        
+        Date d'intervention: {maintenance_curative.date_intervention.strftime('%d/%m/%Y')}
+        Site: {maintenance_curative.equipement.localisation.site.nom}
+        Localisation: {maintenance_curative.equipement.localisation.nom}
+        Temps passe: {maintenance_curative.temps_passe} heures
+        Nombre de personnes: {maintenance_curative.nombre_personnes}
+        
+        Cordialement,
+        Systeme de maintenance STE
+        """
+        
+        msg.attach(MIMEText(body, 'plain', 'ascii'))
+        
+        # Attacher le fichier Excel
+        part = MIMEBase('application', 'octet-stream')
+        part.set_payload(output.getvalue())
+        encoders.encode_base64(part)
+        part.add_header(
+            'Content-Disposition',
+            f'attachment; filename= {filename}'
+        )
+        msg.attach(part)
+        
+        # Envoyer l'email
+        server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+        server.starttls()
+        server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+        text = msg.as_string()
+        server.sendmail(app.config['MAIL_USERNAME'], email_dest, text)
+        server.quit()
+        
+        flash(f'Rapport Excel de maintenance curative envoye avec succes a {email_dest}', 'success')
+        
+    except Exception as e:
+        flash(f'Erreur lors de l\'envoi du rapport : {str(e)}', 'danger')
+        print(f"Erreur envoi Excel maintenance curative: {e}")
+    
+    return redirect(url_for('maintenance_curative'))
+
 @app.route('/intervention/realiser/<int:intervention_id>', methods=['POST'])
 @login_required
 def realiser_intervention(intervention_id):

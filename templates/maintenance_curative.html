@@ -50,6 +50,9 @@
                         <a href="{{ url_for('modifier_maintenance_curative', maintenance_id=maintenance.id) }}" class="btn btn-outline-warning" title="Modifier">
                             <i class="fas fa-edit"></i>
                         </a>
+                        <a href="{{ url_for('envoyer_maintenance_curative_excel', maintenance_id=maintenance.id) }}" class="btn btn-outline-info" title="Envoyer par email">
+                            <i class="fas fa-envelope"></i>
+                        </a>
 
                         <form method="POST" action="{{ url_for('supprimer_maintenance_curative', maintenance_id=maintenance.id) }}" class="d-inline" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cette maintenance curative ?')">
                             <button type="submit" class="btn btn-outline-danger" title="Supprimer">
