@@ -1228,8 +1228,6 @@ def export_calendrier_excel():
                     cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
                 
                 current_row += 1
-            
-            current_row += 1  # Ligne vide après la section
         
         # Ajouter les sections dans l'ordre : STE, CAB, STEP
         add_section("STE", interventions_ste)
@@ -1316,6 +1314,7 @@ def envoyer_calendrier_excel():
         # Générer l'Excel (même logique que export_calendrier_excel)
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+        from openpyxl.utils import get_column_letter
         
         wb = Workbook()
         wb.remove(wb.active)  # Supprimer la feuille par défaut
@@ -1323,8 +1322,11 @@ def envoyer_calendrier_excel():
         # Styles
         header_font = Font(bold=True, color="FFFFFF")
         header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center")
+        
         section_font = Font(bold=True, color="FFFFFF")
         section_fill = PatternFill(start_color="70AD47", end_color="70AD47", fill_type="solid")
+        
         border = Border(
             left=Side(style='thin'),
             right=Side(style='thin'),
@@ -1340,20 +1342,35 @@ def envoyer_calendrier_excel():
         ]
         
         def get_sous_partie(intervention):
-            """Détermine la sous-partie (STE, CAB, STEP) basée sur la localisation"""
+            """Détermine la sous-partie (STE, CAB, STEP) basée sur la localisation et l'équipement"""
             localisation_nom = intervention.maintenance.equipement.localisation.nom
-            if 'STE' in localisation_nom:
-                return 'STE'
-            elif 'CAB' in localisation_nom:
-                return 'CAB'
-            elif 'STEP' in localisation_nom:
+            equipement_nom = intervention.maintenance.equipement.nom
+            
+            equipement_nom_upper = equipement_nom.upper()
+            localisation_nom_upper = localisation_nom.upper()
+            
+            if 'STEP' in equipement_nom_upper or 'STEP' in localisation_nom_upper:
                 return 'STEP'
+            elif 'CAB' in equipement_nom_upper or 'CAB' in localisation_nom_upper:
+                return 'CAB'
             else:
-                return 'Autre'
+                return 'STE'
         
         def create_site_worksheet(site_name, interventions):
             """Crée un onglet pour un site donné"""
             ws = wb.create_sheet(title=site_name)
+            
+            # Écrire les en-têtes
+            for col, header in enumerate(headers, 1):
+                cell = ws.cell(row=1, column=col, value=header)
+                cell.font = header_font
+                cell.fill = header_fill
+                cell.alignment = header_alignment
+                cell.border = border
+            
+            # Ajuster la largeur des colonnes
+            for col in range(1, len(headers) + 1):
+                ws.column_dimensions[get_column_letter(col)].width = 15
             
             # Séparer les interventions par partie
             interventions_ste = [i for i in interventions if get_sous_partie(i) == 'STE']
@@ -1414,8 +1431,6 @@ def envoyer_calendrier_excel():
                         cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
                     
                     current_row += 1
-                
-                current_row += 1  # Ligne vide après la section
             
             # Ajouter les sections dans l'ordre : STE, CAB, STEP
             add_section("STE", interventions_ste)
