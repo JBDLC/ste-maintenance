@@ -15,6 +15,18 @@
     </div>
 </div>
 
+<!-- Barre de recherche -->
+<div class="row mb-3">
+    <div class="col-md-6">
+        <div class="input-group">
+            <span class="input-group-text">
+                <i class="fas fa-search"></i>
+            </span>
+            <input type="text" class="form-control" id="searchInput" placeholder="Rechercher par nom, description, localisation..." autocomplete="off">
+        </div>
+    </div>
+</div>
+
 <!-- Modal de confirmation pour vider toutes les données -->
 <div class="modal fade" id="viderDonneesModal" tabindex="-1">
     <div class="modal-dialog">
@@ -309,4 +321,63 @@
         </div>
     </div>
 {% endfor %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('searchInput');
+    const tableRows = document.querySelectorAll('tbody tr');
+    
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase().trim();
+        
+        tableRows.forEach(function(row) {
+            // Ignorer la ligne "Aucun équipement créé"
+            if (row.querySelector('.alert-info')) {
+                return;
+            }
+            
+            const nom = row.querySelector('td:nth-child(1)')?.textContent.toLowerCase() || '';
+            const description = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+            const localisation = row.querySelector('td:nth-child(3)')?.textContent.toLowerCase() || '';
+            
+            const matches = nom.includes(searchTerm) || 
+                           description.includes(searchTerm) || 
+                           localisation.includes(searchTerm);
+            
+            if (matches || searchTerm === '') {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Afficher un message si aucun résultat
+        const visibleRows = Array.from(tableRows).filter(row => 
+            !row.querySelector('.alert-info') && row.style.display !== 'none'
+        );
+        
+        const noResultsRow = document.getElementById('noResultsRow');
+        if (visibleRows.length === 0 && searchTerm !== '') {
+            if (!noResultsRow) {
+                const tbody = document.querySelector('tbody');
+                const newRow = document.createElement('tr');
+                newRow.id = 'noResultsRow';
+                newRow.innerHTML = `
+                    <td colspan="7" class="text-center">
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-search"></i> Aucun résultat trouvé pour "${searchTerm}"
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(newRow);
+            }
+        } else if (noResultsRow) {
+            noResultsRow.remove();
+        }
+    });
+    
+    // Focus sur le champ de recherche au chargement
+    searchInput.focus();
+});
+</script>
 {% endblock %} 
