@@ -1205,7 +1205,11 @@ def export_calendrier_excel():
                 # Récupérer la sous-partie
                 sous_partie = get_sous_partie(intervention)
                 
-                # Données de la ligne
+                                                # Données de la ligne
+                statut_display = intervention.statut.title()
+                if intervention.statut == 'non_fait':
+                    statut_display = 'Non fait'
+                
                 row_data = [
                     site.nom,
                     sous_partie,
@@ -1216,7 +1220,7 @@ def export_calendrier_excel():
                     maintenance.description or "Aucune description",
                     maintenance.periodicite.replace('_', ' '),
                     intervention.date_planifiee.strftime('%d/%m/%Y'),
-                    intervention.statut.title(),
+                    statut_display,
                     intervention.commentaire or "Aucun commentaire",
                     pieces_str
                 ]
@@ -1408,21 +1412,25 @@ def envoyer_calendrier_excel():
                     # Récupérer la sous-partie
                     sous_partie = get_sous_partie(intervention)
                     
-                    # Données de la ligne
-                    row_data = [
-                        site.nom,
-                        sous_partie,
-                        localisation.nom,
-                        equipement.nom,
-                        maintenance.titre,
-                        equipement.description or "Aucune description",
-                        maintenance.description or "Aucune description",
-                        maintenance.periodicite.replace('_', ' '),
-                        intervention.date_planifiee.strftime('%d/%m/%Y'),
-                        intervention.statut.title(),
-                        intervention.commentaire or "Aucun commentaire",
-                        pieces_str
-                    ]
+                                    # Données de la ligne
+                statut_display = intervention.statut.title()
+                if intervention.statut == 'non_fait':
+                    statut_display = 'Non fait'
+                
+                row_data = [
+                    site.nom,
+                    sous_partie,
+                    localisation.nom,
+                    equipement.nom,
+                    maintenance.titre,
+                    equipement.description or "Aucune description",
+                    maintenance.description or "Aucune description",
+                    maintenance.periodicite.replace('_', ' '),
+                    intervention.date_planifiee.strftime('%d/%m/%Y'),
+                    statut_display,
+                    intervention.commentaire or "Aucun commentaire",
+                    pieces_str
+                ]
                     
                     # Écrire la ligne
                     for col, value in enumerate(row_data, 1):
@@ -1739,6 +1747,50 @@ def realiser_intervention(intervention_id):
     envoyer_email_maintenance(intervention)
     
     flash('Intervention réalisée avec succès!', 'success')
+    return redirect(url_for('calendrier'))
+
+@app.route('/intervention/marquer-non-fait/<int:intervention_id>', methods=['POST'])
+@login_required
+def marquer_non_fait(intervention_id):
+    intervention = Intervention.query.get_or_404(intervention_id)
+    intervention.statut = 'non_fait'
+    intervention.date_realisee = datetime.now().date()
+    intervention.commentaire = request.form.get('commentaire', '')
+    
+    # Générer la prochaine intervention selon la périodicité
+    maintenance = intervention.maintenance
+    prochaine_date = None
+    if maintenance.periodicite == 'semaine':
+        prochaine_date = intervention.date_planifiee + timedelta(weeks=1)
+    elif maintenance.periodicite == '2_semaines':
+        prochaine_date = intervention.date_planifiee + timedelta(weeks=2)
+    elif maintenance.periodicite == 'mois':
+        prochaine_date = intervention.date_planifiee + timedelta(days=30)
+    elif maintenance.periodicite == '2_mois':
+        prochaine_date = intervention.date_planifiee + timedelta(days=60)
+    elif maintenance.periodicite == '6_mois':
+        prochaine_date = intervention.date_planifiee + timedelta(days=182)
+    elif maintenance.periodicite == '1_an':
+        prochaine_date = intervention.date_planifiee + timedelta(days=365)
+    elif maintenance.periodicite == '2_ans':
+        prochaine_date = intervention.date_planifiee + timedelta(days=730)
+
+    # Vérifier qu'il n'existe pas déjà une intervention planifiée à cette date
+    if prochaine_date:
+        existe = Intervention.query.filter_by(maintenance_id=maintenance.id, date_planifiee=prochaine_date).first()
+        if not existe:
+            nouvelle_intervention = Intervention(
+                maintenance_id=maintenance.id,
+                date_planifiee=prochaine_date,
+                statut='planifiee'
+            )
+            db.session.add(nouvelle_intervention)
+            db.session.commit()
+
+    # Envoyer l'email de confirmation
+    envoyer_email_maintenance(intervention)
+    
+    flash('Maintenance marquée comme non réalisée!', 'warning')
     return redirect(url_for('calendrier'))
 
 @app.route('/intervention/annuler/<int:intervention_id>', methods=['POST'])
