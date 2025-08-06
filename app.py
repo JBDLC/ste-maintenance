@@ -1431,14 +1431,14 @@ def envoyer_calendrier_excel():
                     intervention.commentaire or "Aucun commentaire",
                     pieces_str
                 ]
-                    
-                    # Écrire la ligne
-                    for col, value in enumerate(row_data, 1):
-                        cell = ws.cell(row=current_row, column=col, value=value)
-                        cell.border = border
-                        cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
-                    
-                    current_row += 1
+                
+                # Écrire la ligne
+                for col, value in enumerate(row_data, 1):
+                    cell = ws.cell(row=current_row, column=col, value=value)
+                    cell.border = border
+                    cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+                
+                current_row += 1
             
             # Ajouter les sections dans l'ordre : STE, CAB, STEP
             add_section("STE", interventions_ste)
