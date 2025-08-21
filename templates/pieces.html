@@ -73,6 +73,7 @@
                 <th>Stock</th>
                 <th class="d-none d-lg-table-cell">Min</th>
                 <th class="d-none d-lg-table-cell">Max</th>
+                <th class="d-none d-xl-table-cell">Fournisseur</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -95,6 +96,15 @@
                     </td>
                     <td class="d-none d-lg-table-cell">{{ piece.stock_mini }}</td>
                     <td class="d-none d-lg-table-cell">{{ piece.stock_maxi }}</td>
+                    <td class="d-none d-xl-table-cell">
+                        {% if piece.donnees_fournisseur %}
+                            <span class="text-muted small" title="{{ piece.donnees_fournisseur }}">
+                                <i class="fas fa-info-circle"></i> Fournisseur
+                            </span>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
                     <td>
                         <div class="btn-group btn-group-sm" role="group">
                             <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#reapprovisionnerModal{{ piece.id }}">
@@ -170,6 +180,10 @@
                                     <div class="mb-3">
                                         <label for="description{{ piece.id }}" class="form-label">Description</label>
                                         <textarea class="form-control" id="description{{ piece.id }}" name="description" rows="3">{{ piece.description }}</textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="donnees_fournisseur{{ piece.id }}" class="form-label">Données fournisseur <small class="text-muted">(facultatif)</small></label>
+                                        <textarea class="form-control" id="donnees_fournisseur{{ piece.id }}" name="donnees_fournisseur" rows="2" placeholder="Informations sur le fournisseur, contact, références...">{{ piece.donnees_fournisseur }}</textarea>
                                     </div>
                                     <div class="mb-3">
                                         <label for="lieu_stockage_id{{ piece.id }}" class="form-label">Lieu de stockage</label>

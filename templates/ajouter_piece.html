@@ -100,6 +100,11 @@
                         </div>
 
                         <div class="mb-3">
+                            <label for="donnees_fournisseur" class="form-label">Données fournisseur <small class="text-muted">(facultatif)</small></label>
+                            <textarea class="form-control" id="donnees_fournisseur" name="donnees_fournisseur" rows="2" placeholder="Informations sur le fournisseur, contact, références...">{% if piece %}{{ piece.donnees_fournisseur or '' }}{% endif %}</textarea>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="notes" class="form-label">Notes</label>
                             <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
                         </div>

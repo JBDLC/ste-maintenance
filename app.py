@@ -256,6 +256,7 @@ class Piece(db.Model):
     reference_magasin = db.Column(db.String(50))
     item = db.Column(db.String(100), nullable=True)
     description = db.Column(db.Text)
+    donnees_fournisseur = db.Column(db.Text, nullable=True)  # Nouvelles données fournisseur
     lieu_stockage_id = db.Column(db.Integer, db.ForeignKey('lieu_stockage.id'), nullable=True)
     quantite_stock = db.Column(db.Integer, default=0)
     stock_mini = db.Column(db.Integer, default=0)
@@ -558,6 +559,7 @@ def ajouter_piece():
             reference_magasin=request.form.get('marque', ''),
             item=request.form['designation'],
             description=request.form.get('description', ''),
+            donnees_fournisseur=request.form.get('donnees_fournisseur', ''),
             lieu_stockage_id=lieu_stockage_id,
             quantite_stock=int(request.form.get('stock_actuel', 0)),
             stock_mini=int(request.form.get('stock_minimum', 0)),
@@ -4508,6 +4510,7 @@ def modifier_piece(piece_id):
         piece.reference_magasin = request.form['reference_magasin']
         piece.item = request.form['item']
         piece.description = request.form['description']
+        piece.donnees_fournisseur = request.form.get('donnees_fournisseur', '')
         lieu_stockage_id = request.form.get('lieu_stockage_id')
         if lieu_stockage_id == '':
             lieu_stockage_id = None
