@@ -4626,6 +4626,36 @@ with app.app_context():
         db.create_all()
         print("✅ Tables créées avec succès!")
         
+        # Migration automatique pour PostgreSQL (donnees_fournisseur)
+        try:
+            if 'postgresql' in str(db.engine.url):
+                print("🔧 Détection PostgreSQL - Vérification de la colonne donnees_fournisseur...")
+                
+                # Vérifier si la colonne existe
+                result = db.session.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'piece' AND column_name = 'donnees_fournisseur'
+                """).fetchone()
+                
+                if not result:
+                    print("🔧 Ajout de la colonne donnees_fournisseur...")
+                    db.session.execute("""
+                        ALTER TABLE piece 
+                        ADD COLUMN donnees_fournisseur TEXT
+                    """)
+                    db.session.commit()
+                    print("✅ Colonne donnees_fournisseur ajoutée avec succès!")
+                else:
+                    print("✅ Colonne donnees_fournisseur existe déjà")
+            else:
+                print("ℹ️ Base SQLite détectée - Migration non nécessaire")
+                
+        except Exception as e:
+            print(f"⚠️ Erreur lors de la migration PostgreSQL: {e}")
+            # Ne pas faire échouer l'application pour une migration
+            db.session.rollback()
+        
         # Créer un utilisateur admin par défaut si aucun n'existe
         admin = User.query.filter_by(username='admin').first()
         if not admin:
