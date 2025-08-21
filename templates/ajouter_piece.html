@@ -83,13 +83,13 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="equipement_id" class="form-label">Équipement compatible</label>
-                                    <select class="form-select" id="equipement_id" name="equipement_id">
-                                        <option value="">Sélectionner un équipement</option>
+                                    <label for="equipements_ids" class="form-label">Équipements compatibles</label>
+                                    <select class="form-select" id="equipements_ids" name="equipements_ids" multiple size="4">
                                         {% for equipement in equipements %}
-                                        <option value="{{ equipement.id }}">{{ equipement.nom }} - {{ equipement.reference }}</option>
+                                        <option value="{{ equipement.id }}" {% if edition and equipements_associes and equipement.id in equipements_associes %}selected{% endif %}>{{ equipement.nom }} - {{ equipement.reference }}</option>
                                         {% endfor %}
                                     </select>
+                                    <small class="form-text text-muted">Maintenez Ctrl (ou Cmd sur Mac) pour sélectionner plusieurs équipements</small>
                                 </div>
                             </div>
                         </div>
@@ -139,6 +139,33 @@ document.addEventListener('DOMContentLoaded', function() {
     prixInput.addEventListener('blur', function() {
         if (!this.value) {
             this.value = '0.00';
+        }
+    });
+
+    // Amélioration de la sélection multiple d'équipements
+    const equipementsSelect = document.getElementById('equipements_ids');
+    
+    // Ajouter un indicateur visuel pour la sélection multiple
+    equipementsSelect.addEventListener('change', function() {
+        const selectedCount = this.selectedOptions.length;
+        if (selectedCount > 0) {
+            this.style.borderColor = '#28a745';
+            this.style.backgroundColor = '#f8fff9';
+        } else {
+            this.style.borderColor = '';
+            this.style.backgroundColor = '';
+        }
+    });
+
+    // Raccourci clavier pour la sélection multiple
+    equipementsSelect.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && e.ctrlKey) {
+            e.preventDefault();
+            // Sélectionner tous les équipements
+            for (let option of this.options) {
+                option.selected = true;
+            }
+            this.dispatchEvent(new Event('change'));
         }
     });
 });

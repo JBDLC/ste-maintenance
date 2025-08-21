@@ -551,12 +551,8 @@ def ajouter_piece():
         else:
             lieu_stockage_id = int(lieu_stockage_id) if lieu_stockage_id else None
             
-        equipement_id = request.form.get('equipement_id')
-        if equipement_id == '':
-            equipement_id = None
-        else:
-            equipement_id = int(equipement_id) if equipement_id else None
-            
+        equipements_ids = request.form.getlist('equipements_ids')
+        
         piece = Piece(
             reference_ste=request.form['reference'],
             reference_magasin=request.form.get('marque', ''),
@@ -570,13 +566,15 @@ def ajouter_piece():
         db.session.add(piece)
         db.session.commit()
         
-        # Si un équipement est sélectionné, créer la relation
-        if equipement_id:
-            piece_equipement = PieceEquipement(
-                equipement_id=equipement_id,
-                piece_id=piece.id
-            )
-            db.session.add(piece_equipement)
+        # Si des équipements sont sélectionnés, créer les relations
+        if equipements_ids:
+            for equipement_id in equipements_ids:
+                if equipement_id:  # Vérifier que l'ID n'est pas vide
+                    piece_equipement = PieceEquipement(
+                        equipement_id=int(equipement_id),
+                        piece_id=piece.id
+                    )
+                    db.session.add(piece_equipement)
             db.session.commit()
         
         flash('Pièce ajoutée avec succès!', 'success')
@@ -1785,7 +1783,9 @@ def marquer_non_fait(intervention_id):
                 statut='planifiee'
             )
             db.session.add(nouvelle_intervention)
-            db.session.commit()
+    
+    # Sauvegarder tous les changements (statut de l'intervention actuelle + nouvelle intervention)
+    db.session.commit()
 
     # Envoyer l'email de confirmation
     envoyer_email_maintenance(intervention)
@@ -1886,21 +1886,37 @@ def gerer_pieces_equipement(equipement_id):
     equipement = Equipement.query.get_or_404(equipement_id)
     
     if request.method == 'POST':
-        # Supprimer toutes les associations existantes
-        PieceEquipement.query.filter_by(equipement_id=equipement_id).delete()
-        
-        # Ajouter les nouvelles associations
+        # Récupérer les pièces sélectionnées
         pieces_ids = request.form.getlist('pieces_ids')
-        for piece_id in pieces_ids:
-            if piece_id:
-                piece_equipement = PieceEquipement(
-                    equipement_id=equipement_id,
-                    piece_id=int(piece_id)
-                )
-                db.session.add(piece_equipement)
         
-        db.session.commit()
-        flash('Pièces associées mises à jour avec succès!', 'success')
+        try:
+            # Supprimer toutes les associations existantes
+            PieceEquipement.query.filter_by(equipement_id=equipement_id).delete()
+            
+            # Ajouter les nouvelles associations
+            associations_created = 0
+            for piece_id in pieces_ids:
+                if piece_id and piece_id.strip():  # Vérifier que l'ID n'est pas vide
+                    piece_equipement = PieceEquipement(
+                        equipement_id=equipement_id,
+                        piece_id=int(piece_id)
+                    )
+                    db.session.add(piece_equipement)
+                    associations_created += 1
+            
+            # Valider les changements
+            db.session.commit()
+            
+            if associations_created > 0:
+                flash(f'{associations_created} pièce(s) associée(s) avec succès à l\'équipement!', 'success')
+            else:
+                flash('Aucune pièce sélectionnée. Toutes les associations ont été supprimées.', 'info')
+                
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur lors de la sauvegarde: {str(e)}', 'danger')
+            return redirect(url_for('equipements'))
+        
         return redirect(url_for('equipements'))
     
     # Récupérer toutes les pièces et les pièces déjà associées
@@ -4462,13 +4478,41 @@ def modifier_piece(piece_id):
         piece.quantite_stock = int(request.form['quantite_stock'])
         piece.stock_mini = int(request.form['stock_mini'])
         piece.stock_maxi = int(request.form['stock_maxi'])
+        
+        # Mettre à jour les équipements associés
+        equipements_ids = request.form.getlist('equipements_ids')
+        
+        # Supprimer toutes les associations existantes
+        PieceEquipement.query.filter_by(piece_id=piece.id).delete()
+        
+        # Créer les nouvelles associations
+        if equipements_ids:
+            for equipement_id in equipements_ids:
+                if equipement_id:  # Vérifier que l'ID n'est pas vide
+                    piece_equipement = PieceEquipement(
+                        equipement_id=int(equipement_id),
+                        piece_id=piece.id
+                    )
+                    db.session.add(piece_equipement)
+        
         db.session.commit()
         flash('Pièce modifiée avec succès!', 'success')
         return redirect(url_for('pieces'))
     # GET: afficher le formulaire pré-rempli (optionnel)
     lieux_stockage = LieuStockage.query.all()
     equipements = Equipement.query.all()
-    return render_template('ajouter_piece.html', piece=piece, lieux_stockage=lieux_stockage, equipements=equipements, edition=True)
+    
+    # Récupérer les équipements actuellement associés à cette pièce
+    equipements_associes = []
+    if piece.pieces_equipement:
+        equipements_associes = [pe.equipement_id for pe in piece.pieces_equipement]
+    
+    return render_template('ajouter_piece.html', 
+                         piece=piece, 
+                         lieux_stockage=lieux_stockage, 
+                         equipements=equipements, 
+                         equipements_associes=equipements_associes,
+                         edition=True)
 
 @app.route('/maintenance/definir-date-lot', methods=['POST'])
 @login_required

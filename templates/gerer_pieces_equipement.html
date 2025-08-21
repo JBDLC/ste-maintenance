@@ -52,6 +52,13 @@
                                     </div>
                                     {% endfor %}
                                 </div>
+                                
+                                <!-- Debug info (à retirer en production) -->
+                                <div class="mt-3 p-2 bg-light rounded">
+                                    <small class="text-muted">
+                                        <strong>Debug:</strong> {{ pieces_associees|length }} pièce(s) actuellement associée(s)
+                                    </small>
+                                </div>
                             {% else %}
                                 <p class="text-muted">Aucune pièce de rechange disponible. <a href="{{ url_for('ajouter_piece') }}">Ajouter des pièces</a></p>
                             {% endif %}
@@ -103,4 +110,36 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const checkboxes = document.querySelectorAll('input[name="pieces_ids"]');
+    
+    // Afficher le nombre de pièces sélectionnées
+    function updateSelectionCount() {
+        const selectedCount = document.querySelectorAll('input[name="pieces_ids"]:checked').length;
+        console.log(`Pièces sélectionnées: ${selectedCount}`);
+    }
+    
+    // Écouter les changements sur les checkboxes
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectionCount);
+    });
+    
+    // Validation du formulaire
+    form.addEventListener('submit', function(e) {
+        const selectedPieces = document.querySelectorAll('input[name="pieces_ids"]:checked');
+        console.log(`Soumission avec ${selectedPieces.length} pièce(s) sélectionnée(s)`);
+        
+        // Afficher les IDs des pièces sélectionnées
+        const selectedIds = Array.from(selectedPieces).map(cb => cb.value);
+        console.log('IDs des pièces sélectionnées:', selectedIds);
+    });
+    
+    // Initialiser le compteur
+    updateSelectionCount();
+});
+</script>
+
 {% endblock %} 
