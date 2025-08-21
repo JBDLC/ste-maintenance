@@ -1915,9 +1915,9 @@ def gerer_pieces_equipement(equipement_id):
         except Exception as e:
             db.session.rollback()
             flash(f'Erreur lors de la sauvegarde: {str(e)}', 'danger')
-            return redirect(url_for('equipements'))
+            return redirect(url_for('gerer_pieces_equipement', equipement_id=equipement_id))
         
-        return redirect(url_for('equipements'))
+        return redirect(url_for('gerer_pieces_equipement', equipement_id=equipement_id))
     
     # Récupérer toutes les pièces et les pièces déjà associées
     toutes_pieces = Piece.query.all()
@@ -1927,6 +1927,44 @@ def gerer_pieces_equipement(equipement_id):
                          equipement=equipement, 
                          toutes_pieces=toutes_pieces,
                          pieces_associees=pieces_associees)
+
+@app.route('/equipement/<int:equipement_id>/pieces/update', methods=['POST'])
+@login_required
+def update_equipement_pieces_ajax(equipement_id):
+    """Route AJAX pour mettre à jour les pièces d'un équipement sans recharger la page"""
+    try:
+        equipement = Equipement.query.get_or_404(equipement_id)
+        pieces_ids = request.form.getlist('pieces_ids')
+        
+        # Supprimer toutes les associations existantes
+        PieceEquipement.query.filter_by(equipement_id=equipement_id).delete()
+        
+        # Ajouter les nouvelles associations
+        associations_created = 0
+        for piece_id in pieces_ids:
+            if piece_id and piece_id.strip():
+                piece_equipement = PieceEquipement(
+                    equipement_id=equipement_id,
+                    piece_id=int(piece_id)
+                )
+                db.session.add(piece_equipement)
+                associations_created += 1
+        
+        db.session.commit()
+        
+        # Retourner une réponse JSON
+        return jsonify({
+            'success': True,
+            'message': f'{associations_created} pièce(s) associée(s) avec succès!',
+            'associations_count': associations_created
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Erreur: {str(e)}'
+        }), 500
 
 @app.route('/piece/reapprovisionner/<int:piece_id>', methods=['POST'])
 @login_required
