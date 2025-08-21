@@ -4632,18 +4632,19 @@ with app.app_context():
                 print("🔧 Détection PostgreSQL - Vérification de la colonne donnees_fournisseur...")
                 
                 # Vérifier si la colonne existe
-                result = db.session.execute("""
+                from sqlalchemy import text
+                result = db.session.execute(text("""
                     SELECT column_name 
                     FROM information_schema.columns 
                     WHERE table_name = 'piece' AND column_name = 'donnees_fournisseur'
-                """).fetchone()
+                """)).fetchone()
                 
                 if not result:
                     print("🔧 Ajout de la colonne donnees_fournisseur...")
-                    db.session.execute("""
+                    db.session.execute(text("""
                         ALTER TABLE piece 
                         ADD COLUMN donnees_fournisseur TEXT
-                    """)
+                    """))
                     db.session.commit()
                     print("✅ Colonne donnees_fournisseur ajoutée avec succès!")
                 else:
