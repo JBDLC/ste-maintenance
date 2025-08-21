@@ -97,8 +97,64 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="row mt-4">
     <div class="col-md-12">
         <div class="card mb-4">
-            <div class="card-header bg-light"><strong>Import/Export Données</strong></div>
-            <div class="card-body">
+                            <div class="card-header bg-light"><strong>Import/Export Données</strong></div>
+                <div class="card-body">
+                
+                <!-- Section Export Complet de la Base -->
+                <div class="mb-4 border-bottom pb-3">
+                    <h5 class="mb-3 text-danger">
+                        <i class="fas fa-database"></i> Export Complet de la Base de Données
+                    </h5>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>⚠️ Attention :</strong> Cette fonction permet d'exporter TOUTES les données de votre base de données.
+                        <br><strong>Utile pour :</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Sauvegarde complète avant migration</li>
+                            <li>Transfert vers un autre environnement</li>
+                            <li>Analyse des données hors ligne</li>
+                            <li>Récupération depuis Render (PostgreSQL)</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="d-flex flex-wrap gap-3 mb-3">
+                        <a href="{{ url_for('export_base_complete') }}" class="btn btn-danger btn-lg">
+                            <i class="fas fa-download"></i> Export Complet SQL
+                        </a>
+                        
+                        <div class="dropdown">
+                            <button class="btn btn-outline-secondary btn-lg dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-file-csv"></i> Export Tables CSV
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('export_table_csv', table_name='site') }}">Sites</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('export_table_csv', table_name='localisation') }}">Localisations</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('export_table_csv', table_name='equipement') }}">Équipements</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('export_table_csv', table_name='piece') }}">Pièces</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('export_table_csv', table_name='maintenance') }}">Maintenances</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('export_table_csv', table_name='intervention') }}">Interventions</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('export_table_csv', table_name='mouvement_piece') }}">Mouvements Pièces</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('export_table_csv', table_name='user') }}">Utilisateurs</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Formats disponibles :</strong>
+                        <ul class="mb-0 mt-2">
+                            <li><strong>Export SQL :</strong> Script SQL complet avec structure et données (recommandé pour sauvegarde)</li>
+                            <li><strong>Export CSV :</strong> Fichiers séparés par table (utile pour analyse Excel)</li>
+                        </ul>
+                        <br>
+                        <strong>Base détectée :</strong> 
+                        {% if 'postgresql' in request.environ.get('DATABASE_URL', '') %}
+                            <span class="badge bg-primary">PostgreSQL (Render)</span>
+                        {% else %}
+                            <span class="badge bg-secondary">SQLite (Locale)</span>
+                        {% endif %}
+                    </div>
+                </div>
                 {% for entite in ['site', 'localisation', 'equipement', 'lieu_stockage', 'piece', 'maintenance'] %}
                 <div class="mb-4 border-bottom pb-3">
                     <h5 class="mb-3 text-capitalize">{{ entite.replace('_', ' ') }}s</h5>

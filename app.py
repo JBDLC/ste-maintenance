@@ -4501,6 +4501,300 @@ def taille_tables():
         'lignes': lignes
     })
 
+@app.route('/parametres/export-base-complete')
+@login_required
+def export_base_complete():
+    """Export complet de la base de données (PostgreSQL ou SQLite)"""
+    try:
+        # Détecter le type de base
+        if 'postgresql' in str(db.engine.url):
+            return export_postgresql_complete()
+        else:
+            return export_sqlite_complete()
+    except Exception as e:
+        flash(f'Erreur lors de l\'export: {str(e)}', 'danger')
+        return redirect(url_for('parametres'))
+
+def export_postgresql_complete():
+    """Export complet de PostgreSQL"""
+    try:
+        from sqlalchemy import text
+        
+        # Récupérer la liste des tables
+        tables_result = db.session.execute(text("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_type = 'BASE TABLE'
+            ORDER BY table_name
+        """)).fetchall()
+        
+        tables = [row[0] for row in tables_result]
+        
+        # Créer le contenu SQL
+        sql_content = []
+        sql_content.append("-- Export complet de la base PostgreSQL")
+        sql_content.append(f"-- Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        sql_content.append("-- Base: Render PostgreSQL")
+        sql_content.append("")
+        
+        for table in tables:
+            # Structure de la table
+            sql_content.append(f"-- Structure de la table {table}")
+            sql_content.append(f"DROP TABLE IF EXISTS {table} CASCADE;")
+            
+            # Récupérer la structure CREATE TABLE
+            create_result = db.session.execute(text(f"""
+                SELECT column_name, data_type, is_nullable, column_default
+                FROM information_schema.columns 
+                WHERE table_name = '{table}' 
+                ORDER BY ordinal_position
+            """)).fetchall()
+            
+            columns = []
+            for col in create_result:
+                col_def = f"{col[0]} {col[1]}"
+                if col[2] == 'NO':
+                    col_def += " NOT NULL"
+                if col[3]:
+                    col_def += f" DEFAULT {col[3]}"
+                columns.append(col_def)
+            
+            sql_content.append(f"CREATE TABLE {table} (")
+            sql_content.append("    " + ",\n    ".join(columns))
+            sql_content.append(");")
+            sql_content.append("")
+            
+            # Données de la table
+            data_result = db.session.execute(text(f"SELECT * FROM {table}")).fetchall()
+            if data_result:
+                sql_content.append(f"-- Données de la table {table}")
+                for row in data_result:
+                    values = []
+                    for value in row:
+                        if value is None:
+                            values.append("NULL")
+                        elif isinstance(value, str):
+                            values.append(f"'{value.replace(chr(39), chr(39)+chr(39))}'")
+                        else:
+                            values.append(str(value))
+                    sql_content.append(f"INSERT INTO {table} VALUES ({', '.join(values)});")
+                sql_content.append("")
+        
+        # Créer la réponse
+        from io import StringIO
+        output = StringIO()
+        output.write('\n'.join(sql_content))
+        output.seek(0)
+        
+        return send_file(
+            StringIO(output.getvalue()),
+            mimetype='text/plain',
+            as_attachment=True,
+            download_name=f'export_base_complete_{datetime.now().strftime("%Y%m%d_%H%M%S")}.sql'
+        )
+        
+    except Exception as e:
+        flash(f'Erreur export PostgreSQL: {str(e)}', 'danger')
+        return redirect(url_for('parametres'))
+
+def export_sqlite_complete():
+    """Export complet de SQLite"""
+    try:
+        chemin_db = os.path.join(app.root_path, 'instance', 'maintenance.db')
+        
+        # Créer un dump SQLite
+        import sqlite3
+        conn = sqlite3.connect(chemin_db)
+        
+        # Récupérer la liste des tables
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';")
+        tables = [row[0] for row in cur.fetchall()]
+        
+        # Créer le contenu SQL
+        sql_content = []
+        sql_content.append("-- Export complet de la base SQLite")
+        sql_content.append(f"-- Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        sql_content.append("-- Base: SQLite locale")
+        sql_content.append("")
+        
+        for table in tables:
+            # Structure de la table
+            cur.execute(f"PRAGMA table_info({table})")
+            columns_info = cur.fetchall()
+            
+            columns = []
+            for col in columns_info:
+                col_def = f"{col[1]} {col[2]}"
+                if col[3]:
+                    col_def += " NOT NULL"
+                if col[4]:
+                    col_def += f" DEFAULT {col[4]}"
+                if col[5]:
+                    col_def += " PRIMARY KEY"
+                columns.append(col_def)
+            
+            sql_content.append(f"CREATE TABLE {table} (")
+            sql_content.append("    " + ",\n    ".join(columns))
+            sql_content.append(");")
+            sql_content.append("")
+            
+            # Données de la table
+            cur.execute(f"SELECT * FROM {table}")
+            rows = cur.fetchall()
+            if rows:
+                sql_content.append(f"-- Données de la table {table}")
+                for row in rows:
+                    values = []
+                    for value in row:
+                        if value is None:
+                            values.append("NULL")
+                        elif isinstance(value, str):
+                            values.append(f"'{value.replace(chr(39), chr(39)+chr(39))}'")
+                        else:
+                            values.append(str(value))
+                    sql_content.append(f"INSERT INTO {table} VALUES ({', '.join(values)});")
+                sql_content.append("")
+        
+        conn.close()
+        
+        # Créer la réponse
+        from io import StringIO
+        output = StringIO()
+        output.write('\n'.join(sql_content))
+        output.seek(0)
+        
+        return send_file(
+            StringIO(output.getvalue()),
+            mimetype='text/plain',
+            as_attachment=True,
+            download_name=f'export_base_complete_{datetime.now().strftime("%Y%m%d_%H%M%S")}.sql'
+        )
+        
+    except Exception as e:
+        flash(f'Erreur export SQLite: {str(e)}', 'danger')
+        return redirect(url_for('parametres'))
+
+@app.route('/parametres/export-table-csv/<table_name>')
+@login_required
+def export_table_csv(table_name):
+    """Export d'une table spécifique en CSV"""
+    try:
+        if 'postgresql' in str(db.engine.url):
+            return export_table_postgresql_csv(table_name)
+        else:
+            return export_table_sqlite_csv(table_name)
+    except Exception as e:
+        flash(f'Erreur lors de l\'export CSV: {str(e)}', 'danger')
+        return redirect(url_for('parametres'))
+
+def export_table_postgresql_csv(table_name):
+    """Export d'une table PostgreSQL en CSV"""
+    try:
+        from sqlalchemy import text
+        
+        # Vérifier que la table existe
+        table_exists = db.session.execute(text("""
+            SELECT COUNT(*) FROM information_schema.tables 
+            WHERE table_schema = 'public' AND table_name = :table_name
+        """), {"table_name": table_name}).fetchone()[0]
+        
+        if not table_exists:
+            flash(f'Table {table_name} non trouvée', 'danger')
+            return redirect(url_for('parametres'))
+        
+        # Récupérer les données
+        data_result = db.session.execute(text(f"SELECT * FROM {table_name}")).fetchall()
+        
+        # Récupérer les noms des colonnes
+        columns_result = db.session.execute(text(f"""
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = '{table_name}' ORDER BY ordinal_position
+        """)).fetchall()
+        
+        columns = [col[0] for col in columns_result]
+        
+        # Créer le CSV
+        import csv
+        from io import StringIO
+        
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # En-têtes
+        writer.writerow(columns)
+        
+        # Données
+        for row in data_result:
+            writer.writerow(row)
+        
+        output.seek(0)
+        
+        return send_file(
+            StringIO(output.getvalue()),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'{table_name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        )
+        
+    except Exception as e:
+        flash(f'Erreur export CSV PostgreSQL: {str(e)}', 'danger')
+        return redirect(url_for('parametres'))
+
+def export_table_sqlite_csv(table_name):
+    """Export d'une table SQLite en CSV"""
+    try:
+        chemin_db = os.path.join(app.root_path, 'instance', 'maintenance.db')
+        
+        import sqlite3
+        conn = sqlite3.connect(chemin_db)
+        cur = conn.cursor()
+        
+        # Vérifier que la table existe
+        cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+        if not cur.fetchone():
+            flash(f'Table {table_name} non trouvée', 'danger')
+            return redirect(url_for('parametres'))
+        
+        # Récupérer les données
+        cur.execute(f"SELECT * FROM {table_name}")
+        rows = cur.fetchall()
+        
+        # Récupérer les noms des colonnes
+        cur.execute(f"PRAGMA table_info({table_name})")
+        columns_info = cur.fetchall()
+        columns = [col[1] for col in columns_info]
+        
+        conn.close()
+        
+        # Créer le CSV
+        import csv
+        from io import StringIO
+        
+        output = StringIO()
+        writer = csv.writer(output)
+        
+        # En-têtes
+        writer.writerow(columns)
+        
+        # Données
+        for row in rows:
+            writer.writerow(row)
+        
+        output.seek(0)
+        
+        return send_file(
+            StringIO(output.getvalue()),
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name=f'{table_name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        )
+        
+    except Exception as e:
+        flash(f'Erreur export CSV SQLite: {str(e)}', 'danger')
+        return redirect(url_for('parametres'))
+
 @app.route('/piece/modifier/<int:piece_id>', methods=['POST', 'GET'])
 @login_required
 def modifier_piece(piece_id):
