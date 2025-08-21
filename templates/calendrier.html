@@ -233,8 +233,410 @@
     </div>
     {% endif %}
 
-    <!-- Répéter le même pattern pour les autres sections (CAB, STEP, CO7) -->
-    <!-- ... -->
+    <!-- Sous-partie CAB -->
+    {% if interventions_co6_cab %}
+    <h5 class="mb-2 text-success">CAB</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-hover table-sm align-middle" style="font-size: 75%;">
+        <thead class="table-dark">
+            <tr>
+                    <th class="d-none d-md-table-cell" style="font-size: 70%;">Localisation</th>
+                    <th style="font-size: 70%;">Équipement</th>
+                    <th class="d-none d-lg-table-cell" style="font-size: 70%;">Description</th>
+                    <th style="font-size: 70%;">Action de maintenance</th>
+                    <th style="font-size: 70%;">Statut</th>
+                    <th style="font-size: 70%;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+                {% for intervention in interventions_co6_cab %}
+                    <tr style="cursor: pointer; height: 35px;" 
+                data-maintenance-id="{{ intervention.maintenance.id }}"
+                data-titre="{{ intervention.maintenance.titre }}"
+                data-equipement="{{ intervention.maintenance.equipement.nom }}"
+                data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
+                data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
+                data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
+                data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
+                data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
+                data-statut="{{ intervention.statut }}"
+                data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
+                data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
+                data-pieces-associees="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='id')|list|tojson }}"
+                data-pieces-noms="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='item')|list|tojson }}"
+                data-pieces-stock="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='quantite_stock')|list|tojson }}"
+                onclick="showMaintenanceDetails(this)">
+                        <td class="d-none d-md-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.localisation.nom }}</td>
+                        <td style="font-size: 70%;">
+                    <strong>{{ intervention.maintenance.equipement.nom }}</strong>
+                            <div class="d-md-none small text-muted" style="font-size: 65%;">
+                        {{ intervention.maintenance.equipement.localisation.nom }}
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
+                        <td style="font-size: 70%;">
+                            <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
+                            <span class="d-sm-none" style="font-size: 60%;">{{ intervention.maintenance.titre }}</span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'danger' if intervention.statut == 'non_fait' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}" style="font-size: 65%;">
+                                <span class="d-none d-sm-inline">{{ intervention.statut|title }}</span>
+                                <span class="d-sm-none">
+                                    {% if intervention.statut == 'realisee' %}✅
+                                    {% elif intervention.statut == 'non_fait' %}❌
+                                    {% elif intervention.statut == 'planifiee' %}⏰
+                                    {% else %}❌
+                                    {% endif %}
+                                </span>
+                            </span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            {% if intervention.statut == 'planifiee' %}
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-success btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                    <i class="fas fa-check"></i>
+                                    <span class="d-none d-sm-inline ms-1">Réalisé</span>
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                    <i class="fas fa-times"></i>
+                                    <span class="d-none d-sm-inline ms-1">Non fait</span>
+                                </button>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Sous-partie STEP -->
+    {% if interventions_co6_step %}
+    <h5 class="mb-2 text-warning">STEP</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-hover table-sm align-middle" style="font-size: 75%;">
+        <thead class="table-dark">
+            <tr>
+                    <th class="d-none d-md-table-cell" style="font-size: 70%;">Localisation</th>
+                    <th style="font-size: 70%;">Équipement</th>
+                    <th class="d-none d-lg-table-cell" style="font-size: 70%;">Description</th>
+                    <th style="font-size: 70%;">Action de maintenance</th>
+                    <th style="font-size: 70%;">Statut</th>
+                    <th style="font-size: 70%;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+                {% for intervention in interventions_co6_step %}
+                    <tr style="cursor: pointer; height: 35px;" 
+                data-maintenance-id="{{ intervention.maintenance.id }}"
+                data-titre="{{ intervention.maintenance.titre }}"
+                data-equipement="{{ intervention.maintenance.equipement.nom }}"
+                data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
+                data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
+                data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
+                data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
+                data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
+                data-statut="{{ intervention.statut }}"
+                data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
+                data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.piece.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
+                data-pieces-associees="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='id')|list|tojson }}"
+                data-pieces-noms="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='item')|list|tojson }}"
+                data-pieces-stock="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='quantite_stock')|list|tojson }}"
+                onclick="showMaintenanceDetails(this)">
+                        <td class="d-none d-md-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.localisation.nom }}</td>
+                        <td style="font-size: 70%;">
+                    <strong>{{ intervention.maintenance.equipement.nom }}</strong>
+                            <div class="d-md-none small text-muted" style="font-size: 65%;">
+                        {{ intervention.maintenance.equipement.localisation.nom }}
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
+                        <td style="font-size: 70%;">
+                            <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
+                            <span class="d-sm-none" style="font-size: 60%;">{{ intervention.maintenance.titre }}</span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'danger' if intervention.statut == 'non_fait' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}" style="font-size: 70%;">
+                                <span class="d-none d-sm-inline">{{ intervention.statut|title }}</span>
+                                <span class="d-sm-none">
+                                    {% if intervention.statut == 'realisee' %}✅
+                                    {% elif intervention.statut == 'non_fait' %}❌
+                                    {% elif intervention.statut == 'planifiee' %}⏰
+                                    {% else %}❌
+                                    {% endif %}
+                                </span>
+                            </span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            {% if intervention.statut == 'planifiee' %}
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-success btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                    <i class="fas fa-check"></i>
+                                    <span class="d-none d-sm-inline ms-1">Réalisé</span>
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                    <i class="fas fa-times"></i>
+                                    <span class="d-none d-sm-inline ms-1">Non fait</span>
+                                </button>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Section CO7 -->
+    {% if interventions_co7_ste or interventions_co7_cab or interventions_co7_step %}
+    <h3 class="mb-3 mt-4">CO7</h3>
+    
+    <!-- Sous-partie STE -->
+    {% if interventions_co7_ste %}
+    <h5 class="mb-2 text-primary">STE</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-hover table-sm align-middle" style="font-size: 75%;">
+        <thead class="table-dark">
+            <tr>
+                    <th class="d-none d-md-table-cell" style="font-size: 70%;">Localisation</th>
+                    <th style="font-size: 70%;">Équipement</th>
+                    <th class="d-none d-lg-table-cell" style="font-size: 70%;">Description</th>
+                    <th style="font-size: 70%;">Action de maintenance</th>
+                    <th style="font-size: 70%;">Statut</th>
+                    <th style="font-size: 70%;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+                {% for intervention in interventions_co7_ste %}
+                    <tr style="cursor: pointer; height: 35px;" 
+                data-maintenance-id="{{ intervention.maintenance.id }}"
+                data-titre="{{ intervention.maintenance.titre }}"
+                data-equipement="{{ intervention.maintenance.equipement.nom }}"
+                data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
+                data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
+                data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
+                data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
+                data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
+                data-statut="{{ intervention.statut }}"
+                data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
+                data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.piece.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
+                data-pieces-associees="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='id')|list|tojson }}"
+                data-pieces-noms="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='item')|list|tojson }}"
+                data-pieces-stock="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='quantite_stock')|list|tojson }}"
+                onclick="showMaintenanceDetails(this)">
+                        <td class="d-none d-md-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.localisation.nom }}</td>
+                        <td style="font-size: 70%;">
+                    <strong>{{ intervention.maintenance.equipement.nom }}</strong>
+                            <div class="d-md-none small text-muted" style="font-size: 65%;">
+                        {{ intervention.maintenance.equipement.localisation.nom }}
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
+                        <td style="font-size: 70%;">
+                            <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
+                            <span class="d-sm-none" style="font-size: 60%;">{{ intervention.maintenance.titre }}</span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'danger' if intervention.statut == 'non_fait' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}" style="font-size: 70%;">
+                                <span class="d-none d-sm-inline">{{ intervention.statut|title }}</span>
+                                <span class="d-sm-none">
+                                    {% if intervention.statut == 'realisee' %}✅
+                                    {% elif intervention.statut == 'non_fait' %}❌
+                                    {% elif intervention.statut == 'planifiee' %}⏰
+                                    {% else %}❌
+                                    {% endif %}
+                                </span>
+                            </span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            {% if intervention.statut == 'planifiee' %}
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-success btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                    <i class="fas fa-check"></i>
+                                    <span class="d-none d-sm-inline ms-1">Réalisé</span>
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                    <i class="fas fa-times"></i>
+                                    <span class="d-none d-sm-inline ms-1">Non fait</span>
+                                </button>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Sous-partie CAB -->
+    {% if interventions_co7_cab %}
+    <h5 class="mb-2 text-success">CAB</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-hover table-sm align-middle" style="font-size: 75%;">
+        <thead class="table-dark">
+            <tr>
+                    <th class="d-none d-md-table-cell" style="font-size: 70%;">Localisation</th>
+                    <th style="font-size: 70%;">Équipement</th>
+                    <th class="d-none d-lg-table-cell" style="font-size: 70%;">Description</th>
+                    <th style="font-size: 70%;">Action de maintenance</th>
+                    <th style="font-size: 70%;">Statut</th>
+                    <th style="font-size: 70%;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+                {% for intervention in interventions_co7_cab %}
+                    <tr style="cursor: pointer; height: 35px;" 
+                data-maintenance-id="{{ intervention.maintenance.id }}"
+                data-titre="{{ intervention.maintenance.titre }}"
+                data-equipement="{{ intervention.maintenance.equipement.nom }}"
+                data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
+                data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
+                data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
+                data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
+                data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
+                data-statut="{{ intervention.statut }}"
+                data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
+                data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.piece.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
+                data-pieces-associees="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='id')|list|tojson }}"
+                data-pieces-noms="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='item')|list|tojson }}"
+                data-pieces-stock="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='quantite_stock')|list|tojson }}"
+                onclick="showMaintenanceDetails(this)">
+                        <td class="d-none d-md-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.localisation.nom }}</td>
+                        <td style="font-size: 70%;">
+                    <strong>{{ intervention.maintenance.equipement.nom }}</strong>
+                            <div class="d-md-none small text-muted" style="font-size: 65%;">
+                        {{ intervention.maintenance.equipement.localisation.nom }}
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
+                        <td style="font-size: 70%;">
+                            <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
+                            <span class="d-sm-none" style="font-size: 60%;">{{ intervention.maintenance.titre }}</span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'danger' if intervention.statut == 'non_fait' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}" style="font-size: 70%;">
+                                <span class="d-none d-sm-inline">{{ intervention.statut|title }}</span>
+                                <span class="d-sm-none">
+                                    {% if intervention.statut == 'realisee' %}✅
+                                    {% elif intervention.statut == 'non_fait' %}❌
+                                    {% elif intervention.statut == 'planifiee' %}⏰
+                                    {% else %}❌
+                                    {% endif %}
+                                </span>
+                            </span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            {% if intervention.statut == 'planifiee' %}
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-success btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                    <i class="fas fa-check"></i>
+                                    <span class="d-none d-sm-inline ms-1">Réalisé</span>
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                    <i class="fas fa-times"></i>
+                                    <span class="d-none d-sm-inline ms-1">Non fait</span>
+                                </button>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Sous-partie STEP -->
+    {% if interventions_co7_step %}
+    <h5 class="mb-2 text-warning">STEP</h5>
+    <div class="table-responsive mb-4">
+        <table class="table table-hover table-sm align-middle" style="font-size: 75%;">
+        <thead class="table-dark">
+            <tr>
+                    <th class="d-none d-md-table-cell" style="font-size: 70%;">Localisation</th>
+                    <th style="font-size: 70%;">Équipement</th>
+                    <th class="d-none d-lg-table-cell" style="font-size: 70%;">Description</th>
+                    <th style="font-size: 70%;">Action de maintenance</th>
+                    <th style="font-size: 70%;">Statut</th>
+                    <th style="font-size: 70%;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+                {% for intervention in interventions_co7_step %}
+                    <tr style="cursor: pointer; height: 35px;" 
+                data-maintenance-id="{{ intervention.maintenance.id }}"
+                data-titre="{{ intervention.maintenance.titre }}"
+                data-equipement="{{ intervention.maintenance.equipement.nom }}"
+                data-localisation="{{ intervention.maintenance.equipement.localisation.nom }}"
+                data-site="{{ intervention.maintenance.equipement.localisation.site.nom }}"
+                data-description="{{ intervention.maintenance.description or 'Aucune description' }}"
+                data-periodicite="{{ intervention.maintenance.periodicite|replace('_', ' ') }}"
+                data-date-planifiee="{{ intervention.date_planifiee.strftime('%d/%m/%Y') }}"
+                data-statut="{{ intervention.statut }}"
+                data-commentaire="{{ intervention.commentaire or 'Aucun commentaire' }}"
+                data-pieces-utilisees="{% for pu in intervention.pieces_utilisees %}{{ pu.piece.item }} ({{ pu.piece.quantite }}){% if not loop.last %}, {% endif %}{% endfor %}"
+                data-pieces-associees="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='id')|list|tojson }}"
+                data-pieces-noms="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='item')|list|tojson }}"
+                data-pieces-stock="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='quantite_stock')|list|tojson }}"
+                onclick="showMaintenanceDetails(this)">
+                        <td class="d-none d-md-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.localisation.nom }}</td>
+                        <td style="font-size: 70%;">
+                    <strong>{{ intervention.maintenance.equipement.nom }}</strong>
+                            <div class="d-md-none small text-muted" style="font-size: 65%;">
+                        {{ intervention.maintenance.equipement.localisation.nom }}
+                            </div>
+                        </td>
+                        <td class="d-none d-lg-table-cell" style="font-size: 70%;">{{ intervention.maintenance.equipement.description or 'Aucune description' }}</td>
+                        <td style="font-size: 70%;">
+                            <span class="d-none d-sm-inline">{{ intervention.maintenance.titre }}</span>
+                            <span class="d-sm-none" style="font-size: 60%;">{{ intervention.maintenance.titre }}</span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            <span class="badge bg-{{ 'success' if intervention.statut == 'realisee' else 'danger' if intervention.statut == 'non_fait' else 'warning' if intervention.statut == 'planifiee' else 'secondary' }}" style="font-size: 70%;">
+                                <span class="d-none d-sm-inline">{{ intervention.statut|title }}</span>
+                                <span class="d-sm-none">
+                                    {% if intervention.statut == 'realisee' %}✅
+                                    {% elif intervention.statut == 'non_fait' %}❌
+                                    {% elif intervention.statut == 'planifiee' %}⏰
+                                    {% else %}❌
+                                    {% endif %}
+                                </span>
+                            </span>
+                        </td>
+                        <td style="font-size: 70%;">
+                            {% if intervention.statut == 'planifiee' %}
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-success btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                    <i class="fas fa-check"></i>
+                                    <span class="d-none d-sm-inline ms-1">Réalisé</span>
+                                </button>
+                                <button type="button" class="btn btn-danger btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                    <i class="fas fa-times"></i>
+                                    <span class="d-none d-sm-inline ms-1">Non fait</span>
+                                </button>
+                            </div>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    {% endif %}
 
 {% else %}
 <div class="alert alert-info">
