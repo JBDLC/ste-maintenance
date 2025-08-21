@@ -4582,13 +4582,13 @@ def export_postgresql_complete():
                 sql_content.append("")
         
         # Créer la réponse
-        from io import StringIO
-        output = StringIO()
-        output.write('\n'.join(sql_content))
+        from io import BytesIO
+        output = BytesIO()
+        output.write('\n'.join(sql_content).encode('utf-8'))
         output.seek(0)
         
         return send_file(
-            StringIO(output.getvalue()),
+            output,
             mimetype='text/plain',
             as_attachment=True,
             download_name=f'export_base_complete_{datetime.now().strftime("%Y%m%d_%H%M%S")}.sql'
@@ -4660,13 +4660,13 @@ def export_sqlite_complete():
         conn.close()
         
         # Créer la réponse
-        from io import StringIO
-        output = StringIO()
-        output.write('\n'.join(sql_content))
+        from io import BytesIO
+        output = BytesIO()
+        output.write('\n'.join(sql_content).encode('utf-8'))
         output.seek(0)
         
         return send_file(
-            StringIO(output.getvalue()),
+            output,
             mimetype='text/plain',
             as_attachment=True,
             download_name=f'export_base_complete_{datetime.now().strftime("%Y%m%d_%H%M%S")}.sql'
@@ -4717,10 +4717,11 @@ def export_table_postgresql_csv(table_name):
         
         # Créer le CSV
         import csv
-        from io import StringIO
+        from io import StringIO, BytesIO
         
-        output = StringIO()
-        writer = csv.writer(output)
+        # Créer d'abord en StringIO pour le CSV
+        string_output = StringIO()
+        writer = csv.writer(string_output)
         
         # En-têtes
         writer.writerow(columns)
@@ -4729,10 +4730,13 @@ def export_table_postgresql_csv(table_name):
         for row in data_result:
             writer.writerow(row)
         
+        # Convertir en BytesIO pour send_file
+        output = BytesIO()
+        output.write(string_output.getvalue().encode('utf-8'))
         output.seek(0)
         
         return send_file(
-            StringIO(output.getvalue()),
+            output,
             mimetype='text/csv',
             as_attachment=True,
             download_name=f'{table_name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
@@ -4770,10 +4774,11 @@ def export_table_sqlite_csv(table_name):
         
         # Créer le CSV
         import csv
-        from io import StringIO
+        from io import StringIO, BytesIO
         
-        output = StringIO()
-        writer = csv.writer(output)
+        # Créer d'abord en StringIO pour le CSV
+        string_output = StringIO()
+        writer = csv.writer(string_output)
         
         # En-têtes
         writer.writerow(columns)
@@ -4782,10 +4787,13 @@ def export_table_sqlite_csv(table_name):
         for row in rows:
             writer.writerow(row)
         
+        # Convertir en BytesIO pour send_file
+        output = BytesIO()
+        output.write(string_output.getvalue().encode('utf-8'))
         output.seek(0)
         
         return send_file(
-            StringIO(output.getvalue()),
+            output,
             mimetype='text/csv',
             as_attachment=True,
             download_name=f'{table_name}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
