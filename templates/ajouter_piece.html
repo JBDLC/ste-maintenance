@@ -127,10 +127,10 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Validation du formulaire
-    const form = document.querySelector('form');
+    var form = document.querySelector('form');
     form.addEventListener('submit', function(e) {
-        const reference = document.getElementById('reference').value.trim();
-        const designation = document.getElementById('designation').value.trim();
+        var reference = document.getElementById('reference').value.trim();
+        var designation = document.getElementById('designation').value.trim();
         
         if (!reference || !designation) {
             e.preventDefault();
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Auto-complétion du prix si vide
-    const prixInput = document.getElementById('prix_unitaire');
+    var prixInput = document.getElementById('prix_unitaire');
     prixInput.addEventListener('blur', function() {
         if (!this.value) {
             this.value = '0.00';
@@ -148,11 +148,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Amélioration de la sélection multiple d'équipements
-    const equipementsSelect = document.getElementById('equipements_ids');
+    var equipementsSelect = document.getElementById('equipements_ids');
     
     // Ajouter un indicateur visuel pour la sélection multiple
     equipementsSelect.addEventListener('change', function() {
-        const selectedCount = this.selectedOptions.length;
+        var selectedCount = this.selectedOptions.length;
         if (selectedCount > 0) {
             this.style.borderColor = '#28a745';
             this.style.backgroundColor = '#f8fff9';
@@ -167,7 +167,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.key === 'Enter' && e.ctrlKey) {
             e.preventDefault();
             // Sélectionner tous les équipements
-            for (let option of this.options) {
+            for (var i = 0; i < this.options.length; i++) {
+                var option = this.options[i];
                 option.selected = true;
             }
             this.dispatchEvent(new Event('change'));

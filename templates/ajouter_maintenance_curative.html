@@ -113,8 +113,8 @@ document.addEventListener('DOMContentLoaded', function() {
         {% for equipement in localisation.equipements %}
         {
             id: {{ equipement.id }},
-            nom: "{{ equipement.nom|replace('"', '\\"') }}",
-            description: "{{ (equipement.description or '')|replace('"', '\\"')|replace('\n', '\\n') }}"
+            nom: "{{ equipement.nom|replace('"', '\\"')|replace('\n', ' ')|replace('\r', ' ') }}",
+            description: "{{ (equipement.description or '')|replace('"', '\\"')|replace('\n', ' ')|replace('\r', ' ')|trim }}"
         }{% if not loop.last %},{% endif %}
         {% endfor %}
     ];
