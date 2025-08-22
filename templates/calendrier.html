@@ -3,6 +3,45 @@
 {% block title %}Calendrier - Gestion Maintenance Préventive{% endblock %}
 
 {% block content %}
+<style>
+/* Amélioration de l'expérience tactile */
+.action-btn {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.action-btn:active {
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+}
+
+/* Zone de clic plus grande sur mobile */
+@media (max-width: 768px) {
+    .action-btn {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0.5rem !important;
+    }
+    
+    .btn-group-sm .action-btn {
+        min-height: 38px;
+        min-width: 38px;
+    }
+}
+
+/* Empêcher la sélection de texte sur les boutons */
+.btn {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+</style>
+
 {% set prev_week = (semaine_lundi - timedelta(days=7)).strftime('%Y-%m-%d') %}
 {% set next_week = (semaine_lundi + timedelta(days=7)).strftime('%Y-%m-%d') %}
 {% set this_week = lundi_courant.strftime('%Y-%m-%d') %}
@@ -94,11 +133,11 @@
                         <td style="font-size: 70%;">
                             {% if intervention.statut == 'planifiee' %}
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-success btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <button type="button" class="btn btn-success btn-sm action-btn" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" data-action="realiser" data-intervention-id="{{ intervention.id }}">
                                     <i class="fas fa-check"></i>
                                     <span class="d-none d-sm-inline ms-1">Réalisé</span>
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <button type="button" class="btn btn-danger btn-sm action-btn" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" data-action="non-fait" data-intervention-id="{{ intervention.id }}">
                                     <i class="fas fa-times"></i>
                                     <span class="d-none d-sm-inline ms-1">Non fait</span>
                                 </button>
@@ -686,6 +725,12 @@
 
 <script>
 function showMaintenanceDetails(element) {
+    // Vérifier si le clic vient d'un bouton d'action
+    if (event && (event.target.closest('.action-btn') || event.target.closest('.btn-group'))) {
+        console.log("Clic sur un bouton d'action, pas d'ouverture du modal");
+        return;
+    }
+    
     console.log("Clic sur une ligne de maintenance !", element);
     
     // Récupérer les données depuis les data attributes
@@ -720,6 +765,50 @@ function showMaintenanceDetails(element) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Gestion des boutons d'action pour appareils tactiles et desktop
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.action-btn')) {
+            e.preventDefault();
+            e.stopPropagation();
+            const btn = e.target.closest('.action-btn');
+            const action = btn.getAttribute('data-action');
+            const interventionId = btn.getAttribute('data-intervention-id');
+            
+            console.log('Action bouton:', action, 'Intervention:', interventionId);
+            
+            // Empêcher le déclenchement du modal par la ligne
+            if (action === 'realiser') {
+                const modal = new bootstrap.Modal(document.getElementById(`realiserModal${interventionId}`));
+                modal.show();
+            } else if (action === 'non-fait') {
+                const modal = new bootstrap.Modal(document.getElementById(`nonFaitModal${interventionId}`));
+                modal.show();
+            }
+        }
+    });
+    
+    // Gestion des événements tactiles
+    document.addEventListener('touchstart', function(e) {
+        if (e.target.closest('.action-btn')) {
+            e.preventDefault();
+            e.stopPropagation();
+            const btn = e.target.closest('.action-btn');
+            const action = btn.getAttribute('data-action');
+            const interventionId = btn.getAttribute('data-intervention-id');
+            
+            console.log('Touch bouton:', action, 'Intervention:', interventionId);
+            
+            // Empêcher le déclenchement du modal par la ligne
+            if (action === 'realiser') {
+                const modal = new bootstrap.Modal(document.getElementById(`realiserModal${interventionId}`));
+                modal.show();
+            } else if (action === 'non-fait') {
+                const modal = new bootstrap.Modal(document.getElementById(`nonFaitModal${interventionId}`));
+                modal.show();
+            }
+        }
+    });
+    
     // Ajouter une nouvelle ligne de pièce
     document.addEventListener('click', function(e) {
         if (e.target.id === 'add-piece') {
