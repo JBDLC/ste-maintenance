@@ -73,10 +73,7 @@
                             <div class="row mb-2 piece-row">
                                 <div class="col-md-6">
                                     <select class="form-select piece-select" name="pieces_ids">
-                                        <option value="">Sélectionner une pièce</option>
-                                        {% for piece in pieces %}
-                                            <option value="{{ piece.id }}" data-stock="{{ piece.quantite_stock }}">{{ piece.item }} (Stock: {{ piece.quantite_stock }})</option>
-                                        {% endfor %}
+                                        <option value="">Sélectionner d'abord un équipement</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
@@ -154,10 +151,69 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (selectedOption && selectedOption.dataset.description) {
             descriptionEquipement.value = selectedOption.dataset.description;
+            
+            // Charger les pièces de cet équipement
+            loadPiecesForEquipement(selectedOption.value);
         } else {
             descriptionEquipement.value = '';
+            // Réinitialiser les pièces
+            resetPiecesSelects();
         }
     });
+    
+    // Fonction pour charger les pièces d'un équipement
+    async function loadPiecesForEquipement(equipementId) {
+        try {
+            const response = await fetch(`/api/equipement/${equipementId}/pieces`);
+            const pieces = await response.json();
+            
+            // Mettre à jour tous les selects de pièces
+            updatePiecesSelects(pieces);
+        } catch (error) {
+            console.error('Erreur lors du chargement des pièces:', error);
+        }
+    }
+    
+    // Fonction pour mettre à jour les selects de pièces
+    function updatePiecesSelects(pieces) {
+        const pieceSelects = document.querySelectorAll('.piece-select');
+        
+        pieceSelects.forEach(select => {
+            // Sauvegarder la sélection actuelle
+            const currentValue = select.value;
+            
+            // Vider et remplir avec les nouvelles pièces
+            select.innerHTML = '<option value="">Sélectionner une pièce</option>';
+            
+            pieces.forEach(piece => {
+                const option = document.createElement('option');
+                option.value = piece.id;
+                option.textContent = `${piece.item} (Stock: ${piece.quantite_stock})`;
+                option.dataset.stock = piece.quantite_stock;
+                select.appendChild(option);
+            });
+            
+            // Restaurer la sélection si possible
+            if (currentValue && pieces.find(p => p.id == currentValue)) {
+                select.value = currentValue;
+            }
+        });
+    }
+    
+    // Fonction pour réinitialiser les selects de pièces
+    function resetPiecesSelects() {
+        const pieceSelects = document.querySelectorAll('.piece-select');
+        pieceSelects.forEach(select => {
+            select.innerHTML = '<option value="">Sélectionner d\'abord un équipement</option>';
+        });
+        
+        // Réinitialiser les champs de quantité
+        const quantityInputs = document.querySelectorAll('.piece-quantity');
+        quantityInputs.forEach(input => {
+            input.disabled = true;
+            input.value = '';
+        });
+    }
 
     // Gestion des pièces
     document.getElementById('add-piece').addEventListener('click', function() {
@@ -167,10 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
         newRow.innerHTML = `
             <div class="col-md-6">
                 <select class="form-select piece-select" name="pieces_ids">
-                    <option value="">Sélectionner une pièce</option>
-                    {% for piece in pieces %}
-                        <option value="{{ piece.id }}" data-stock="{{ piece.quantite_stock }}">{{ piece.item }} (Stock: {{ piece.quantite_stock }})</option>
-                    {% endfor %}
+                    <option value="">Sélectionner d'abord un équipement</option>
                 </select>
             </div>
             <div class="col-md-4">
@@ -186,6 +239,12 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Ajouter les event listeners pour la nouvelle ligne
         setupPieceRow(newRow);
+        
+        // Si un équipement est déjà sélectionné, charger ses pièces
+        const equipementSelect = document.getElementById('equipement_id');
+        if (equipementSelect.value) {
+            loadPiecesForEquipement(equipementSelect.value);
+        }
     });
 
     // Fonction pour configurer une ligne de pièce

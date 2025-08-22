@@ -757,9 +757,34 @@ def ajouter_maintenance_curative():
         flash('Maintenance curative ajoutée avec succès!', 'success')
         return redirect(url_for('maintenance_curative'))
     
-    localisations = Localisation.query.all()
+    # Récupérer les localisations avec leurs équipements
+    localisations = Localisation.query.options(
+        db.joinedload(Localisation.equipements)
+    ).all()
+    
+    # Récupérer toutes les pièces pour l'instant (sera filtré par JavaScript)
     pieces = Piece.query.all()
-    return render_template('ajouter_maintenance_curative.html', localisations=localisations, pieces=pieces)
+    
+    return render_template('ajouter_maintenance_curative.html', 
+                         localisations=localisations, 
+                         pieces=pieces)
+
+@app.route('/api/equipement/<int:equipement_id>/pieces')
+@login_required
+def get_pieces_equipement(equipement_id):
+    """API pour récupérer les pièces associées à un équipement"""
+    equipement = Equipement.query.get_or_404(equipement_id)
+    pieces = []
+    
+    for piece_assoc in equipement.pieces:
+        piece = piece_assoc.piece
+        pieces.append({
+            'id': piece.id,
+            'item': piece.item,
+            'quantite_stock': piece.quantite_stock
+        })
+    
+    return jsonify(pieces)
 
 
 
