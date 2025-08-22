@@ -68,6 +68,16 @@
         </div>
         <a href="{{ url_for('pieces') }}#rupture" class="btn-action">Voir les pièces en rupture</a>
     </div>
+
+    <!-- Lien vers Flot -->
+    <div class="dashboard-card dashboard-flot">
+        <div class="card-title">Lien vers Flot</div>
+        <div class="card-count">STE</div>
+        <div class="card-icon">
+            <i class="fas fa-external-link-alt"></i>
+        </div>
+        <a href="https://ste-app-spsn.onrender.com/" target="_blank" class="btn-action">Accéder à Flot</a>
+    </div>
 </div>
 {% endblock %}
 
@@ -195,6 +205,11 @@
     .dashboard-pieces-rupture {
         background: #f44336;
         border: 3px solid #e53935;
+    }
+    
+    .dashboard-flot {
+        background: #9c27b0;
+        border: 3px solid #8e24aa;
     }
     
     /* Responsive pour tablette */
