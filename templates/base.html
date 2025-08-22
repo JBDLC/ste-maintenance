@@ -1051,17 +1051,19 @@
             sidebarOverlay.addEventListener('click', closeSidebar);
             
             // Gestion des dropdowns dans la sidebar
-            const dropdownToggles = sidebar.querySelectorAll('.dropdown-toggle');
-            dropdownToggles.forEach(toggle => {
+            var dropdownToggles = sidebar.querySelectorAll('.dropdown-toggle');
+            for (var i = 0; i < dropdownToggles.length; i++) {
+                var toggle = dropdownToggles[i];
                 toggle.addEventListener('click', function(e) {
                     e.preventDefault();
                     e.stopPropagation();
                     
                     // Fermer tous les autres dropdowns
-                    dropdownToggles.forEach(otherToggle => {
+                    for (var j = 0; j < dropdownToggles.length; j++) {
+                        var otherToggle = dropdownToggles[j];
                         if (otherToggle !== toggle) {
                             otherToggle.classList.remove('show');
-                            const otherDropdown = otherToggle.nextElementSibling;
+                            var otherDropdown = otherToggle.nextElementSibling;
                             if (otherDropdown && otherDropdown.classList.contains('dropdown-menu')) {
                                 otherDropdown.classList.remove('show');
                                 otherDropdown.style.display = 'none';
@@ -1069,11 +1071,11 @@
                                 otherDropdown.style.visibility = 'hidden';
                             }
                         }
-                    });
+                    }
                     
                     // Toggle le dropdown actuel
                     toggle.classList.toggle('show');
-                    const dropdown = toggle.nextElementSibling;
+                    var dropdown = toggle.nextElementSibling;
                     if (dropdown && dropdown.classList.contains('dropdown-menu')) {
                         dropdown.classList.toggle('show');
                         if (dropdown.classList.contains('show')) {
@@ -1089,17 +1091,18 @@
                         }
                     }
                 });
-            });
+            }
             
             // Fermer la sidebar quand on clique sur un lien (mobile)
-            const sidebarLinks = sidebar.querySelectorAll('.nav-link:not(.dropdown-toggle)');
-            sidebarLinks.forEach(link => {
+            var sidebarLinks = sidebar.querySelectorAll('.nav-link:not(.dropdown-toggle)');
+            for (var i = 0; i < sidebarLinks.length; i++) {
+                var link = sidebarLinks[i];
                 link.addEventListener('click', function() {
                     if (window.innerWidth <= 991) {
                         closeSidebar();
                     }
                 });
-            });
+            }
             
             // Fermer la sidebar sur redimensionnement
             window.addEventListener('resize', function() {
