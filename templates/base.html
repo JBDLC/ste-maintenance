@@ -1033,9 +1033,9 @@
     <script>
         // Gestion du toggle sidebar sur mobile
         document.addEventListener('DOMContentLoaded', function() {
-            const sidebarToggle = document.getElementById('sidebarToggle');
-            const sidebar = document.getElementById('sidebar');
-            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            var sidebarToggle = document.getElementById('sidebarToggle');
+            var sidebar = document.getElementById('sidebar');
+            var sidebarOverlay = document.getElementById('sidebarOverlay');
             
             function toggleSidebar() {
                 sidebar.classList.toggle('show');
@@ -1114,13 +1114,14 @@
             // Fermer les dropdowns quand on clique en dehors
             document.addEventListener('click', function(e) {
                 if (!sidebar.contains(e.target)) {
-                    dropdownToggles.forEach(toggle => {
+                    for (var i = 0; i < dropdownToggles.length; i++) {
+                        var toggle = dropdownToggles[i];
                         toggle.classList.remove('show');
-                        const dropdown = toggle.nextElementSibling;
+                        var dropdown = toggle.nextElementSibling;
                         if (dropdown && dropdown.classList.contains('dropdown-menu')) {
                             dropdown.classList.remove('show');
                         }
-                    });
+                    }
                 }
             });
         });
