@@ -332,11 +332,11 @@
                         <td style="font-size: 70%;">
                             {% if intervention.statut == 'planifiee' %}
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-success btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <button type="button" class="btn btn-success btn-sm action-btn" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" data-action="realiser" data-intervention-id="{{ intervention.id }}">
                                     <i class="fas fa-check"></i>
                                     <span class="d-none d-sm-inline ms-1">Réalisé</span>
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <button type="button" class="btn btn-danger btn-sm action-btn" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" data-action="non-fait" data-intervention-id="{{ intervention.id }}">
                                     <i class="fas fa-times"></i>
                                     <span class="d-none d-sm-inline ms-1">Non fait</span>
                                 </button>
@@ -412,11 +412,11 @@
                         <td style="font-size: 70%;">
                             {% if intervention.statut == 'planifiee' %}
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-success btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <button type="button" class="btn btn-success btn-sm action-btn" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" data-action="realiser" data-intervention-id="{{ intervention.id }}">
                                     <i class="fas fa-check"></i>
                                     <span class="d-none d-sm-inline ms-1">Réalisé</span>
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <button type="button" class="btn btn-danger btn-sm action-btn" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" data-action="non-fait" data-intervention-id="{{ intervention.id }}">
                                     <i class="fas fa-times"></i>
                                     <span class="d-none d-sm-inline ms-1">Non fait</span>
                                 </button>
@@ -496,11 +496,11 @@
                         <td style="font-size: 70%;">
                             {% if intervention.statut == 'planifiee' %}
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-success btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <button type="button" class="btn btn-success btn-sm action-btn" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" data-action="realiser" data-intervention-id="{{ intervention.id }}">
                                     <i class="fas fa-check"></i>
                                     <span class="d-none d-sm-inline ms-1">Réalisé</span>
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <button type="button" class="btn btn-danger btn-sm action-btn" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" data-action="non-fait" data-intervention-id="{{ intervention.id }}">
                                     <i class="fas fa-times"></i>
                                     <span class="d-none d-sm-inline ms-1">Non fait</span>
                                 </button>
@@ -576,11 +576,11 @@
                         <td style="font-size: 70%;">
                             {% if intervention.statut == 'planifiee' %}
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-success btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <button type="button" class="btn btn-success btn-sm action-btn" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" data-action="realiser" data-intervention-id="{{ intervention.id }}">
                                     <i class="fas fa-check"></i>
                                     <span class="d-none d-sm-inline ms-1">Réalisé</span>
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <button type="button" class="btn btn-danger btn-sm action-btn" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" data-action="non-fait" data-intervention-id="{{ intervention.id }}">
                                     <i class="fas fa-times"></i>
                                     <span class="d-none d-sm-inline ms-1">Non fait</span>
                                 </button>
@@ -656,11 +656,11 @@
                         <td style="font-size: 70%;">
                             {% if intervention.statut == 'planifiee' %}
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-success btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <button type="button" class="btn btn-success btn-sm action-btn" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#realiserModal{{ intervention.id }}" data-action="realiser" data-intervention-id="{{ intervention.id }}">
                                     <i class="fas fa-check"></i>
                                     <span class="d-none d-sm-inline ms-1">Réalisé</span>
                                 </button>
-                                <button type="button" class="btn btn-danger btn-sm" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" onclick="event.stopPropagation();">
+                                <button type="button" class="btn btn-danger btn-sm action-btn" style="font-size: 65%; padding: 0.2rem 0.4rem;" data-bs-toggle="modal" data-bs-target="#nonFaitModal{{ intervention.id }}" data-action="non-fait" data-intervention-id="{{ intervention.id }}">
                                     <i class="fas fa-times"></i>
                                     <span class="d-none d-sm-inline ms-1">Non fait</span>
                                 </button>
