@@ -73,7 +73,10 @@
                             <div class="row mb-2 piece-row">
                                 <div class="col-md-6">
                                     <select class="form-select piece-select" name="pieces_ids">
-                                        <option value="">Sélectionner d'abord un équipement</option>
+                                        <option value="">Sélectionner une pièce</option>
+                                        {% for piece in pieces %}
+                                            <option value="{{ piece.id }}" data-stock="{{ piece.quantite_stock }}">{{ piece.item }} (Stock: {{ piece.quantite_stock }})</option>
+                                        {% endfor %}
                                     </select>
                                 </div>
                                 <div class="col-md-4">
@@ -105,153 +108,109 @@
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    var equipementsData = {};
-    
+// Données des équipements par localisation
+const equipementsData = {
     {% for localisation in localisations %}
-    equipementsData[{{ localisation.id }}] = [
+    {{ localisation.id }}: [
         {% for equipement in localisation.equipements %}
         {
             id: {{ equipement.id }},
-            nom: "{{ equipement.nom|replace('"', '\\"')|replace('\n', ' ')|replace('\r', ' ') }}",
-            description: "{{ (equipement.description or '')|replace('"', '\\"')|replace('\n', ' ')|replace('\r', ' ')|trim }}"
+            nom: "{{ equipement.nom|replace('"', '\\"') }}",
+            description: "{{ (equipement.description or '')|replace('"', '\\"')|replace('\n', '\\n') }}"
         }{% if not loop.last %},{% endif %}
         {% endfor %}
-    ];
+    ]{% if not loop.last %},{% endif %}
     {% endfor %}
+};
+
+// Gestion du changement de localisation
+document.getElementById('localisation_id').addEventListener('change', function() {
+    const localisationId = this.value;
+    const equipementSelect = document.getElementById('equipement_id');
+    const descriptionEquipement = document.getElementById('description_equipement');
     
-    console.log('Données chargées:', equipementsData);
+    // Réinitialiser les champs
+    equipementSelect.innerHTML = '<option value="">Sélectionner un équipement</option>';
+    equipementSelect.disabled = true;
+    descriptionEquipement.value = '';
     
-    document.getElementById('localisation_id').addEventListener('change', function() {
-        var localisationId = this.value;
-        var equipementSelect = document.getElementById('equipement_id');
-        var descriptionEquipement = document.getElementById('description_equipement');
-        
-        console.log('Localisation sélectionnée:', localisationId);
-        
-        equipementSelect.innerHTML = '<option value="">Sélectionner un équipement</option>';
-        equipementSelect.disabled = true;
-        descriptionEquipement.value = '';
-        
-        if (localisationId && equipementsData[localisationId]) {
-            console.log('Équipements trouvés:', equipementsData[localisationId]);
-            equipementSelect.disabled = false;
-            for (var i = 0; i < equipementsData[localisationId].length; i++) {
-                var equipement = equipementsData[localisationId][i];
-                var option = document.createElement('option');
-                option.value = equipement.id;
-                option.textContent = equipement.nom;
-                option.dataset.description = equipement.description;
-                equipementSelect.appendChild(option);
-            }
-        } else {
-            console.log('Aucun équipement trouvé pour la localisation:', localisationId);
-        }
-    });
-    
-    document.getElementById('equipement_id').addEventListener('change', function() {
-        var selectedOption = this.options[this.selectedIndex];
-        var descriptionEquipement = document.getElementById('description_equipement');
-        
-        if (selectedOption && selectedOption.dataset.description) {
-            descriptionEquipement.value = selectedOption.dataset.description;
-            loadPiecesForEquipement(selectedOption.value);
-        } else {
-            descriptionEquipement.value = '';
-            resetPiecesSelects();
-        }
-    });
-    
-    function loadPiecesForEquipement(equipementId) {
-        fetch('/api/equipement/' + equipementId + '/pieces')
-            .then(function(response) {
-                return response.json();
-            })
-            .then(function(pieces) {
-                updatePiecesSelects(pieces);
-            })
-            .catch(function(error) {
-                console.error('Erreur lors du chargement des pièces:', error);
-            });
-    }
-    
-    function updatePiecesSelects(pieces) {
-        var pieceSelects = document.querySelectorAll('.piece-select');
-        
-        for (var i = 0; i < pieceSelects.length; i++) {
-            var select = pieceSelects[i];
-            var currentValue = select.value;
-            select.innerHTML = '<option value="">Sélectionner une pièce</option>';
-            
-            for (var j = 0; j < pieces.length; j++) {
-                var piece = pieces[j];
-                var option = document.createElement('option');
-                option.value = piece.id;
-                option.textContent = piece.item + ' (Stock: ' + piece.quantite_stock + ')';
-                option.dataset.stock = piece.quantite_stock;
-                select.appendChild(option);
-            }
-            
-            if (currentValue && pieces.find(function(p) { return p.id == currentValue; })) {
-                select.value = currentValue;
-            }
-        }
-    }
-    
-    function resetPiecesSelects() {
-        var pieceSelects = document.querySelectorAll('.piece-select');
-        for (var i = 0; i < pieceSelects.length; i++) {
-            pieceSelects[i].innerHTML = '<option value="">Sélectionner d\'abord un équipement</option>';
-        }
-        
-        var quantityInputs = document.querySelectorAll('.piece-quantity');
-        for (var i = 0; i < quantityInputs.length; i++) {
-            quantityInputs[i].disabled = true;
-            quantityInputs[i].value = '';
-        }
-    }
-    
-    document.getElementById('add-piece').addEventListener('click', function() {
-        var container = document.getElementById('pieces-container');
-        var newRow = document.createElement('div');
-        newRow.className = 'row mb-2 piece-row';
-        newRow.innerHTML = '<div class="col-md-6"><select class="form-select piece-select" name="pieces_ids"><option value="">Sélectionner d\'abord un équipement</option></select></div><div class="col-md-4"><input type="number" class="form-control piece-quantity" name="pieces_quantites" min="1" placeholder="Qté" disabled></div><div class="col-md-2"><button type="button" class="btn btn-outline-danger btn-sm remove-piece"><i class="fas fa-trash"></i></button></div>';
-        container.appendChild(newRow);
-        
-        setupPieceRow(newRow);
-        
-        var equipementSelect = document.getElementById('equipement_id');
-        if (equipementSelect.value) {
-            loadPiecesForEquipement(equipementSelect.value);
-        }
-    });
-    
-    function setupPieceRow(row) {
-        var pieceSelect = row.querySelector('.piece-select');
-        var quantityInput = row.querySelector('.piece-quantity');
-        var removeButton = row.querySelector('.remove-piece');
-        
-        pieceSelect.addEventListener('change', function() {
-            var selectedOption = this.options[this.selectedIndex];
-            if (selectedOption.value) {
-                quantityInput.disabled = false;
-                quantityInput.max = selectedOption.dataset.stock;
-                quantityInput.placeholder = 'Qté (max: ' + selectedOption.dataset.stock + ')';
-            } else {
-                quantityInput.disabled = true;
-                quantityInput.value = '';
-            }
+    if (localisationId && equipementsData[localisationId]) {
+        equipementSelect.disabled = false;
+        equipementsData[localisationId].forEach(equipement => {
+            const option = document.createElement('option');
+            option.value = equipement.id;
+            option.textContent = equipement.nom;
+            option.dataset.description = equipement.description;
+            equipementSelect.appendChild(option);
         });
-        
-        removeButton.addEventListener('click', function() {
-            row.remove();
-        });
-    }
-    
-    var firstRow = document.querySelector('.piece-row');
-    if (firstRow) {
-        setupPieceRow(firstRow);
     }
 });
+
+// Gestion du changement d'équipement
+document.getElementById('equipement_id').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const descriptionEquipement = document.getElementById('description_equipement');
+    
+    if (selectedOption && selectedOption.dataset.description) {
+        descriptionEquipement.value = selectedOption.dataset.description;
+    } else {
+        descriptionEquipement.value = '';
+    }
+});
+
+// Gestion des pièces
+document.getElementById('add-piece').addEventListener('click', function() {
+    const container = document.getElementById('pieces-container');
+    const newRow = document.createElement('div');
+    newRow.className = 'row mb-2 piece-row';
+    newRow.innerHTML = `
+        <div class="col-md-6">
+            <select class="form-select piece-select" name="pieces_ids">
+                <option value="">Sélectionner une pièce</option>
+                {% for piece in pieces %}
+                    <option value="{{ piece.id }}" data-stock="{{ piece.quantite_stock }}">{{ piece.item }} (Stock: {{ piece.quantite_stock }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-4">
+            <input type="number" class="form-control piece-quantity" name="pieces_quantites" min="1" placeholder="Qté" disabled>
+        </div>
+        <div class="col-md-2">
+            <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+    `;
+    container.appendChild(newRow);
+    
+    // Ajouter les event listeners pour la nouvelle ligne
+    setupPieceRow(newRow);
+});
+
+// Fonction pour configurer une ligne de pièce
+function setupPieceRow(row) {
+    const pieceSelect = row.querySelector('.piece-select');
+    const quantityInput = row.querySelector('.piece-quantity');
+    const removeButton = row.querySelector('.remove-piece');
+    
+    pieceSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value) {
+            quantityInput.disabled = false;
+            quantityInput.max = selectedOption.dataset.stock;
+            quantityInput.placeholder = `Qté (max: ${selectedOption.dataset.stock})`;
+        } else {
+            quantityInput.disabled = true;
+            quantityInput.value = '';
+        }
+    });
+    
+    removeButton.addEventListener('click', function() {
+        row.remove();
+    });
+}
+
+// Configurer la première ligne
+setupPieceRow(document.querySelector('.piece-row'));
 </script>
 {% endblock %} 

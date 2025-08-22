@@ -83,13 +83,13 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="equipements_ids" class="form-label">Équipements compatibles</label>
-                                    <select class="form-select" id="equipements_ids" name="equipements_ids" multiple size="4">
+                                    <label for="equipement_id" class="form-label">Équipement compatible</label>
+                                    <select class="form-select" id="equipement_id" name="equipement_id">
+                                        <option value="">Sélectionner un équipement</option>
                                         {% for equipement in equipements %}
-                                        <option value="{{ equipement.id }}" {% if edition and equipements_associes and equipement.id in equipements_associes %}selected{% endif %}>{{ equipement.nom }} - {{ equipement.reference }}</option>
+                                        <option value="{{ equipement.id }}">{{ equipement.nom }} - {{ equipement.reference }}</option>
                                         {% endfor %}
                                     </select>
-                                    <small class="form-text text-muted">Maintenez Ctrl (ou Cmd sur Mac) pour sélectionner plusieurs équipements</small>
                                 </div>
                             </div>
                         </div>
@@ -97,11 +97,6 @@
                         <div class="mb-3">
                             <label for="description" class="form-label">Description</label>
                             <textarea class="form-control" id="description" name="description" rows="3">{% if piece %}{{ piece.description or '' }}{% endif %}</textarea>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="donnees_fournisseur" class="form-label">Données fournisseur <small class="text-muted">(facultatif)</small></label>
-                            <textarea class="form-control" id="donnees_fournisseur" name="donnees_fournisseur" rows="2" placeholder="Informations sur le fournisseur, contact, références...">{% if piece %}{{ piece.donnees_fournisseur or '' }}{% endif %}</textarea>
                         </div>
 
                         <div class="mb-3">
@@ -127,10 +122,10 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Validation du formulaire
-    var form = document.querySelector('form');
+    const form = document.querySelector('form');
     form.addEventListener('submit', function(e) {
-        var reference = document.getElementById('reference').value.trim();
-        var designation = document.getElementById('designation').value.trim();
+        const reference = document.getElementById('reference').value.trim();
+        const designation = document.getElementById('designation').value.trim();
         
         if (!reference || !designation) {
             e.preventDefault();
@@ -140,38 +135,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Auto-complétion du prix si vide
-    var prixInput = document.getElementById('prix_unitaire');
+    const prixInput = document.getElementById('prix_unitaire');
     prixInput.addEventListener('blur', function() {
         if (!this.value) {
             this.value = '0.00';
-        }
-    });
-
-    // Amélioration de la sélection multiple d'équipements
-    var equipementsSelect = document.getElementById('equipements_ids');
-    
-    // Ajouter un indicateur visuel pour la sélection multiple
-    equipementsSelect.addEventListener('change', function() {
-        var selectedCount = this.selectedOptions.length;
-        if (selectedCount > 0) {
-            this.style.borderColor = '#28a745';
-            this.style.backgroundColor = '#f8fff9';
-        } else {
-            this.style.borderColor = '';
-            this.style.backgroundColor = '';
-        }
-    });
-
-    // Raccourci clavier pour la sélection multiple
-    equipementsSelect.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && e.ctrlKey) {
-            e.preventDefault();
-            // Sélectionner tous les équipements
-            for (var i = 0; i < this.options.length; i++) {
-                var option = this.options[i];
-                option.selected = true;
-            }
-            this.dispatchEvent(new Event('change'));
         }
     });
 });

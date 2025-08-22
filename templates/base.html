@@ -110,6 +110,53 @@
             border-color: rgba(255, 255, 255, 0.2);
         }
         
+        /* En-têtes de section de navigation */
+        .nav-section-header {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 12px 18px;
+            margin: 8px 0 4px 0;
+            border-left: 3px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 0 8px 8px 0;
+        }
+        
+        .nav-section-header i {
+            margin-right: 8px;
+            opacity: 0.8;
+        }
+        
+        /* Dropdown dans la sidebar */
+        .sidebar .dropdown-menu {
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            margin-top: 5px;
+            padding: 8px 0;
+        }
+        
+        .sidebar .dropdown-item {
+            color: #333 !important;
+            padding: 8px 20px;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar .dropdown-item:hover {
+            background: rgba(35, 72, 107, 0.1) !important;
+            color: #23486b !important;
+        }
+        
+        .sidebar .dropdown-item i {
+            margin-right: 10px;
+            width: 16px;
+            text-align: center;
+        }
+        
         /* Main content responsive */
         .main-content {
             padding: 20px;
@@ -920,50 +967,44 @@
                             </a>
                         </li>
                         
-                        <!-- Menu Données - affiché si l'utilisateur a accès à au moins une des pages -->
-                        {% set has_data_access = current_user.is_authenticated and (
-                            has_permission(current_user.id, 'sites') or 
-                            has_permission(current_user.id, 'localisations') or 
-                            has_permission(current_user.id, 'equipements') or 
-                            has_permission(current_user.id, 'lieux_stockage')
-                        ) %}
-                        {% if has_data_access %}
+                        <!-- Menu Données -->
+                        {% if has_permission(current_user.id, 'sites') or has_permission(current_user.id, 'localisations') or has_permission(current_user.id, 'equipements') or has_permission(current_user.id, 'lieux_stockage') or has_permission(current_user.id, 'pieces') %}
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle {% if request.endpoint in ['sites', 'ajouter_site', 'modifier_site', 'localisations', 'ajouter_localisation', 'modifier_localisation', 'equipements', 'ajouter_equipement', 'modifier_equipement', 'lieux_stockage', 'ajouter_lieu_stockage', 'modifier_lieu_stockage', 'pieces', 'ajouter_piece'] %}active{% endif %}" href="#" id="donneesDropdown" role="button">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-database"></i> Données
                             </a>
-                            <ul class="dropdown-menu bg-light border-0 shadow-sm">
+                            <ul class="dropdown-menu">
                                 {% if has_permission(current_user.id, 'sites') %}
-                                <li><a class="dropdown-item {% if request.endpoint in ['sites', 'ajouter_site', 'modifier_site'] %}active{% endif %}" href="{{ url_for('sites') }}"><i class="fas fa-building"></i> Sites</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('sites') }}"><i class="fas fa-building"></i> Sites</a></li>
                                 {% endif %}
                                 {% if has_permission(current_user.id, 'localisations') %}
-                                <li><a class="dropdown-item {% if request.endpoint in ['localisations', 'ajouter_localisation', 'modifier_localisation'] %}active{% endif %}" href="{{ url_for('localisations') }}"><i class="fas fa-map-marker-alt"></i> Localisations</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('localisations') }}"><i class="fas fa-map-marker-alt"></i> Localisations</a></li>
                                 {% endif %}
                                 {% if has_permission(current_user.id, 'equipements') %}
-                                <li><a class="dropdown-item {% if request.endpoint in ['equipements', 'ajouter_equipement', 'modifier_equipement'] %}active{% endif %}" href="{{ url_for('equipements') }}"><i class="fas fa-cogs"></i> Équipements</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('equipements') }}"><i class="fas fa-cogs"></i> Équipements</a></li>
                                 {% endif %}
                                 {% if has_permission(current_user.id, 'lieux_stockage') %}
-                                <li><a class="dropdown-item {% if request.endpoint in ['lieux_stockage', 'ajouter_lieu_stockage', 'modifier_lieu_stockage'] %}active{% endif %}" href="{{ url_for('lieux_stockage') }}"><i class="fas fa-warehouse"></i> Lieux de stockage</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('lieux_stockage') }}"><i class="fas fa-warehouse"></i> Lieux de stockage</a></li>
                                 {% endif %}
                                 {% if has_permission(current_user.id, 'pieces') %}
-                                <li><a class="dropdown-item {% if request.endpoint in ['pieces', 'ajouter_piece'] %}active{% endif %}" href="{{ url_for('pieces') }}"><i class="fas fa-boxes"></i> Pièces de rechange</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('pieces') }}"><i class="fas fa-boxes"></i> Pièces de rechange</a></li>
                                 {% endif %}
                             </ul>
                         </li>
                         {% endif %}
                         
-                        <!-- Préventif -->
+                        <!-- Menu Préventif -->
                         {% if has_permission(current_user.id, 'maintenances') or has_permission(current_user.id, 'calendrier') %}
                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle {% if request.endpoint in ['maintenances', 'ajouter_maintenance', 'modifier_maintenance', 'calendrier'] %}active{% endif %}" href="#" id="preventifDropdown" role="button">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-shield-alt"></i> Préventif
                             </a>
-                            <ul class="dropdown-menu bg-light border-0 shadow-sm">
+                            <ul class="dropdown-menu">
                                 {% if has_permission(current_user.id, 'maintenances') %}
-                                <li><a class="dropdown-item {% if request.endpoint in ['maintenances', 'ajouter_maintenance', 'modifier_maintenance'] %}active{% endif %}" href="{{ url_for('maintenances') }}"><i class="fas fa-clipboard-list"></i> Maintenance préventive</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('maintenances') }}"><i class="fas fa-clipboard-list"></i> Maintenance préventive</a></li>
                                 {% endif %}
                                 {% if has_permission(current_user.id, 'calendrier') %}
-                                <li><a class="dropdown-item {% if request.endpoint in ['calendrier'] %}active{% endif %}" href="{{ url_for('calendrier') }}"><i class="fas fa-calendar-alt"></i> Calendrier préventif</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('calendrier') }}"><i class="fas fa-calendar-alt"></i> Calendrier préventif</a></li>
                                 {% endif %}
                             </ul>
                         </li>
@@ -1033,9 +1074,9 @@
     <script>
         // Gestion du toggle sidebar sur mobile
         document.addEventListener('DOMContentLoaded', function() {
-            var sidebarToggle = document.getElementById('sidebarToggle');
-            var sidebar = document.getElementById('sidebar');
-            var sidebarOverlay = document.getElementById('sidebarOverlay');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
             
             function toggleSidebar() {
                 sidebar.classList.toggle('show');
@@ -1050,78 +1091,20 @@
             sidebarToggle.addEventListener('click', toggleSidebar);
             sidebarOverlay.addEventListener('click', closeSidebar);
             
-            // Gestion des dropdowns dans la sidebar
-            var dropdownToggles = sidebar.querySelectorAll('.dropdown-toggle');
-            for (var i = 0; i < dropdownToggles.length; i++) {
-                var toggle = dropdownToggles[i];
-                toggle.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    // Fermer tous les autres dropdowns
-                    for (var j = 0; j < dropdownToggles.length; j++) {
-                        var otherToggle = dropdownToggles[j];
-                        if (otherToggle !== toggle) {
-                            otherToggle.classList.remove('show');
-                            var otherDropdown = otherToggle.nextElementSibling;
-                            if (otherDropdown && otherDropdown.classList.contains('dropdown-menu')) {
-                                otherDropdown.classList.remove('show');
-                                otherDropdown.style.display = 'none';
-                                otherDropdown.style.opacity = '0';
-                                otherDropdown.style.visibility = 'hidden';
-                            }
-                        }
-                    }
-                    
-                    // Toggle le dropdown actuel
-                    toggle.classList.toggle('show');
-                    var dropdown = toggle.nextElementSibling;
-                    if (dropdown && dropdown.classList.contains('dropdown-menu')) {
-                        dropdown.classList.toggle('show');
-                        if (dropdown.classList.contains('show')) {
-                            dropdown.style.display = 'block';
-                            dropdown.style.opacity = '1';
-                            dropdown.style.visibility = 'visible';
-                            // Forcer le reflow pour s'assurer que l'affichage fonctionne
-                            dropdown.offsetHeight;
-                        } else {
-                            dropdown.style.display = 'none';
-                            dropdown.style.opacity = '0';
-                            dropdown.style.visibility = 'hidden';
-                        }
-                    }
-                });
-            }
-            
             // Fermer la sidebar quand on clique sur un lien (mobile)
-            var sidebarLinks = sidebar.querySelectorAll('.nav-link:not(.dropdown-toggle)');
-            for (var i = 0; i < sidebarLinks.length; i++) {
-                var link = sidebarLinks[i];
+            const sidebarLinks = sidebar.querySelectorAll('.nav-link:not(.dropdown-toggle)');
+            sidebarLinks.forEach(link => {
                 link.addEventListener('click', function() {
                     if (window.innerWidth <= 991) {
                         closeSidebar();
                     }
                 });
-            }
+            });
             
             // Fermer la sidebar sur redimensionnement
             window.addEventListener('resize', function() {
                 if (window.innerWidth > 991) {
                     closeSidebar();
-                }
-            });
-            
-            // Fermer les dropdowns quand on clique en dehors
-            document.addEventListener('click', function(e) {
-                if (!sidebar.contains(e.target)) {
-                    for (var i = 0; i < dropdownToggles.length; i++) {
-                        var toggle = dropdownToggles[i];
-                        toggle.classList.remove('show');
-                        var dropdown = toggle.nextElementSibling;
-                        if (dropdown && dropdown.classList.contains('dropdown-menu')) {
-                            dropdown.classList.remove('show');
-                        }
-                    }
                 }
             });
         });
