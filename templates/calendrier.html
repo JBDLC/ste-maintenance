@@ -351,6 +351,130 @@
         </table>
     </div>
     {% endif %}
+    
+    <!-- Modals pour CO6 CAB -->
+    {% for intervention in interventions_co6_cab %}
+        {% if intervention.statut == 'planifiee' %}
+        <!-- Modal pour réaliser l'intervention -->
+        <div class="modal fade" id="realiserModal{{ intervention.id }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Réaliser la maintenance - {{ intervention.maintenance.titre }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                    <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                    <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                    <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                    <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="commentaire" class="form-label">Commentaire</label>
+                                <textarea class="form-control" id="commentaire" name="commentaire" rows="3"></textarea>
+                            </div>
+                            
+                            <h6>Pièces utilisées:</h6>
+                            <div id="pieces-container">
+                                <div class="row mb-2 piece-row">
+                                    <div class="col-md-6">
+                                        <select class="form-select" name="pieces_utilisees">
+                                            <option value="">Aucune pièce</option>
+                                            {% for piece_assoc in intervention.maintenance.equipement.pieces %}
+                                                <option value="{{ piece_assoc.piece.id }}">{{ piece_assoc.piece.item }} (Stock: {{ piece_assoc.piece.quantite_stock }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="number" class="form-control" name="quantites" placeholder="Quantité" min="1">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info mt-2">
+                                <small>
+                                    <i class="fas fa-info-circle"></i> 
+                                    Seules les pièces associées à cet équipement sont affichées.
+                                </small>
+                            </div>
+                            
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece" 
+                                    data-pieces-associees="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='id')|list|tojson }}"
+                                    data-pieces-noms="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='item')|list|tojson }}"
+                                    data-pieces-stock="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='quantite_stock')|list|tojson }}">
+                                <i class="fas fa-plus"></i> Ajouter une pièce
+                            </button>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check"></i> Marquer comme réalisée
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal pour marquer comme non fait -->
+        <div class="modal fade" id="nonFaitModal{{ intervention.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Maintenance non réalisée - {{ intervention.maintenance.titre }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('marquer_non_fait', intervention_id=intervention.id) }}">
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                    <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                    <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                    <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                    <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="commentaire_non_fait" class="form-label">Commentaire (optionnel)</label>
+                                <textarea class="form-control" id="commentaire_non_fait" name="commentaire" rows="3" placeholder="Raison de la non-réalisation..."></textarea>
+                            </div>
+                            
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Attention :</strong> Cette action marquera la maintenance comme "non réalisée" et générera la prochaine intervention selon la périodicité.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-times"></i> Marquer comme non fait
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
 
     <!-- Sous-partie STEP -->
     {% if interventions_co6_step %}
@@ -431,6 +555,130 @@
         </table>
     </div>
     {% endif %}
+    
+    <!-- Modals pour CO6 STEP -->
+    {% for intervention in interventions_co6_step %}
+        {% if intervention.statut == 'planifiee' %}
+        <!-- Modal pour réaliser l'intervention -->
+        <div class="modal fade" id="realiserModal{{ intervention.id }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Réaliser la maintenance - {{ intervention.maintenance.titre }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                    <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                    <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                    <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                    <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="commentaire" class="form-label">Commentaire</label>
+                                <textarea class="form-control" id="commentaire" name="commentaire" rows="3"></textarea>
+                            </div>
+                            
+                            <h6>Pièces utilisées:</h6>
+                            <div id="pieces-container">
+                                <div class="row mb-2 piece-row">
+                                    <div class="col-md-6">
+                                        <select class="form-select" name="pieces_utilisees">
+                                            <option value="">Aucune pièce</option>
+                                            {% for piece_assoc in intervention.maintenance.equipement.pieces %}
+                                                <option value="{{ piece_assoc.piece.id }}">{{ piece_assoc.piece.item }} (Stock: {{ piece_assoc.piece.quantite_stock }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="number" class="form-control" name="quantites" placeholder="Quantité" min="1">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info mt-2">
+                                <small>
+                                    <i class="fas fa-info-circle"></i> 
+                                    Seules les pièces associées à cet équipement sont affichées.
+                                </small>
+                            </div>
+                            
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece" 
+                                    data-pieces-associees="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='id')|list|tojson }}"
+                                    data-pieces-noms="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='item')|list|tojson }}"
+                                    data-pieces-stock="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='quantite_stock')|list|tojson }}">
+                                <i class="fas fa-plus"></i> Ajouter une pièce
+                            </button>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check"></i> Marquer comme réalisée
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal pour marquer comme non fait -->
+        <div class="modal fade" id="nonFaitModal{{ intervention.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Maintenance non réalisée - {{ intervention.maintenance.titre }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('marquer_non_fait', intervention_id=intervention.id) }}">
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                    <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                    <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                    <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                    <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="commentaire_non_fait" class="form-label">Commentaire (optionnel)</label>
+                                <textarea class="form-control" id="commentaire_non_fait" name="commentaire" rows="3" placeholder="Raison de la non-réalisation..."></textarea>
+                            </div>
+                            
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Attention :</strong> Cette action marquera la maintenance comme "non réalisée" et générera la prochaine intervention selon la périodicité.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-times"></i> Marquer comme non fait
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
 
     <!-- Section CO7 -->
     {% if interventions_co7_ste or interventions_co7_cab or interventions_co7_step %}
@@ -515,6 +763,254 @@
         </table>
     </div>
     {% endif %}
+    
+    <!-- Modals pour CO7 STE -->
+    {% for intervention in interventions_co7_ste %}
+        {% if intervention.statut == 'planifiee' %}
+        <!-- Modal pour réaliser l'intervention -->
+        <div class="modal fade" id="realiserModal{{ intervention.id }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Réaliser la maintenance - {{ intervention.maintenance.titre }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                    <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                    <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                    <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                    <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="commentaire" class="form-label">Commentaire</label>
+                                <textarea class="form-control" id="commentaire" name="commentaire" rows="3"></textarea>
+                            </div>
+                            
+                            <h6>Pièces utilisées:</h6>
+                            <div id="pieces-container">
+                                <div class="row mb-2 piece-row">
+                                    <div class="col-md-6">
+                                        <select class="form-select" name="pieces_utilisees">
+                                            <option value="">Aucune pièce</option>
+                                            {% for piece_assoc in intervention.maintenance.equipement.pieces %}
+                                                <option value="{{ piece_assoc.piece.id }}">{{ piece_assoc.piece.item }} (Stock: {{ piece_assoc.piece.quantite_stock }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="number" class="form-control" name="quantites" placeholder="Quantité" min="1">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info mt-2">
+                                <small>
+                                    <i class="fas fa-info-circle"></i> 
+                                    Seules les pièces associées à cet équipement sont affichées.
+                                </small>
+                            </div>
+                            
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece" 
+                                    data-pieces-associees="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='id')|list|tojson }}"
+                                    data-pieces-noms="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='item')|list|tojson }}"
+                                    data-pieces-stock="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='quantite_stock')|list|tojson }}">
+                                <i class="fas fa-plus"></i> Ajouter une pièce
+                            </button>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check"></i> Marquer comme réalisée
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal pour marquer comme non fait -->
+        <div class="modal fade" id="nonFaitModal{{ intervention.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Maintenance non réalisée - {{ intervention.maintenance.titre }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('marquer_non_fait', intervention_id=intervention.id) }}">
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                    <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                    <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                    <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                    <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="commentaire_non_fait" class="form-label">Commentaire (optionnel)</label>
+                                <textarea class="form-control" id="commentaire_non_fait" name="commentaire" rows="3" placeholder="Raison de la non-réalisation..."></textarea>
+                            </div>
+                            
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Attention :</strong> Cette action marquera la maintenance comme "non réalisée" et générera la prochaine intervention selon la périodicité.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-times"></i> Marquer comme non fait
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+
+    <!-- Modals pour CO7 CAB -->
+    {% for intervention in interventions_co7_cab %}
+        {% if intervention.statut == 'planifiee' %}
+        <!-- Modal pour réaliser l'intervention -->
+        <div class="modal fade" id="realiserModal{{ intervention.id }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Réaliser la maintenance - {{ intervention.maintenance.titre }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                    <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                    <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                    <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                    <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="commentaire" class="form-label">Commentaire</label>
+                                <textarea class="form-control" id="commentaire" name="commentaire" rows="3"></textarea>
+                            </div>
+                            
+                            <h6>Pièces utilisées:</h6>
+                            <div id="pieces-container">
+                                <div class="row mb-2 piece-row">
+                                    <div class="col-md-6">
+                                        <select class="form-select" name="pieces_utilisees">
+                                            <option value="">Aucune pièce</option>
+                                            {% for piece_assoc in intervention.maintenance.equipement.pieces %}
+                                                <option value="{{ piece_assoc.piece.id }}">{{ piece_assoc.piece.item }} (Stock: {{ piece_assoc.piece.quantite_stock }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="number" class="form-control" name="quantites" placeholder="Quantité" min="1">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info mt-2">
+                                <small>
+                                    <i class="fas fa-info-circle"></i> 
+                                    Seules les pièces associées à cet équipement sont affichées.
+                                </small>
+                            </div>
+                            
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece" 
+                                    data-pieces-associees="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='id')|list|tojson }}"
+                                    data-pieces-noms="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='item')|list|tojson }}"
+                                    data-pieces-stock="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='quantite_stock')|list|tojson }}">
+                                <i class="fas fa-plus"></i> Ajouter une pièce
+                            </button>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check"></i> Marquer comme réalisée
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal pour marquer comme non fait -->
+        <div class="modal fade" id="nonFaitModal{{ intervention.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Maintenance non réalisée - {{ intervention.maintenance.titre }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('marquer_non_fait', intervention_id=intervention.id) }}">
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                    <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                    <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                    <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                    <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="commentaire_non_fait" class="form-label">Commentaire (optionnel)</label>
+                                <textarea class="form-control" id="commentaire_non_fait" name="commentaire" rows="3" placeholder="Raison de la non-réalisation..."></textarea>
+                            </div>
+                            
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Attention :</strong> Cette action marquera la maintenance comme "non réalisée" et générera la prochaine intervention selon la périodicité.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-times"></i> Marquer comme non fait
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
 
     <!-- Sous-partie CAB -->
     {% if interventions_co7_cab %}
@@ -675,6 +1171,131 @@
         </table>
     </div>
     {% endif %}
+    
+    <!-- Modals pour CO7 STEP -->
+    {% for intervention in interventions_co7_step %}
+        {% if intervention.statut == 'planifiee' %}
+        <!-- Modal pour réaliser l'intervention -->
+        <div class="modal fade" id="realiserModal{{ intervention.id }}" tabindex="-1">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Réaliser la maintenance - {{ intervention.maintenance.titre }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                    <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                    <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                    <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                    <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="commentaire" class="form-label">Commentaire</label>
+                                <textarea class="form-control" id="commentaire" name="commentaire" rows="3"></textarea>
+                            </div>
+                            
+                            <h6>Pièces utilisées:</h6>
+                            <div id="pieces-container">
+                                <div class="row mb-2 piece-row">
+                                    <div class="col-md-6">
+                                        <select class="form-select" name="pieces_utilisees">
+                                            <option value="">Aucune pièce</option>
+                                            {% for piece_assoc in intervention.maintenance.equipement.pieces %}
+                                                <option value="{{ piece_assoc.piece.id }}">{{ piece_assoc.piece.item }} (Stock: {{ piece_assoc.piece.quantite_stock }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="number" class="form-control" name="quantites" placeholder="Quantité" min="1">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <button type="button" class="btn btn-outline-danger btn-sm remove-piece">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info mt-2">
+                                <small>
+                                    <i class="fas fa-info-circle"></i> 
+                                    Seules les pièces associées à cet équipement sont affichées.
+                                </small>
+                            </div>
+                            
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="add-piece" 
+                                    data-pieces-associees="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='id')|list|tojson }}"
+                                    data-pieces-noms="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='item')|list|tojson }}"
+                                    data-pieces-stock="{{ intervention.maintenance.equipement.pieces|map(attribute='piece')|map(attribute='quantite_stock')|list|tojson }}">
+                                <i class="fas fa-plus"></i> Ajouter une pièce
+                            </button>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-check"></i> Marquer comme réalisée
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal pour marquer comme non fait -->
+        <div class="modal fade" id="nonFaitModal{{ intervention.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Maintenance non réalisée - {{ intervention.maintenance.titre }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('marquer_non_fait', intervention_id=intervention.id) }}">
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Équipement:</strong> {{ intervention.maintenance.equipement.nom }}</p>
+                                    <p><strong>Localisation:</strong> {{ intervention.maintenance.equipement.localisation.nom }}</p>
+                                    <p><strong>Site:</strong> {{ intervention.maintenance.equipement.localisation.site.nom }}</p>
+                                    <p><strong>Date planifiée:</strong> {{ intervention.date_planifiee.strftime('%d/%m/%Y') }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Description:</strong> {{ intervention.maintenance.description or 'Aucune description' }}</p>
+                                    <p><strong>Périodicité:</strong> {{ intervention.maintenance.periodicite|replace('_', ' ') }}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="commentaire_non_fait" class="form-label">Commentaire (optionnel)</label>
+                                <textarea class="form-control" id="commentaire_non_fait" name="commentaire" rows="3" placeholder="Raison de la non-réalisation..."></textarea>
+                            </div>
+                            
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                <strong>Attention :</strong> Cette action marquera la maintenance comme "non réalisée" et générera la prochaine intervention selon la périodicité.
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-times"></i> Marquer comme non fait
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+    
     {% endif %}
 
 {% else %}
