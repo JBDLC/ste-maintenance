@@ -1362,6 +1362,9 @@ def envoyer_calendrier_excel():
         
         def create_site_worksheet(site_name, interventions):
             """Crée un onglet pour un site donné"""
+            if not interventions:
+                return None
+                
             ws = wb.create_sheet(title=site_name)
             
             # Écrire les en-têtes
@@ -1376,13 +1379,23 @@ def envoyer_calendrier_excel():
             for col in range(1, len(headers) + 1):
                 ws.column_dimensions[get_column_letter(col)].width = 15
             
-            # Séparer les interventions par partie
-            interventions_ste = [i for i in interventions if get_sous_partie(i) == 'STE']
-            interventions_cab = [i for i in interventions if get_sous_partie(i) == 'CAB']
-            interventions_step = [i for i in interventions if get_sous_partie(i) == 'STEP']
+            # Grouper les interventions par sous-partie
+            interventions_ste = []
+            interventions_cab = []
+            interventions_step = []
             
-            current_row = 1
+            for intervention in interventions:
+                sous_partie = get_sous_partie(intervention)
+                if sous_partie == 'STE':
+                    interventions_ste.append(intervention)
+                elif sous_partie == 'CAB':
+                    interventions_cab.append(intervention)
+                elif sous_partie == 'STEP':
+                    interventions_step.append(intervention)
             
+            current_row = 2
+            
+            # Fonction pour ajouter une section
             def add_section(section_name, section_interventions):
                 nonlocal current_row
                 
@@ -1412,33 +1425,33 @@ def envoyer_calendrier_excel():
                     # Récupérer la sous-partie
                     sous_partie = get_sous_partie(intervention)
                     
-                                    # Données de la ligne
-                statut_display = intervention.statut.title()
-                if intervention.statut == 'non_fait':
-                    statut_display = 'Non fait'
-                
-                row_data = [
-                    site.nom,
-                    sous_partie,
-                    localisation.nom,
-                    equipement.nom,
-                    maintenance.titre,
-                    equipement.description or "Aucune description",
-                    maintenance.description or "Aucune description",
-                    maintenance.periodicite.replace('_', ' '),
-                    intervention.date_planifiee.strftime('%d/%m/%Y'),
-                    statut_display,
-                    intervention.commentaire or "Aucun commentaire",
-                    pieces_str
-                ]
-                
-                # Écrire la ligne
-                for col, value in enumerate(row_data, 1):
-                    cell = ws.cell(row=current_row, column=col, value=value)
-                    cell.border = border
-                    cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
-                
-                current_row += 1
+                    # Données de la ligne
+                    statut_display = intervention.statut.title()
+                    if intervention.statut == 'non_fait':
+                        statut_display = 'Non fait'
+                    
+                    row_data = [
+                        site.nom,
+                        sous_partie,
+                        localisation.nom,
+                        equipement.nom,
+                        maintenance.titre,
+                        equipement.description or "Aucune description",
+                        maintenance.description or "Aucune description",
+                        maintenance.periodicite.replace('_', ' '),
+                        intervention.date_planifiee.strftime('%d/%m/%Y'),
+                        statut_display,
+                        intervention.commentaire or "Aucun commentaire",
+                        pieces_str
+                    ]
+                    
+                    # Écrire la ligne
+                    for col, value in enumerate(row_data, 1):
+                        cell = ws.cell(row=current_row, column=col, value=value)
+                        cell.border = border
+                        cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+                    
+                    current_row += 1
             
             # Ajouter les sections dans l'ordre : STE, CAB, STEP
             add_section("STE", interventions_ste)
