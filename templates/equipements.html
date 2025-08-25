@@ -90,7 +90,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for equipement in equipements %}
+            {% for equipement in equipements.items %}
             <tr>
                 <td>
                     <strong>{{ equipement.nom }}</strong>
@@ -127,7 +127,7 @@
                 </td>
             </tr>
             {% endfor %}
-            {% if equipements|length == 0 %}
+            {% if equipements.items|length == 0 %}
             <tr>
                 <td colspan="7" class="text-center">
                     <div class="alert alert-info mb-0">
@@ -142,7 +142,7 @@
 </div>
 
 <!-- Modales pour chaque équipement, en dehors du tableau -->
-{% for equipement in equipements %}
+{% for equipement in equipements.items %}
     <!-- Modal pour les détails de l'équipement -->
     <div class="modal fade" id="equipementModal{{ equipement.id }}" tabindex="-1">
         <div class="modal-dialog modal-lg">
