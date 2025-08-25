@@ -484,8 +484,22 @@ def ajouter_localisation():
 @app.route('/equipements')
 @login_required
 def equipements():
-    equipements_list = Equipement.query.all()
-    return render_template('equipements.html', equipements=equipements_list)
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    # Recherche globale
+    search = request.args.get('search', '')
+    if search:
+        equipements_list = Equipement.query.filter(
+            db.or_(
+                Equipement.nom.contains(search),
+                Equipement.description.contains(search)
+            )
+        ).paginate(page=page, per_page=per_page, error_out=False)
+    else:
+        equipements_list = Equipement.query.paginate(page=page, per_page=per_page, error_out=False)
+    
+    return render_template('equipements.html', equipements=equipements_list, search=search)
 
 @app.route('/equipement/ajouter', methods=['GET', 'POST'])
 @login_required
@@ -519,9 +533,25 @@ def ajouter_equipement():
 @app.route('/pieces')
 @login_required
 def pieces():
-    pieces_list = Piece.query.all()
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
+    
+    # Recherche globale
+    search = request.args.get('search', '')
+    if search:
+        pieces_list = Piece.query.filter(
+            db.or_(
+                Piece.reference_ste.contains(search),
+                Piece.reference_magasin.contains(search),
+                Piece.item.contains(search),
+                Piece.description.contains(search)
+            )
+        ).paginate(page=page, per_page=per_page, error_out=False)
+    else:
+        pieces_list = Piece.query.paginate(page=page, per_page=per_page, error_out=False)
+    
     lieux_stockage = LieuStockage.query.all()
-    return render_template('pieces.html', pieces=pieces_list, lieux_stockage=lieux_stockage)
+    return render_template('pieces.html', pieces=pieces_list, lieux_stockage=lieux_stockage, search=search)
 
 @app.route('/lieux_stockage')
 @login_required
