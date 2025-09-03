@@ -1028,6 +1028,15 @@
                         </li>
                         {% endif %}
                         
+                        <!-- Commandes -->
+                        {% if has_permission(current_user.id, 'commandes') %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint in ['commandes', 'ajouter_commande', 'modifier_commande'] %}active{% endif %}" href="{{ url_for('commandes') }}">
+                                <i class="fas fa-shopping-cart"></i> Commandes
+                            </a>
+                        </li>
+                        {% endif %}
+                        
                         <!-- Paramètres -->
                         {% if has_permission(current_user.id, 'parametres') %}
                         <li class="nav-item">

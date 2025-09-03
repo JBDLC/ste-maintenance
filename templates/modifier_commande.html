@@ -1,0 +1,319 @@
+{% extends "base.html" %}
+
+{% block title %}Modifier la Commande{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-edit text-warning"></i> Modifier la Commande
+        </h1>
+        <a href="{{ url_for('commandes') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Retour aux commandes
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-shopping-cart"></i> Modification de la commande
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        <div class="row">
+                            <!-- Site -->
+                            <div class="col-md-6 mb-3">
+                                <label for="site_id" class="form-label">
+                                    <i class="fas fa-building text-primary"></i> Site <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="site_id" name="site_id" required>
+                                    <option value="">Sélectionner un site...</option>
+                                    {% for site in sites %}
+                                    <option value="{{ site.id }}" {% if site.id == commande.site_id %}selected{% endif %}>
+                                        {{ site.nom }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Sélectionnez le site concerné</div>
+                            </div>
+
+                            <!-- Localisation -->
+                            <div class="col-md-6 mb-3">
+                                <label for="localisation_id" class="form-label">
+                                    <i class="fas fa-map-marker-alt text-primary"></i> Localisation <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="localisation_id" name="localisation_id" required>
+                                    <option value="">Sélectionner une localisation...</option>
+                                    {% for localisation in localisations %}
+                                    <option value="{{ localisation.id }}" {% if localisation.id == commande.localisation_id %}selected{% endif %}>
+                                        {{ localisation.nom }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Sélectionnez la localisation dans le site</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Équipement -->
+                            <div class="col-md-6 mb-3">
+                                <label for="equipement_id" class="form-label">
+                                    <i class="fas fa-cogs text-primary"></i> Équipement <span class="text-danger">*</span>
+                                </label>
+                                <select class="form-select" id="equipement_id" name="equipement_id" required>
+                                    <option value="">Sélectionner un équipement...</option>
+                                    {% for equipement in equipements %}
+                                    <option value="{{ equipement.id }}" {% if equipement.id == commande.equipement_id %}selected{% endif %}>
+                                        {{ equipement.nom }}{% if equipement.description %} - {{ equipement.description }}{% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Sélectionnez l'équipement concerné</div>
+                            </div>
+
+                            <!-- Prix -->
+                            <div class="col-md-6 mb-3">
+                                <label for="prix" class="form-label">
+                                    <i class="fas fa-euro-sign text-primary"></i> Prix <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="prix" name="prix" 
+                                           step="0.01" min="0" required placeholder="0.00"
+                                           value="{{ "%.2f"|format(commande.prix) }}">
+                                    <span class="input-group-text">€</span>
+                                </div>
+                                <div class="form-text">Prix estimé de la commande</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Imputation -->
+                            <div class="col-md-6 mb-3">
+                                <label for="imputation" class="form-label">
+                                    <i class="fas fa-tag text-primary"></i> Imputation
+                                </label>
+                                <input type="text" class="form-control" id="imputation" name="imputation" 
+                                       value="{{ commande.imputation }}" readonly>
+                                <div class="form-text">Code d'imputation budgétaire</div>
+                            </div>
+
+                            <!-- Pièce jointe -->
+                            <div class="col-md-6 mb-3">
+                                <label for="piece_jointe" class="form-label">
+                                    <i class="fas fa-paperclip text-primary"></i> Pièce jointe
+                                </label>
+                                {% if commande.piece_jointe %}
+                                <div class="mb-2">
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-paperclip"></i> Fichier actuel : {{ commande.piece_jointe }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                                <input type="file" class="form-control" id="piece_jointe" name="piece_jointe" 
+                                       accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+                                <div class="form-text">
+                                    {% if commande.piece_jointe %}
+                                    Laissez vide pour conserver le fichier actuel, ou sélectionnez un nouveau fichier
+                                    {% else %}
+                                    Devis, catalogue, photo... (optionnel)
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="mb-3">
+                            <label for="description" class="form-label">
+                                <i class="fas fa-align-left text-primary"></i> Description
+                            </label>
+                            <textarea class="form-control" id="description" name="description" rows="4" 
+                                      placeholder="Décrivez le besoin, la raison de la commande, les spécifications techniques...">{{ commande.description or '' }}</textarea>
+                            <div class="form-text">Description détaillée de la commande (optionnel)</div>
+                        </div>
+
+                        <!-- Informations de la commande -->
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-info-circle"></i> Informations de la commande</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <strong>Demandeur :</strong> {{ commande.user.username }}<br>
+                                    <strong>Date de création :</strong> {{ commande.date_creation.strftime('%d/%m/%Y à %H:%M') }}
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Dernière modification :</strong> {{ commande.date_modification.strftime('%d/%m/%Y à %H:%M') }}<br>
+                                    <strong>Statut actuel :</strong> 
+                                    {% if commande.statut == 'En attente' %}
+                                        <span class="badge bg-warning">{{ commande.statut }}</span>
+                                    {% elif commande.statut == 'Validée' %}
+                                        <span class="badge bg-success">{{ commande.statut }}</span>
+                                    {% elif commande.statut == 'Refusée' %}
+                                        <span class="badge bg-danger">{{ commande.statut }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ commande.statut }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Boutons d'action -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{{ url_for('commandes') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Annuler
+                            </a>
+                            <button type="submit" class="btn btn-warning">
+                                <i class="fas fa-save"></i> Enregistrer les modifications
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panneau d'aide -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-info-circle text-info"></i> Aide
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <h6>Modification d'une commande</h6>
+                    <ul class="small">
+                        <li>Vous pouvez modifier <strong>tous les champs</strong> de la commande</li>
+                        <li>La <strong>pièce jointe</strong> peut être remplacée ou conservée</li>
+                        <li>Un <strong>email de notification</strong> sera envoyé automatiquement</li>
+                        <li>La <strong>date de modification</strong> sera mise à jour</li>
+                    </ul>
+                    
+                    <hr>
+                    
+                    <h6>Champs obligatoires</h6>
+                    <ul class="small">
+                        <li><strong>Site</strong> - Lieu principal</li>
+                        <li><strong>Localisation</strong> - Emplacement spécifique</li>
+                        <li><strong>Équipement</strong> - Matériel concerné</li>
+                        <li><strong>Prix</strong> - Montant estimé</li>
+                    </ul>
+                    
+                    <hr>
+                    
+                    <h6>Informations automatiques</h6>
+                    <ul class="small">
+                        <li><strong>Imputation</strong> : Code budgétaire fixe</li>
+                        <li><strong>Demandeur</strong> : Utilisateur qui a créé la commande</li>
+                        <li><strong>Dates</strong> : Création et dernière modification</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript pour la sélection en cascade -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const siteSelect = document.getElementById('site_id');
+    const localisationSelect = document.getElementById('localisation_id');
+    const equipementSelect = document.getElementById('equipement_id');
+
+    // Fonction pour réinitialiser les sélections dépendantes
+    function resetDependentSelects(select, message) {
+        select.innerHTML = `<option value="">${message}</option>`;
+        select.disabled = true;
+        select.value = '';
+    }
+
+    // Gestionnaire pour le changement de site
+    siteSelect.addEventListener('change', function() {
+        const siteId = this.value;
+        
+        if (siteId) {
+            // Réinitialiser les sélections dépendantes
+            resetDependentSelects(localisationSelect, 'Chargement des localisations...');
+            resetDependentSelects(equipementSelect, 'Sélectionner d\'abord une localisation...');
+            
+            // Charger les localisations du site
+            fetch(`/api/site/${siteId}/localisations`)
+                .then(response => response.json())
+                .then(data => {
+                    localisationSelect.innerHTML = '<option value="">Sélectionner une localisation...</option>';
+                    data.forEach(loc => {
+                        const option = document.createElement('option');
+                        option.value = loc.id;
+                        option.textContent = loc.nom;
+                        localisationSelect.appendChild(option);
+                    });
+                    localisationSelect.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des localisations:', error);
+                    resetDependentSelects(localisationSelect, 'Erreur de chargement');
+                });
+        } else {
+            resetDependentSelects(localisationSelect, 'Sélectionner d\'abord un site...');
+            resetDependentSelects(equipementSelect, 'Sélectionner d\'abord une localisation...');
+        }
+    });
+
+    // Gestionnaire pour le changement de localisation
+    localisationSelect.addEventListener('change', function() {
+        const localisationId = this.value;
+        
+        if (localisationId) {
+            // Réinitialiser la sélection d'équipement
+            resetDependentSelects(equipementSelect, 'Chargement des équipements...');
+            
+            // Charger les équipements de la localisation
+            fetch(`/api/localisation/${localisationId}/equipements`)
+                .then(response => response.json())
+                .then(data => {
+                    equipementSelect.innerHTML = '<option value="">Sélectionner un équipement...</option>';
+                    data.forEach(equip => {
+                        const option = document.createElement('option');
+                        option.value = equip.id;
+                        option.textContent = equip.nom;
+                        if (equip.description) {
+                            option.textContent += ` - ${equip.description}`;
+                        }
+                        equipementSelect.appendChild(option);
+                    });
+                    equipementSelect.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des équipements:', error);
+                    resetDependentSelects(equipementSelect, 'Erreur de chargement');
+                });
+        } else {
+            resetDependentSelects(equipementSelect, 'Sélectionner d\'abord une localisation...');
+        }
+    });
+
+    // Validation du formulaire
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const siteId = siteSelect.value;
+        const localisationId = localisationSelect.value;
+        const equipementId = equipementSelect.value;
+        const prix = document.getElementById('prix').value;
+
+        if (!siteId || !localisationId || !equipementId || !prix) {
+            e.preventDefault();
+            alert('Veuillez remplir tous les champs obligatoires (marqués d\'un *)');
+            return false;
+        }
+
+        if (parseFloat(prix) <= 0) {
+            e.preventDefault();
+            alert('Le prix doit être supérieur à 0');
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}
+
+
+

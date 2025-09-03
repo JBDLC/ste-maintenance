@@ -352,6 +352,26 @@ class ErreurImportMaintenance(db.Model):
     date_creation = db.Column(db.DateTime, default=datetime.utcnow)
     user = db.relationship('User', backref='erreurs_import_maintenance')
 
+class Commande(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    site_id = db.Column(db.Integer, db.ForeignKey('site.id'), nullable=False)
+    localisation_id = db.Column(db.Integer, db.ForeignKey('localisation.id'), nullable=False)
+    equipement_id = db.Column(db.Integer, db.ForeignKey('equipement.id'), nullable=False)
+    prix = db.Column(db.Float, nullable=False)
+    imputation = db.Column(db.String(20), default='8I7315M')
+    piece_jointe = db.Column(db.String(255))  # Nom du fichier
+    description = db.Column(db.Text)
+    statut = db.Column(db.String(20), default='En attente')  # En attente, Validée, Refusée
+    date_creation = db.Column(db.DateTime, default=datetime.utcnow)
+    date_modification = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relations
+    user = db.relationship('User', backref='commandes')
+    site = db.relationship('Site')
+    localisation = db.relationship('Localisation')
+    equipement = db.relationship('Equipement')
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
@@ -384,7 +404,7 @@ def has_permission(user_id, page, action='view'):
 def create_user_permissions(user_id):
     """Crée les permissions par défaut (aucune) pour un nouvel utilisateur"""
     pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
-             'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres']
+             'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres', 'commandes']
     
     for page in pages:
         permission = UserPermission(
@@ -623,9 +643,21 @@ def maintenances():
     localisation_filter = request.args.get('localisation', '')
     equipement_filter = request.args.get('equipement', '')
     periodicite_filter = request.args.get('periodicite', '')
+    search = request.args.get('search', '')
     
     # Récupérer toutes les maintenances avec filtres
     query = Maintenance.query.join(Equipement).join(Localisation)
+    
+    # Recherche globale
+    if search:
+        query = query.filter(
+            db.or_(
+                Maintenance.titre.contains(search),
+                Equipement.nom.contains(search),
+                Localisation.nom.contains(search),
+                Maintenance.periodicite.contains(search)
+            )
+        )
     
     if localisation_filter:
         query = query.filter(Localisation.nom.contains(localisation_filter))
@@ -666,7 +698,8 @@ def maintenances():
                          periodicites=periodicites,
                          localisation_filter=localisation_filter,
                          equipement_filter=equipement_filter,
-                         periodicite_filter=periodicite_filter)
+                         periodicite_filter=periodicite_filter,
+                         search=search)
 
 def generate_interventions(maintenance, date_limite=datetime(2030, 12, 31).date()):
     """Génère toutes les interventions futures pour une maintenance jusqu'à la date limite (2030-12-31)."""
@@ -787,10 +820,18 @@ def ajouter_maintenance_curative():
         flash('Maintenance curative ajoutée avec succès!', 'success')
         return redirect(url_for('maintenance_curative'))
     
-    # Récupérer les localisations avec leurs équipements
-    localisations = Localisation.query.options(
-        db.joinedload(Localisation.equipements)
-    ).all()
+    # Récupérer les localisations
+    localisations = Localisation.query.all()
+    
+    # Récupérer tous les équipements avec leurs localisations
+    equipements = Equipement.query.all()
+    
+    # Organiser les équipements par localisation
+    equipements_par_localisation = {}
+    for equipement in equipements:
+        if equipement.localisation_id not in equipements_par_localisation:
+            equipements_par_localisation[equipement.localisation_id] = []
+        equipements_par_localisation[equipement.localisation_id].append(equipement)
     
     # Récupérer toutes les pièces pour l'instant (sera filtré par JavaScript)
     pieces = Piece.query.all()
@@ -798,6 +839,22 @@ def ajouter_maintenance_curative():
     return render_template('ajouter_maintenance_curative.html', 
                          localisations=localisations, 
                          pieces=pieces)
+
+@app.route('/api/equipements/localisation/<int:localisation_id>')
+@login_required
+def get_equipements_localisation(localisation_id):
+    """API pour récupérer les équipements d'une localisation"""
+    equipements = Equipement.query.filter_by(localisation_id=localisation_id).all()
+    equipements_data = []
+    
+    for equipement in equipements:
+        equipements_data.append({
+            'id': equipement.id,
+            'nom': equipement.nom,
+            'description': equipement.description or ''
+        })
+    
+    return jsonify(equipements_data)
 
 @app.route('/api/equipement/<int:equipement_id>/pieces')
 @login_required
@@ -2325,7 +2382,7 @@ def gestion_utilisateurs():
     """Page de gestion des utilisateurs et permissions"""
     users = User.query.filter_by(active=True).all()
     pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
-             'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres']
+             'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres', 'commandes']
     
     # Récupérer les permissions pour chaque utilisateur
     users_permissions = {}
@@ -2372,7 +2429,7 @@ def modifier_permissions(user_id):
     """Modifier les permissions d'un utilisateur"""
     user = User.query.get_or_404(user_id)
     pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
-             'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres']
+             'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres', 'commandes']
     
     permissions_data = {}
     for page in pages:
@@ -2389,7 +2446,7 @@ def modifier_permissions(user_id):
 def modifier_permissions_bulk():
     """Modifier les permissions de tous les utilisateurs en lot"""
     pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
-             'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres']
+             'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres', 'commandes']
     
     # Récupérer toutes les permissions du formulaire
     permissions_form = request.form.getlist('permissions')
@@ -4989,6 +5046,295 @@ def definir_date_maintenance_lot():
     
     return redirect(url_for('maintenances'))
 
+# Routes pour les commandes
+@app.route('/commandes')
+@login_required
+def commandes():
+    """Liste des commandes"""
+    if not has_permission(current_user.id, 'commandes'):
+        flash('Vous n\'avez pas accès à cette page', 'danger')
+        return redirect(url_for('index'))
+    
+    commandes_list = Commande.query.order_by(Commande.date_creation.desc()).all()
+    return render_template('commandes.html', commandes=commandes_list)
+
+@app.route('/commandes/ajouter', methods=['GET', 'POST'])
+@login_required
+def ajouter_commande():
+    """Ajouter une nouvelle commande"""
+    if not has_permission(current_user.id, 'commandes'):
+        flash('Vous n\'avez pas accès à cette page', 'danger')
+        return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        try:
+            # Récupérer les données du formulaire
+            site_id = request.form.get('site_id')
+            localisation_id = request.form.get('localisation_id')
+            equipement_id = request.form.get('equipement_id')
+            prix = float(request.form.get('prix', 0))
+            description = request.form.get('description', '')
+            
+            # Gérer la pièce jointe
+            piece_jointe = None
+            if 'piece_jointe' in request.files:
+                file = request.files['piece_jointe']
+                if file and file.filename:
+                    # Créer le dossier uploads s'il n'existe pas
+                    upload_folder = os.path.join(app.root_path, 'uploads')
+                    if not os.path.exists(upload_folder):
+                        os.makedirs(upload_folder)
+                    
+                    # Générer un nom de fichier unique
+                    filename = f"commande_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+                    file_path = os.path.join(upload_folder, filename)
+                    file.save(file_path)
+                    piece_jointe = filename
+            
+            # Créer la commande
+            commande = Commande(
+                user_id=current_user.id,
+                site_id=site_id,
+                localisation_id=localisation_id,
+                equipement_id=equipement_id,
+                prix=prix,
+                description=description,
+                piece_jointe=piece_jointe
+            )
+            
+            db.session.add(commande)
+            db.session.commit()
+            
+            # Envoyer l'email de notification
+            envoyer_notification_commande(commande, 'creation')
+            
+            flash('Commande créée avec succès !', 'success')
+            return redirect(url_for('commandes'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur lors de la création de la commande : {str(e)}', 'danger')
+    
+    # GET : afficher le formulaire
+    sites = Site.query.all()
+    return render_template('ajouter_commande.html', sites=sites)
+
+@app.route('/commandes/<int:commande_id>/modifier', methods=['GET', 'POST'])
+@login_required
+def modifier_commande(commande_id):
+    """Modifier une commande existante"""
+    if not has_permission(current_user.id, 'commandes'):
+        flash('Vous n\'avez pas accès à cette page', 'danger')
+        return redirect(url_for('index'))
+    
+    commande = Commande.query.get_or_404(commande_id)
+    
+    if request.method == 'POST':
+        try:
+            # Mettre à jour les données
+            commande.site_id = request.form.get('site_id')
+            commande.localisation_id = request.form.get('localisation_id')
+            commande.equipement_id = request.form.get('equipement_id')
+            commande.prix = float(request.form.get('prix', 0))
+            commande.description = request.form.get('description', '')
+            
+            # Gérer la nouvelle pièce jointe si fournie
+            if 'piece_jointe' in request.files:
+                file = request.files['piece_jointe']
+                if file and file.filename:
+                    # Supprimer l'ancien fichier s'il existe
+                    if commande.piece_jointe:
+                        old_file_path = os.path.join(app.root_path, 'uploads', commande.piece_jointe)
+                        if os.path.exists(old_file_path):
+                            os.remove(old_file_path)
+                    
+                    # Sauvegarder le nouveau fichier
+                    upload_folder = os.path.join(app.root_path, 'uploads')
+                    filename = f"commande_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{file.filename}"
+                    file_path = os.path.join(upload_folder, filename)
+                    file.save(file_path)
+                    commande.piece_jointe = filename
+            
+            db.session.commit()
+            
+            # Envoyer l'email de notification
+            envoyer_notification_commande(commande, 'modification')
+            
+            flash('Commande modifiée avec succès !', 'success')
+            return redirect(url_for('commandes'))
+            
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur lors de la modification : {str(e)}', 'danger')
+    
+    # GET : afficher le formulaire
+    sites = Site.query.all()
+    localisations = Localisation.query.filter_by(site_id=commande.site_id).all()
+    equipements = Equipement.query.filter_by(localisation_id=commande.localisation_id).all()
+    
+    return render_template('modifier_commande.html', 
+                         commande=commande, 
+                         sites=sites, 
+                         localisations=localisations, 
+                         equipements=equipements)
+
+@app.route('/commandes/<int:commande_id>/supprimer', methods=['POST'])
+@login_required
+def supprimer_commande(commande_id):
+    """Supprimer une commande"""
+    if not has_permission(current_user.id, 'commandes'):
+        flash('Vous n\'avez pas accès à cette page', 'danger')
+        return redirect(url_for('index'))
+    
+    commande = Commande.query.get_or_404(commande_id)
+    
+    try:
+        # Supprimer le fichier joint s'il existe
+        if commande.piece_jointe:
+            file_path = os.path.join(app.root_path, 'uploads', commande.piece_jointe)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        
+        db.session.delete(commande)
+        db.session.commit()
+        
+        flash('Commande supprimée avec succès !', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erreur lors de la suppression : {str(e)}', 'danger')
+    
+    return redirect(url_for('commandes'))
+
+@app.route('/commandes/<int:commande_id>/changer-statut', methods=['POST'])
+@login_required
+def changer_statut_commande(commande_id):
+    """Changer le statut d'une commande (admin uniquement)"""
+    if not has_permission(current_user.id, 'commandes'):
+        flash('Vous n\'avez pas accès à cette page', 'danger')
+        return redirect(url_for('index'))
+    
+    # Vérifier que l'utilisateur est admin
+    if current_user.username != 'admin':
+        flash('Seul l\'administrateur peut changer le statut des commandes', 'danger')
+        return redirect(url_for('commandes'))
+    
+    commande = Commande.query.get_or_404(commande_id)
+    nouveau_statut = request.form.get('nouveau_statut')
+    
+    if nouveau_statut not in ['En attente', 'Validée', 'Refusée', 'Passée']:
+        flash('Statut invalide', 'danger')
+        return redirect(url_for('commandes'))
+    
+    try:
+        ancien_statut = commande.statut
+        commande.statut = nouveau_statut
+        db.session.commit()
+        
+        flash(f'Statut de la commande changé de "{ancien_statut}" à "{nouveau_statut}"', 'success')
+        
+        # Envoyer notification par email si changement de statut
+        if ancien_statut != nouveau_statut:
+            envoyer_notification_commande(commande, 'changement_statut')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erreur lors du changement de statut : {str(e)}', 'danger')
+    
+    return redirect(url_for('commandes'))
+
+@app.route('/api/site/<int:site_id>/localisations')
+def api_localisations_site(site_id):
+    """API pour récupérer les localisations d'un site"""
+    localisations = Localisation.query.filter_by(site_id=site_id).all()
+    return jsonify([{
+        'id': loc.id,
+        'nom': loc.nom
+    } for loc in localisations])
+
+@app.route('/api/localisation/<int:localisation_id>/equipements')
+def api_equipements_localisation(localisation_id):
+    """API pour récupérer les équipements d'une localisation"""
+    equipements = Equipement.query.filter_by(localisation_id=localisation_id).all()
+    return jsonify([{
+        'id': equip.id,
+        'nom': equip.nom,
+        'description': equip.description or ''
+    } for equip in equipements])
+
+def envoyer_notification_commande(commande, action):
+    """Envoie une notification par email pour une commande"""
+    try:
+        # Récupérer les informations de la commande
+        site = Site.query.get(commande.site_id)
+        localisation = Localisation.query.get(commande.localisation_id)
+        equipement = Equipement.query.get(commande.equipement_id)
+        user = User.query.get(commande.user_id)
+        
+        # Construire le sujet
+        if action == 'creation':
+            sujet = f"Commande créée - {equipement.nom}"
+        elif action == 'modification':
+            sujet = f"Commande modifiée - {equipement.nom}"
+        elif action == 'changement_statut':
+            sujet = f"Statut de commande changé - {equipement.nom}"
+        else:
+            sujet = f"Commande {action} - {equipement.nom}"
+        
+        # Construire le corps du message
+        if action == 'changement_statut':
+            corps = f"""
+            Le statut d'une commande a été modifié :
+            
+            **Détails de la commande :**
+            - Site : {site.nom}
+            - Localisation : {localisation.nom}
+            - Équipement : {equipement.nom}
+            - Prix : {commande.prix}€
+            - Imputation : {commande.imputation}
+            - Description : {commande.description or 'Aucune description'}
+            - Demandeur : {user.username}
+            - Date : {commande.date_creation.strftime('%d/%m/%Y à %H:%M')}
+            
+            **Nouveau statut :** {commande.statut}
+            """
+        else:
+            corps = f"""
+            Une commande a été {action} :
+            
+            **Détails de la commande :**
+            - Site : {site.nom}
+            - Localisation : {localisation.nom}
+            - Équipement : {equipement.nom}
+            - Prix : {commande.prix}€
+            - Imputation : {commande.imputation}
+            - Description : {commande.description or 'Aucune description'}
+            - Demandeur : {user.username}
+            - Date : {commande.date_creation.strftime('%d/%m/%Y à %H:%M')}
+            
+            **Statut :** {commande.statut}
+            """
+        
+        # Envoyer l'email
+        msg = Message(
+            subject=sujet,
+            body=corps,
+            recipients=[app.config['MAIL_DEFAULT_SENDER']]  # Envoyer à l'admin
+        )
+        
+        # Ajouter la pièce jointe si elle existe
+        if commande.piece_jointe:
+            file_path = os.path.join(app.root_path, 'uploads', commande.piece_jointe)
+            if os.path.exists(file_path):
+                with open(file_path, 'rb') as f:
+                    msg.attach(commande.piece_jointe, 'application/octet-stream', f.read())
+        
+        mail.send(msg)
+        
+    except Exception as e:
+        print(f"Erreur lors de l'envoi de l'email : {e}")
+        # Ne pas faire échouer l'opération pour un problème d'email
+
 # Initialisation automatique au démarrage de l'application
 with app.app_context():
     try:
@@ -5040,7 +5386,7 @@ with app.app_context():
             
             # Créer les permissions pour l'admin
             pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
-                     'maintenances', 'calendrier', 'mouvements', 'parametres']
+                     'maintenances', 'calendrier', 'mouvements', 'parametres', 'commandes']
             
             for page in pages:
                 permission = UserPermission(

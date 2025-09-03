@@ -15,6 +15,32 @@
     </div>
 </div>
 
+<!-- Barre de recherche -->
+<div class="row mb-3">
+    <div class="col-md-6">
+        <form method="GET" action="{{ url_for('maintenances') }}" class="d-flex">
+            <div class="input-group">
+                <span class="input-group-text">
+                    <i class="fas fa-search"></i>
+                </span>
+                <input type="text" class="form-control" name="search" value="{{ search or '' }}" placeholder="Rechercher par titre, équipement, localisation..." autocomplete="off">
+                <button type="submit" class="btn btn-outline-secondary">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+    <div class="col-md-6 text-end">
+        <small class="text-muted">
+            {% if search %}
+                Recherche : "{{ search }}" - {{ maintenances_co6|length + maintenances_co7|length }} résultat(s)
+            {% else %}
+                {{ maintenances_co6|length + maintenances_co7|length }} maintenance(s) au total
+            {% endif %}
+        </small>
+    </div>
+</div>
+
 <!-- Filtres -->
 <div class="card mb-4">
     <div class="card-header">
@@ -22,6 +48,7 @@
     </div>
     <div class="card-body">
         <form method="GET" action="{{ url_for('maintenances') }}" class="row g-3">
+            <input type="hidden" name="search" value="{{ search or '' }}">
             <div class="col-md-3">
                 <label for="localisation" class="form-label">Localisation</label>
                 <select class="form-select" id="localisation" name="localisation">
@@ -61,7 +88,7 @@
                         <i class="fas fa-search"></i> Filtrer
                     </button>
                     <a href="{{ url_for('maintenances') }}" class="btn btn-outline-secondary">
-                        <i class="fas fa-times"></i> Effacer
+                        <i class="fas fa-times"></i> Effacer les filtres
                     </a>
                 </div>
             </div>

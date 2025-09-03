@@ -108,21 +108,6 @@
 
 {% block scripts %}
 <script>
-// Données des équipements par localisation
-const equipementsData = {
-    {% for localisation in localisations %}
-    {{ localisation.id }}: [
-        {% for equipement in localisation.equipements %}
-        {
-            id: {{ equipement.id }},
-            nom: "{{ equipement.nom|replace('"', '\\"') }}",
-            description: "{{ (equipement.description or '')|replace('"', '\\"')|replace('\n', '\\n') }}"
-        }{% if not loop.last %},{% endif %}
-        {% endfor %}
-    ]{% if not loop.last %},{% endif %}
-    {% endfor %}
-};
-
 // Gestion du changement de localisation
 document.getElementById('localisation_id').addEventListener('change', function() {
     const localisationId = this.value;
@@ -134,15 +119,25 @@ document.getElementById('localisation_id').addEventListener('change', function()
     equipementSelect.disabled = true;
     descriptionEquipement.value = '';
     
-    if (localisationId && equipementsData[localisationId]) {
-        equipementSelect.disabled = false;
-        equipementsData[localisationId].forEach(equipement => {
-            const option = document.createElement('option');
-            option.value = equipement.id;
-            option.textContent = equipement.nom;
-            option.dataset.description = equipement.description;
-            equipementSelect.appendChild(option);
-        });
+    if (localisationId) {
+        // Récupérer les équipements via API
+        fetch(`/api/equipements/localisation/${localisationId}`)
+            .then(response => response.json())
+            .then(equipements => {
+                if (equipements.length > 0) {
+                    equipementSelect.disabled = false;
+                    equipements.forEach(equipement => {
+                        const option = document.createElement('option');
+                        option.value = equipement.id;
+                        option.textContent = equipement.nom;
+                        option.dataset.description = equipement.description;
+                        equipementSelect.appendChild(option);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors de la récupération des équipements:', error);
+            });
     }
 });
 
