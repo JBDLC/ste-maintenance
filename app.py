@@ -2448,33 +2448,42 @@ def modifier_permissions_bulk():
     pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
              'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres', 'commandes']
     
-    # Récupérer toutes les permissions du formulaire
-    permissions_form = request.form.getlist('permissions')
+    # Récupérer tous les utilisateurs
+    users = User.query.filter_by(active=True).all()
+    
+    print(f"DEBUG: Traitement de {len(users)} utilisateurs")
+    print(f"DEBUG: Données du formulaire: {dict(request.form)}")
     
     # Traiter chaque utilisateur
-    for user_id_str in request.form:
-        if user_id_str.startswith('permissions[') and user_id_str.endswith(']'):
-            # Extraire l'ID utilisateur et la page
-            # Format: permissions[user_id][page]
-            parts = user_id_str.replace('permissions[', '').replace(']', '').split('[')
-            if len(parts) == 2:
-                user_id = int(parts[0])
-                page = parts[1]
-                
-                # Vérifier si cette permission est cochée
-                is_checked = request.form.get(user_id_str) == '1'
-                
-                # Mettre à jour la permission
-                permission = UserPermission.query.filter_by(user_id=user_id, page=page).first()
-                if permission:
-                    permission.can_access = is_checked
-                else:
-                    # Créer une nouvelle permission si elle n'existe pas
-                    permission = UserPermission(user_id=user_id, page=page, can_access=is_checked)
-                    db.session.add(permission)
+    for user in users:
+        print(f"DEBUG: Traitement utilisateur {user.id} ({user.username})")
+        for page in pages:
+            # Vérifier si cette permission est cochée
+            permission_key = f'permissions[{user.id}][{page}]'
+            is_checked = request.form.get(permission_key) == '1'
+            
+            print(f"DEBUG: Permission {permission_key} = {is_checked}")
+            
+            # Mettre à jour ou créer la permission
+            permission = UserPermission.query.filter_by(user_id=user.id, page=page).first()
+            if permission:
+                permission.can_access = is_checked
+                print(f"DEBUG: Permission existante mise à jour pour {user.username} - {page}")
+            else:
+                # Créer une nouvelle permission si elle n'existe pas
+                permission = UserPermission(user_id=user.id, page=page, can_access=is_checked)
+                db.session.add(permission)
+                print(f"DEBUG: Nouvelle permission créée pour {user.username} - {page}")
     
-    db.session.commit()
-    flash('Toutes les permissions ont été mises à jour', 'success')
+    try:
+        db.session.commit()
+        print("DEBUG: Commit réussi")
+        flash('Toutes les permissions ont été mises à jour', 'success')
+    except Exception as e:
+        db.session.rollback()
+        print(f"DEBUG: Erreur lors du commit: {e}")
+        flash(f'Erreur lors de la sauvegarde des permissions: {str(e)}', 'danger')
+    
     return redirect(url_for('gestion_utilisateurs'))
 
 @app.route('/parametres/utilisateur/<int:user_id>/supprimer', methods=['POST'])
