@@ -74,6 +74,24 @@
                                 <div class="form-text">Sélectionnez l'équipement concerné</div>
                             </div>
 
+                            <!-- Pièce de rechange -->
+                            <div class="col-md-6 mb-3">
+                                <label for="piece_id" class="form-label">
+                                    <i class="fas fa-boxes text-primary"></i> Pièce de rechange
+                                </label>
+                                <select class="form-select" id="piece_id" name="piece_id">
+                                    <option value="">Sélectionner une pièce de rechange...</option>
+                                    {% if commande.piece_id %}
+                                    <option value="{{ commande.piece_id }}" selected>
+                                        {{ commande.piece.item if commande.piece else 'Pièce sélectionnée' }}
+                                    </option>
+                                    {% endif %}
+                                </select>
+                                <div class="form-text">Sélectionnez une pièce de rechange disponible (optionnel)</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <!-- Prix -->
                             <div class="col-md-6 mb-3">
                                 <label for="prix" class="form-label">
@@ -86,6 +104,41 @@
                                     <span class="input-group-text">€</span>
                                 </div>
                                 <div class="form-text">Prix estimé de la commande</div>
+                            </div>
+
+                            <!-- Imputation -->
+                            <div class="col-md-6 mb-3">
+                                <label for="imputation" class="form-label">
+                                    <i class="fas fa-tag text-primary"></i> Imputation
+                                </label>
+                                <input type="text" class="form-control" id="imputation" name="imputation" 
+                                       value="{{ commande.imputation }}" readonly>
+                                <div class="form-text">Code d'imputation budgétaire</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- Pièce jointe -->
+                            <div class="col-md-6 mb-3">
+                                <label for="piece_jointe" class="form-label">
+                                    <i class="fas fa-paperclip text-primary"></i> Pièce jointe
+                                </label>
+                                {% if commande.piece_jointe %}
+                                <div class="mb-2">
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-paperclip"></i> Fichier actuel : {{ commande.piece_jointe }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                                <input type="file" class="form-control" id="piece_jointe" name="piece_jointe" 
+                                       accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+                                <div class="form-text">
+                                    {% if commande.piece_jointe %}
+                                    Laissez vide pour conserver le fichier actuel, ou sélectionnez un nouveau fichier
+                                    {% else %}
+                                    Devis, catalogue, photo... (optionnel)
+                                    {% endif %}
+                                </div>
                             </div>
                         </div>
 
@@ -219,6 +272,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const siteSelect = document.getElementById('site_id');
     const localisationSelect = document.getElementById('localisation_id');
     const equipementSelect = document.getElementById('equipement_id');
+    const pieceSelect = document.getElementById('piece_id');
 
     // Fonction pour réinitialiser les sélections dépendantes
     function resetDependentSelects(select, message) {
@@ -235,6 +289,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Réinitialiser les sélections dépendantes
             resetDependentSelects(localisationSelect, 'Chargement des localisations...');
             resetDependentSelects(equipementSelect, 'Sélectionner d\'abord une localisation...');
+            resetDependentSelects(pieceSelect, 'Sélectionner d\'abord un équipement...');
             
             // Charger les localisations du site
             fetch(`/api/site/${siteId}/localisations`)
@@ -256,6 +311,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             resetDependentSelects(localisationSelect, 'Sélectionner d\'abord un site...');
             resetDependentSelects(equipementSelect, 'Sélectionner d\'abord une localisation...');
+            resetDependentSelects(pieceSelect, 'Sélectionner d\'abord un équipement...');
         }
     });
 
@@ -266,6 +322,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (localisationId) {
             // Réinitialiser la sélection d'équipement
             resetDependentSelects(equipementSelect, 'Chargement des équipements...');
+            resetDependentSelects(pieceSelect, 'Sélectionner d\'abord un équipement...');
             
             // Charger les équipements de la localisation
             fetch(`/api/localisation/${localisationId}/equipements`)
@@ -289,6 +346,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         } else {
             resetDependentSelects(equipementSelect, 'Sélectionner d\'abord une localisation...');
+            resetDependentSelects(pieceSelect, 'Sélectionner d\'abord un équipement...');
+        }
+    });
+
+    // Gestionnaire pour le changement d'équipement
+    equipementSelect.addEventListener('change', function() {
+        const equipementId = this.value;
+        
+        if (equipementId) {
+            // Réinitialiser la sélection de la pièce
+            resetDependentSelects(pieceSelect, 'Chargement des pièces de rechange...');
+            
+            // Charger les pièces de rechange de l'équipement
+            fetch(`/api/equipement/${equipementId}/pieces`)
+                .then(response => response.json())
+                .then(data => {
+                    pieceSelect.innerHTML = '<option value="">Sélectionner une pièce de rechange...</option>';
+                    data.forEach(piece => {
+                        const option = document.createElement('option');
+                        option.value = piece.id;
+                        option.textContent = piece.item || `Pièce #${piece.id}`;
+                        if (piece.quantite_stock !== undefined) {
+                            option.textContent += ` (Stock: ${piece.quantite_stock})`;
+                        }
+                        pieceSelect.appendChild(option);
+                    });
+                    pieceSelect.disabled = false;
+                })
+                .catch(error => {
+                    console.error('Erreur lors du chargement des pièces de rechange:', error);
+                    resetDependentSelects(pieceSelect, 'Erreur de chargement');
+                });
+        } else {
+            resetDependentSelects(pieceSelect, 'Sélectionner d\'abord un équipement...');
         }
     });
 

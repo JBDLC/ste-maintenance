@@ -358,6 +358,7 @@ class Commande(db.Model):
     site_id = db.Column(db.Integer, db.ForeignKey('site.id'), nullable=False)
     localisation_id = db.Column(db.Integer, db.ForeignKey('localisation.id'), nullable=False)
     equipement_id = db.Column(db.Integer, db.ForeignKey('equipement.id'), nullable=False)
+    piece_id = db.Column(db.Integer, db.ForeignKey('piece.id'), nullable=True)  # Pièce de rechange sélectionnée
     prix = db.Column(db.Float, nullable=False)
     imputation = db.Column(db.String(20), default='8I7315M')
     piece_jointe = db.Column(db.String(255))  # Nom du fichier
@@ -371,6 +372,7 @@ class Commande(db.Model):
     site = db.relationship('Site')
     localisation = db.relationship('Localisation')
     equipement = db.relationship('Equipement')
+    piece = db.relationship('Piece')
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -5122,6 +5124,7 @@ def ajouter_commande():
             site_id = request.form.get('site_id')
             localisation_id = request.form.get('localisation_id')
             equipement_id = request.form.get('equipement_id')
+            piece_id = request.form.get('piece_id')  # Pièce de rechange sélectionnée
             prix = float(request.form.get('prix', 0))
             description = request.form.get('description', '')
             
@@ -5147,6 +5150,7 @@ def ajouter_commande():
                 site_id=site_id,
                 localisation_id=localisation_id,
                 equipement_id=equipement_id,
+                piece_id=piece_id if piece_id else None,  # Pièce de rechange sélectionnée
                 prix=prix,
                 description=description,
                 piece_jointe=piece_jointe
@@ -5185,6 +5189,7 @@ def modifier_commande(commande_id):
             commande.site_id = request.form.get('site_id')
             commande.localisation_id = request.form.get('localisation_id')
             commande.equipement_id = request.form.get('equipement_id')
+            commande.piece_id = request.form.get('piece_id') if request.form.get('piece_id') else None
             commande.prix = float(request.form.get('prix', 0))
             commande.description = request.form.get('description', '')
             
@@ -5365,11 +5370,15 @@ def envoyer_notification_commande(commande, action):
             **Statut :** {commande.statut}
             """
         
+        # Récupérer l'email de destination depuis les paramètres
+        email_param = Parametre.query.filter_by(cle='email_rapport').first()
+        email_dest = email_param.valeur if email_param else app.config['MAIL_DEFAULT_SENDER']
+        
         # Envoyer l'email
         msg = Message(
             subject=sujet,
             body=corps,
-            recipients=[app.config['MAIL_DEFAULT_SENDER']]  # Envoyer à l'admin
+            recipients=[email_dest]  # Envoyer à l'adresse email de réception configurée
         )
         
         # Ajouter la pièce jointe si elle existe

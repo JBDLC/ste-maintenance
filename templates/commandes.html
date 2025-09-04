@@ -25,6 +25,7 @@
                             <th>Site</th>
                             <th>Localisation</th>
                             <th>Équipement</th>
+                            <th>Pièce de rechange</th>
                             <th>Prix</th>
                             <th>Imputation</th>
                             <th>Statut</th>
@@ -50,6 +51,15 @@
                                 <strong>{{ commande.equipement.nom }}</strong>
                                 {% if commande.equipement.description %}
                                 <br><small class="text-muted">{{ commande.equipement.description[:50] }}{% if commande.equipement.description|length > 50 %}...{% endif %}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if commande.piece_id and commande.piece %}
+                                    <span class="badge bg-primary">
+                                        <i class="fas fa-boxes"></i> {{ commande.piece.item }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
                             <td>
