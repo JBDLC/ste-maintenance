@@ -5401,13 +5401,15 @@ with app.app_context():
         db.create_all()
         print("✅ Tables créées avec succès!")
         
-        # Migration automatique pour PostgreSQL (donnees_fournisseur)
-        try:
-            if 'postgresql' in str(db.engine.url):
-                print("🔧 Détection PostgreSQL - Vérification de la colonne donnees_fournisseur...")
-                
-                # Vérifier si la colonne existe
+        # Migration automatique pour PostgreSQL
+        if 'postgresql' in str(db.engine.url):
+            print("🔧 Détection PostgreSQL - Migrations automatiques...")
+            
+            try:
                 from sqlalchemy import text
+                
+                # Migration 1: Colonne donnees_fournisseur
+                print("🔧 Vérification de la colonne donnees_fournisseur...")
                 result = db.session.execute(text("""
                     SELECT column_name 
                     FROM information_schema.columns 
@@ -5424,13 +5426,34 @@ with app.app_context():
                     print("✅ Colonne donnees_fournisseur ajoutée avec succès!")
                 else:
                     print("✅ Colonne donnees_fournisseur existe déjà")
-            else:
-                print("ℹ️ Base SQLite détectée - Migration non nécessaire")
                 
-        except Exception as e:
-            print(f"⚠️ Erreur lors de la migration PostgreSQL: {e}")
-            # Ne pas faire échouer l'application pour une migration
-            db.session.rollback()
+                # Migration 2: Colonne piece_id
+                print("🔧 Vérification de la colonne piece_id dans la table commande...")
+                result = db.session.execute(text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'commande' AND column_name = 'piece_id'
+                """)).fetchone()
+                
+                if not result:
+                    print("🔧 Ajout de la colonne piece_id...")
+                    db.session.execute(text("""
+                        ALTER TABLE commande 
+                        ADD COLUMN piece_id INTEGER REFERENCES piece(id)
+                    """))
+                    db.session.commit()
+                    print("✅ Colonne piece_id ajoutée avec succès!")
+                else:
+                    print("✅ Colonne piece_id existe déjà")
+                    
+            except Exception as e:
+                print(f"❌ Erreur lors de la migration PostgreSQL: {e}")
+                import traceback
+                traceback.print_exc()
+                db.session.rollback()
+                # Ne pas faire échouer l'application pour une migration
+        else:
+            print("ℹ️ Base SQLite détectée - Migration non nécessaire")
         
         # Créer un utilisateur admin par défaut si aucun n'existe
         admin = User.query.filter_by(username='admin').first()
@@ -5445,7 +5468,7 @@ with app.app_context():
             
             # Créer les permissions pour l'admin
             pages = ['sites', 'localisations', 'equipements', 'pieces', 'lieux_stockage', 
-                     'maintenances', 'calendrier', 'mouvements', 'parametres', 'commandes']
+                     'maintenances', 'calendrier', 'maintenance_curative', 'mouvements', 'parametres', 'commandes']
             
             for page in pages:
                 permission = UserPermission(
