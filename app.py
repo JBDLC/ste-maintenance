@@ -2659,6 +2659,47 @@ def supprimer_equipement(equipement_id):
     flash('Équipement supprimé avec succès.', 'success')
     return redirect(url_for('equipements'))
 
+@app.route('/equipements/supprimer-multiple', methods=['POST'])
+@login_required
+def supprimer_equipements_multiple():
+    equipements_ids = request.form.get('equipements_ids', '')
+    if not equipements_ids:
+        flash('Aucun équipement sélectionné.', 'warning')
+        return redirect(url_for('equipements'))
+    
+    try:
+        # Convertir la chaîne d'IDs en liste
+        ids_list = [int(id.strip()) for id in equipements_ids.split(',') if id.strip()]
+        
+        if not ids_list:
+            flash('Aucun équipement valide sélectionné.', 'warning')
+            return redirect(url_for('equipements'))
+        
+        # Récupérer les équipements
+        equipements = Equipement.query.filter(Equipement.id.in_(ids_list)).all()
+        
+        if not equipements:
+            flash('Aucun équipement trouvé.', 'warning')
+            return redirect(url_for('equipements'))
+        
+        # Supprimer les équipements
+        for equipement in equipements:
+            db.session.delete(equipement)
+        
+        db.session.commit()
+        
+        nb_supprimes = len(equipements)
+        if nb_supprimes == 1:
+            flash('1 équipement supprimé avec succès.', 'success')
+        else:
+            flash(f'{nb_supprimes} équipements supprimés avec succès.', 'success')
+            
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Erreur lors de la suppression : {str(e)}', 'danger')
+    
+    return redirect(url_for('equipements'))
+
 @app.route('/localisation/supprimer/<int:localisation_id>', methods=['POST'])
 @login_required
 def supprimer_localisation(localisation_id):
