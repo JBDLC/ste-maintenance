@@ -157,6 +157,8 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
                                 <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                        <input type="hidden" name="current_date" value="{{ semaine_lundi.strftime('%Y-%m-%d') }}">
+                                    <input type="hidden" name="current_date" value="{{ semaine_lundi.strftime('%Y-%m-%d') }}">
                                     <div class="modal-body">
                                         <div class="row">
                                             <div class="col-md-6">
@@ -232,6 +234,7 @@
                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                 </div>
                                 <form method="POST" action="{{ url_for('marquer_non_fait', intervention_id=intervention.id) }}">
+                        <input type="hidden" name="current_date" value="{{ semaine_lundi.strftime('%Y-%m-%d') }}">
                                     <div class="modal-body">
                                         <div class="row">
                                             <div class="col-md-6">
@@ -364,6 +367,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                        <input type="hidden" name="current_date" value="{{ semaine_lundi.strftime('%Y-%m-%d') }}">
                         <div class="modal-body">
                             <div class="row">
                                 <div class="col-md-6">
@@ -439,6 +443,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <form method="POST" action="{{ url_for('marquer_non_fait', intervention_id=intervention.id) }}">
+                        <input type="hidden" name="current_date" value="{{ semaine_lundi.strftime('%Y-%m-%d') }}">
                         <div class="modal-body">
                             <div class="row">
                                 <div class="col-md-6">
@@ -568,6 +573,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                        <input type="hidden" name="current_date" value="{{ semaine_lundi.strftime('%Y-%m-%d') }}">
                         <div class="modal-body">
                             <div class="row">
                                 <div class="col-md-6">
@@ -643,6 +649,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <form method="POST" action="{{ url_for('marquer_non_fait', intervention_id=intervention.id) }}">
+                        <input type="hidden" name="current_date" value="{{ semaine_lundi.strftime('%Y-%m-%d') }}">
                         <div class="modal-body">
                             <div class="row">
                                 <div class="col-md-6">
@@ -776,6 +783,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                        <input type="hidden" name="current_date" value="{{ semaine_lundi.strftime('%Y-%m-%d') }}">
                         <div class="modal-body">
                             <div class="row">
                                 <div class="col-md-6">
@@ -851,6 +859,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <form method="POST" action="{{ url_for('marquer_non_fait', intervention_id=intervention.id) }}">
+                        <input type="hidden" name="current_date" value="{{ semaine_lundi.strftime('%Y-%m-%d') }}">
                         <div class="modal-body">
                             <div class="row">
                                 <div class="col-md-6">
@@ -900,6 +909,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                        <input type="hidden" name="current_date" value="{{ semaine_lundi.strftime('%Y-%m-%d') }}">
                         <div class="modal-body">
                             <div class="row">
                                 <div class="col-md-6">
@@ -975,6 +985,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <form method="POST" action="{{ url_for('marquer_non_fait', intervention_id=intervention.id) }}">
+                        <input type="hidden" name="current_date" value="{{ semaine_lundi.strftime('%Y-%m-%d') }}">
                         <div class="modal-body">
                             <div class="row">
                                 <div class="col-md-6">
@@ -1184,6 +1195,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <form method="POST" action="{{ url_for('realiser_intervention', intervention_id=intervention.id) }}">
+                        <input type="hidden" name="current_date" value="{{ semaine_lundi.strftime('%Y-%m-%d') }}">
                         <div class="modal-body">
                             <div class="row">
                                 <div class="col-md-6">
@@ -1259,6 +1271,7 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <form method="POST" action="{{ url_for('marquer_non_fait', intervention_id=intervention.id) }}">
+                        <input type="hidden" name="current_date" value="{{ semaine_lundi.strftime('%Y-%m-%d') }}">
                         <div class="modal-body">
                             <div class="row">
                                 <div class="col-md-6">
@@ -1386,6 +1399,39 @@ function showMaintenanceDetails(element) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Nettoyer les overlays Bootstrap orphelins
+    function cleanupBootstrapOverlays() {
+        // Supprimer tous les overlays de modal qui pourraient rester
+        const overlays = document.querySelectorAll('.modal-backdrop');
+        overlays.forEach(overlay => overlay.remove());
+        
+        // Supprimer la classe modal-open du body
+        document.body.classList.remove('modal-open');
+        
+        // Réinitialiser le style overflow du body
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    }
+    
+    // Nettoyer les overlays au chargement de la page
+    cleanupBootstrapOverlays();
+    
+    // Conserver la position de scroll si demandé
+    {% if preserve_scroll %}
+    // Restaurer la position de scroll après rechargement
+    window.addEventListener('load', function() {
+        // Attendre un peu pour que le contenu soit chargé
+        setTimeout(function() {
+            // Essayer de restaurer la position depuis sessionStorage
+            const savedScrollPosition = sessionStorage.getItem('calendrier_scroll_position');
+            if (savedScrollPosition) {
+                window.scrollTo(0, parseInt(savedScrollPosition));
+                sessionStorage.removeItem('calendrier_scroll_position');
+            }
+        }, 100);
+    });
+    {% endif %}
+    
     // Gestion des boutons d'action pour appareils tactiles et desktop
     document.addEventListener('click', function(e) {
         if (e.target.closest('.action-btn')) {
@@ -1467,6 +1513,37 @@ document.addEventListener('DOMContentLoaded', function() {
             if (container.querySelectorAll('.piece-row').length > 1) {
                 e.target.closest('.piece-row').remove();
             }
+        }
+    });
+    
+    // Gestionnaires d'événements pour les modals
+    document.addEventListener('hidden.bs.modal', function(e) {
+        // Nettoyer les overlays après fermeture de chaque modal
+        cleanupBootstrapOverlays();
+    });
+    
+    // Gestionnaire pour les boutons de fermeture des modals
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-close') || e.target.closest('.btn-close')) {
+            // Nettoyer les overlays après fermeture manuelle
+            setTimeout(cleanupBootstrapOverlays, 100);
+        }
+    });
+    
+    // Gestionnaire pour les boutons d'annulation
+    document.addEventListener('click', function(e) {
+        if (e.target.textContent === 'Annuler' || e.target.closest('button[data-bs-dismiss="modal"]')) {
+            // Nettoyer les overlays après annulation
+            setTimeout(cleanupBootstrapOverlays, 100);
+        }
+    });
+    
+    // Sauvegarder la position de scroll avant soumission des formulaires
+    document.addEventListener('submit', function(e) {
+        // Vérifier si c'est un formulaire de maintenance
+        if (e.target.action && (e.target.action.includes('realiser_intervention') || e.target.action.includes('marquer_non_fait'))) {
+            // Sauvegarder la position de scroll actuelle
+            sessionStorage.setItem('calendrier_scroll_position', window.pageYOffset.toString());
         }
     });
 });

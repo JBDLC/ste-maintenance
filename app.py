@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, jso
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_mail import Mail, Message
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import os
 from dotenv import load_dotenv
 
@@ -1174,6 +1174,9 @@ def calendrier():
         prochaines_maintenances[intervention.id] = prochaine_date
     
     pieces = Piece.query.all()
+    # Vérifier si on doit conserver la position de scroll
+    scroll_param = request.args.get('scroll')
+    
     return render_template('calendrier.html', 
                          interventions_co6_ste=interventions_co6_ste,
                          interventions_co6_cab=interventions_co6_cab,
@@ -1185,7 +1188,8 @@ def calendrier():
                          prochaines_maintenances=prochaines_maintenances,
                          timedelta=timedelta, 
                          semaine_lundi=lundi, 
-                         lundi_courant=lundi_courant)
+                         lundi_courant=lundi_courant,
+                         preserve_scroll=scroll_param == 'true')
 
 @app.route('/calendrier/export-excel')
 @login_required
@@ -1874,7 +1878,13 @@ def realiser_intervention(intervention_id):
     envoyer_email_maintenance(intervention)
     
     flash('Intervention réalisée avec succès!', 'success')
-    return redirect(url_for('calendrier'))
+    
+    # Récupérer la date courante depuis le formulaire
+    current_date = request.form.get('current_date')
+    if current_date:
+        return redirect(url_for('calendrier', date=current_date, scroll='true'))
+    else:
+        return redirect(url_for('calendrier'))
 
 @app.route('/intervention/marquer-non-fait/<int:intervention_id>', methods=['POST'])
 @login_required
@@ -1920,7 +1930,13 @@ def marquer_non_fait(intervention_id):
     envoyer_email_maintenance(intervention)
     
     flash('Maintenance marquée comme non réalisée!', 'warning')
-    return redirect(url_for('calendrier'))
+    
+    # Récupérer la date courante depuis le formulaire
+    current_date = request.form.get('current_date')
+    if current_date:
+        return redirect(url_for('calendrier', date=current_date, scroll='true'))
+    else:
+        return redirect(url_for('calendrier'))
 
 @app.route('/intervention/annuler/<int:intervention_id>', methods=['POST'])
 @login_required
