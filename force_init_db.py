@@ -101,7 +101,7 @@ class Maintenance(db.Model):
     equipement_id = db.Column(db.Integer, db.ForeignKey('equipement.id'), nullable=False)
     titre = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
-    periodicite = db.Column(db.String(20), nullable=False)
+    periodicite = db.Column(db.String(20), nullable=False)  # semaine, 2_semaines, mois, 2_mois, 4_mois, 6_mois, 1_an, 2_ans
     date_premiere = db.Column(db.Date, nullable=True)
     date_prochaine = db.Column(db.Date, nullable=True)
     active = db.Column(db.Boolean, default=True)

@@ -12,9 +12,11 @@
         <button type="button" class="btn btn-outline-danger ms-2" id="btnSupprimerMultiple" style="display: none;" data-bs-toggle="modal" data-bs-target="#supprimerMultipleModal" title="Supprimer les équipements sélectionnés">
             <i class="fas fa-trash"></i> Supprimer (<span id="nbSelectionnes">0</span>)
         </button>
+        {% if current_user.is_authenticated and current_user.username == 'admin' %}
         <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#viderDonneesModal" title="Vider les équipements">
             <i class="fas fa-trash-alt"></i>
         </button>
+        {% endif %}
     </div>
 </div>
 
@@ -73,6 +75,7 @@
     </div>
 </div>
 
+{% if current_user.is_authenticated and current_user.username == 'admin' %}
 <!-- Modal de confirmation pour vider toutes les données -->
 <div class="modal fade" id="viderDonneesModal" tabindex="-1">
     <div class="modal-dialog">
@@ -107,6 +110,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <div class="table-responsive">
     <table class="table table-hover table-sm align-middle">

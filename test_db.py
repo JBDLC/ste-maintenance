@@ -60,6 +60,8 @@ def test_database():
                             current_date += timedelta(days=30)
                         elif maintenance.periodicite == '2_mois':
                             current_date += timedelta(days=60)
+                        elif maintenance.periodicite == '4_mois':
+                            current_date += timedelta(days=120)
                         elif maintenance.periodicite == '6_mois':
                             current_date += timedelta(days=182)
                         elif maintenance.periodicite == '1_an':

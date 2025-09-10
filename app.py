@@ -274,7 +274,7 @@ class Maintenance(db.Model):
     equipement_id = db.Column(db.Integer, db.ForeignKey('equipement.id'), nullable=False)
     titre = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
-    periodicite = db.Column(db.String(20), nullable=False)  # semaine, 2_semaines, mois, 2_mois, 6_mois, 1_an, 2_ans
+    periodicite = db.Column(db.String(20), nullable=False)  # semaine, 2_semaines, mois, 2_mois, 4_mois, 6_mois, 1_an, 2_ans
     date_premiere = db.Column(db.Date, nullable=True)  # Peut être NULL pour les maintenances importées
     date_prochaine = db.Column(db.Date, nullable=True)  # Peut être NULL pour les maintenances importées
     active = db.Column(db.Boolean, default=True)
@@ -727,6 +727,8 @@ def generate_interventions(maintenance, date_limite=datetime(2030, 12, 31).date(
             date += timedelta(days=30)
         elif maintenance.periodicite == '2_mois':
             date += timedelta(days=60)
+        elif maintenance.periodicite == '4_mois':
+            date += timedelta(days=120)
         elif maintenance.periodicite == '6_mois':
             date += timedelta(days=182)
         elif maintenance.periodicite == '1_an':
@@ -1165,6 +1167,8 @@ def calendrier():
             prochaine_date = intervention.date_planifiee + timedelta(days=30)
         elif maintenance.periodicite == '2_mois':
             prochaine_date = intervention.date_planifiee + timedelta(days=60)
+        elif maintenance.periodicite == '4_mois':
+            prochaine_date = intervention.date_planifiee + timedelta(days=120)
         elif maintenance.periodicite == '6_mois':
             prochaine_date = intervention.date_planifiee + timedelta(days=182)
         elif maintenance.periodicite == '1_an':
@@ -1855,6 +1859,8 @@ def realiser_intervention(intervention_id):
         prochaine_date = intervention.date_planifiee + timedelta(days=30)
     elif maintenance.periodicite == '2_mois':
         prochaine_date = intervention.date_planifiee + timedelta(days=60)
+    elif maintenance.periodicite == '4_mois':
+        prochaine_date = intervention.date_planifiee + timedelta(days=120)
     elif maintenance.periodicite == '6_mois':
         prochaine_date = intervention.date_planifiee + timedelta(days=182)
     elif maintenance.periodicite == '1_an':
@@ -1905,6 +1911,8 @@ def marquer_non_fait(intervention_id):
         prochaine_date = intervention.date_planifiee + timedelta(days=30)
     elif maintenance.periodicite == '2_mois':
         prochaine_date = intervention.date_planifiee + timedelta(days=60)
+    elif maintenance.periodicite == '4_mois':
+        prochaine_date = intervention.date_planifiee + timedelta(days=120)
     elif maintenance.periodicite == '6_mois':
         prochaine_date = intervention.date_planifiee + timedelta(days=182)
     elif maintenance.periodicite == '1_an':
@@ -3931,7 +3939,7 @@ def import_maintenances():
                     print(f"✅ Ligne {int(idx)+2}: Équipement '{equipement_nom}' trouvé")
                 
                 # Vérifier la périodicité
-                periodicites_valides = ['semaine', '2_semaines', 'mois', '2_mois', '6_mois', '1_an', '2_ans']
+                periodicites_valides = ['semaine', '2_semaines', 'mois', '2_mois', '4_mois', '6_mois', '1_an', '2_ans']
                 if periodicite not in periodicites_valides:
                     erreurs.append(f"Ligne {int(idx)+2}: Périodicité '{periodicite}' invalide. Valeurs autorisées: {', '.join(periodicites_valides)}")
                     continue

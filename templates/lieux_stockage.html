@@ -9,9 +9,11 @@
         <a href="{{ url_for('ajouter_lieu_stockage') }}" class="btn btn-outline-primary" title="Ajouter un lieu de stockage">
             <i class="fas fa-plus"></i>
         </a>
+        {% if current_user.is_authenticated and current_user.username == 'admin' %}
         <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#viderDonneesModal" title="Vider les lieux de stockage">
             <i class="fas fa-trash"></i>
         </button>
+        {% endif %}
     </div>
 </div>
 
@@ -106,6 +108,7 @@
     </table>
 </div>
 
+{% if current_user.is_authenticated and current_user.username == 'admin' %}
 <!-- Modal de confirmation pour vider les lieux de stockage -->
 <div class="modal fade" id="viderDonneesModal" tabindex="-1">
     <div class="modal-dialog">
@@ -132,4 +135,5 @@
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %} 

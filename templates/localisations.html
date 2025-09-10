@@ -9,12 +9,15 @@
         <a href="{{ url_for('ajouter_localisation') }}" class="btn btn-outline-primary" title="Ajouter une localisation">
             <i class="fas fa-plus"></i>
         </a>
+        {% if current_user.is_authenticated and current_user.username == 'admin' %}
         <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#viderDonneesModal" title="Vider les localisations">
             <i class="fas fa-trash"></i>
         </button>
+        {% endif %}
     </div>
 </div>
 
+{% if current_user.is_authenticated and current_user.username == 'admin' %}
 <!-- Modal de confirmation pour vider toutes les données -->
 <div class="modal fade" id="viderDonneesModal" tabindex="-1">
     <div class="modal-dialog">
@@ -49,6 +52,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <div class="table-responsive">
     <table class="table table-hover table-sm align-middle" style="font-size: 70%;">

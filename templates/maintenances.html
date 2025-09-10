@@ -9,9 +9,11 @@
         <a href="{{ url_for('ajouter_maintenance') }}" class="btn btn-outline-primary" title="Ajouter une maintenance">
             <i class="fas fa-plus"></i>
         </a>
+        {% if current_user.is_authenticated and current_user.username == 'admin' %}
         <button type="button" class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#viderMaintenancesModal" title="Vider toutes les maintenances">
             <i class="fas fa-trash"></i>
         </button>
+        {% endif %}
     </div>
 </div>
 
@@ -349,6 +351,7 @@
     </div>
 {% endfor %}
 
+{% if current_user.is_authenticated and current_user.username == 'admin' %}
 <!-- Modal de confirmation pour vider toutes les maintenances -->
 <div class="modal fade" id="viderMaintenancesModal" tabindex="-1">
     <div class="modal-dialog">
@@ -380,6 +383,7 @@
         </div>
     </div>
 </div>
+{% endif %}
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {

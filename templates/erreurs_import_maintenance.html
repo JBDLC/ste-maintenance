@@ -12,9 +12,11 @@
                     <a href="{{ url_for('parametres') }}" class="btn btn-outline-secondary">
                         <i class="fas fa-arrow-left"></i> Retour aux paramètres
                     </a>
+                    {% if current_user.is_authenticated and current_user.username == 'admin' %}
                     <button type="button" class="btn btn-outline-danger" onclick="effacerErreurs()">
                         <i class="fas fa-trash"></i> Effacer les erreurs
                     </button>
+                    {% endif %}
                 </div>
             </div>
 
