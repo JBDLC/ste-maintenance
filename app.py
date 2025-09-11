@@ -5371,6 +5371,8 @@ def envoyer_notification_commande(commande, action):
     """Envoie une notification par email pour une commande"""
     print(f"📧 Fonction envoyer_notification_commande appelée pour commande #{commande.id}, action: {action}")
     try:
+        # Charger la configuration SMTP (comme le calendrier)
+        charger_config_smtp()
         # Récupérer les informations de la commande
         site = Site.query.get(commande.site_id)
         localisation = Localisation.query.get(commande.localisation_id)
@@ -5421,18 +5423,12 @@ def envoyer_notification_commande(commande, action):
             **Statut :** {commande.statut}
             """
         
-        # Récupérer l'email de destination depuis les paramètres
+        # Récupérer l'email de destination depuis les paramètres (comme le calendrier)
         email_param = Parametre.query.filter_by(cle='email_rapport').first()
-        if email_param and email_param.valeur:
-            email_dest = email_param.valeur
-            print(f"📧 Email de destination depuis paramètres: {email_dest}")
-        else:
-            # Si aucun paramètre n'est configuré, utiliser l'email de l'expéditeur comme destinataire par défaut
-            email_dest = app.config['MAIL_USERNAME']
-            print(f"📧 Email de destination par défaut: {email_dest}")
-        
-        print(f"📧 Configuration SMTP: {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']}")
-        print(f"📧 Utilisateur SMTP: {app.config['MAIL_USERNAME']}")
+        email_dest = email_param.valeur if email_param else None
+        if not email_dest:
+            print("❌ Aucune adresse email de rapport n'est configurée dans les paramètres.")
+            return
         
         # Envoyer l'email avec la même méthode que le calendrier (smtplib)
         import smtplib
@@ -5441,13 +5437,13 @@ def envoyer_notification_commande(commande, action):
         from email.mime.base import MIMEBase
         from email import encoders
         
-        # Créer le message
+        # Créer le message (exactement comme le calendrier)
         msg = MIMEMultipart()
         msg['From'] = app.config['MAIL_USERNAME']
         msg['To'] = email_dest
         msg['Subject'] = sujet
         
-        msg.attach(MIMEText(corps, 'plain', 'utf-8'))
+        msg.attach(MIMEText(corps, 'plain', 'ascii'))
         
         # Ajouter la pièce jointe si elle existe
         if commande.piece_jointe:
@@ -5463,13 +5459,14 @@ def envoyer_notification_commande(commande, action):
                     )
                     msg.attach(part)
         
-        # Envoyer l'email
+        # Envoyer l'email (exactement comme le calendrier)
         server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
         server.starttls()
         server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
         text = msg.as_string()
         server.sendmail(app.config['MAIL_USERNAME'], email_dest, text)
         server.quit()
+        
         print(f"✅ Email envoyé avec succès à {email_dest} pour la commande #{commande.id}")
         
     except Exception as e:
