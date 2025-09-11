@@ -29,7 +29,6 @@
                             <th>Prix</th>
                             <th>Imputation</th>
                             <th>Statut</th>
-                            <th>Pièce jointe</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -82,23 +81,19 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if commande.piece_jointe %}
-                                    <a href="{{ url_for('telecharger_piece_jointe', commande_id=commande.id) }}" 
-                                       class="btn btn-sm btn-outline-info" 
-                                       title="Télécharger le document">
-                                        <i class="fas fa-download"></i> {{ commande.piece_jointe.split('_', 2)[2] if commande.piece_jointe.split('_', 2)|length > 2 else commande.piece_jointe }}
-                                    </a>
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td>
                                 <div class="btn-group" role="group">
                                     <button type="button" class="btn btn-sm btn-outline-primary" 
                                             data-bs-toggle="modal" 
                                             data-bs-target="#commandeModal{{ commande.id }}">
                                         <i class="fas fa-eye"></i>
                                     </button>
+                                    {% if commande.piece_jointe %}
+                                    <a href="{{ url_for('telecharger_piece_jointe', commande_id=commande.id) }}" 
+                                       class="btn btn-sm btn-outline-info" 
+                                       title="Télécharger la pièce jointe">
+                                        <i class="fas fa-download"></i>
+                                    </a>
+                                    {% endif %}
                                     <a href="{{ url_for('modifier_commande', commande_id=commande.id) }}" 
                                        class="btn btn-sm btn-outline-warning">
                                         <i class="fas fa-edit"></i>
