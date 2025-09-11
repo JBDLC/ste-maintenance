@@ -5443,6 +5443,15 @@ def envoyer_notification_commande(commande, action):
         msg['To'] = email_dest
         msg['Subject'] = sujet
         
+        # Debug: vérifier l'encodage du corps
+        try:
+            corps.encode('ascii')
+            print("✅ Corps du message compatible ASCII")
+        except UnicodeEncodeError as e:
+            print(f"⚠️ Caractères non-ASCII détectés: {e}")
+            print(f"   Position: {e.start}-{e.end}")
+            print(f"   Caractère problématique: {repr(corps[e.start:e.end])}")
+        
         msg.attach(MIMEText(corps, 'plain', 'utf-8'))
         
         # Ajouter la pièce jointe si elle existe
