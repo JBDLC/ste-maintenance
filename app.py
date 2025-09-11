@@ -5184,6 +5184,7 @@ def ajouter_commande():
             db.session.commit()
             
             # Envoyer l'email de notification
+            print(f"🔍 Tentative d'envoi d'email pour la commande #{commande.id}")
             envoyer_notification_commande(commande, 'creation')
             
             flash('Commande créée avec succès !', 'success')
@@ -5368,6 +5369,7 @@ def api_equipements_localisation(localisation_id):
 
 def envoyer_notification_commande(commande, action):
     """Envoie une notification par email pour une commande"""
+    print(f"📧 Fonction envoyer_notification_commande appelée pour commande #{commande.id}, action: {action}")
     try:
         # Récupérer les informations de la commande
         site = Site.query.get(commande.site_id)
@@ -5423,25 +5425,51 @@ def envoyer_notification_commande(commande, action):
         email_param = Parametre.query.filter_by(cle='email_rapport').first()
         if email_param and email_param.valeur:
             email_dest = email_param.valeur
+            print(f"📧 Email de destination depuis paramètres: {email_dest}")
         else:
             # Si aucun paramètre n'est configuré, utiliser l'email de l'expéditeur comme destinataire par défaut
             email_dest = app.config['MAIL_USERNAME']
+            print(f"📧 Email de destination par défaut: {email_dest}")
         
-        # Envoyer l'email
-        msg = Message(
-            subject=sujet,
-            body=corps,
-            recipients=[email_dest]  # Envoyer à l'adresse email de réception configurée
-        )
+        print(f"📧 Configuration SMTP: {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']}")
+        print(f"📧 Utilisateur SMTP: {app.config['MAIL_USERNAME']}")
+        
+        # Envoyer l'email avec la même méthode que le calendrier (smtplib)
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+        from email.mime.base import MIMEBase
+        from email import encoders
+        
+        # Créer le message
+        msg = MIMEMultipart()
+        msg['From'] = app.config['MAIL_USERNAME']
+        msg['To'] = email_dest
+        msg['Subject'] = sujet
+        
+        msg.attach(MIMEText(corps, 'plain', 'utf-8'))
         
         # Ajouter la pièce jointe si elle existe
         if commande.piece_jointe:
             file_path = os.path.join(app.root_path, 'uploads', commande.piece_jointe)
             if os.path.exists(file_path):
                 with open(file_path, 'rb') as f:
-                    msg.attach(commande.piece_jointe, 'application/octet-stream', f.read())
+                    part = MIMEBase('application', 'octet-stream')
+                    part.set_payload(f.read())
+                    encoders.encode_base64(part)
+                    part.add_header(
+                        'Content-Disposition',
+                        f'attachment; filename= {commande.piece_jointe}'
+                    )
+                    msg.attach(part)
         
-        mail.send(msg)
+        # Envoyer l'email
+        server = smtplib.SMTP(app.config['MAIL_SERVER'], app.config['MAIL_PORT'])
+        server.starttls()
+        server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
+        text = msg.as_string()
+        server.sendmail(app.config['MAIL_USERNAME'], email_dest, text)
+        server.quit()
         print(f"✅ Email envoyé avec succès à {email_dest} pour la commande #{commande.id}")
         
     except Exception as e:
