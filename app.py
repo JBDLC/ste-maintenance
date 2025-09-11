@@ -356,8 +356,8 @@ class Commande(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     site_id = db.Column(db.Integer, db.ForeignKey('site.id'), nullable=False)
-    localisation_id = db.Column(db.Integer, db.ForeignKey('localisation.id'), nullable=False)
-    equipement_id = db.Column(db.Integer, db.ForeignKey('equipement.id'), nullable=False)
+    localisation_id = db.Column(db.Integer, db.ForeignKey('localisation.id'), nullable=True)
+    equipement_id = db.Column(db.Integer, db.ForeignKey('equipement.id'), nullable=True)
     piece_id = db.Column(db.Integer, db.ForeignKey('piece.id'), nullable=True)  # Pièce de rechange sélectionnée
     prix = db.Column(db.Float, nullable=False)
     imputation = db.Column(db.String(20), default='8I7315M')
@@ -5146,9 +5146,9 @@ def ajouter_commande():
         try:
             # Récupérer les données du formulaire
             site_id = request.form.get('site_id')
-            localisation_id = request.form.get('localisation_id')
-            equipement_id = request.form.get('equipement_id')
-            piece_id = request.form.get('piece_id')  # Pièce de rechange sélectionnée
+            localisation_id = request.form.get('localisation_id') or None
+            equipement_id = request.form.get('equipement_id') or None
+            piece_id = request.form.get('piece_id') or None  # Pièce de rechange sélectionnée
             prix = float(request.form.get('prix', 0))
             description = request.form.get('description', '')
             
@@ -5375,19 +5375,20 @@ def envoyer_notification_commande(commande, action):
         charger_config_smtp()
         # Récupérer les informations de la commande
         site = Site.query.get(commande.site_id)
-        localisation = Localisation.query.get(commande.localisation_id)
-        equipement = Equipement.query.get(commande.equipement_id)
+        localisation = Localisation.query.get(commande.localisation_id) if commande.localisation_id else None
+        equipement = Equipement.query.get(commande.equipement_id) if commande.equipement_id else None
         user = User.query.get(commande.user_id)
         
         # Construire le sujet
+        equipement_nom = equipement.nom if equipement else "Commande générale"
         if action == 'creation':
-            sujet = f"Commande créée - {equipement.nom}"
+            sujet = f"Commande créée - {equipement_nom}"
         elif action == 'modification':
-            sujet = f"Commande modifiée - {equipement.nom}"
+            sujet = f"Commande modifiée - {equipement_nom}"
         elif action == 'changement_statut':
-            sujet = f"Statut de commande changé - {equipement.nom}"
+            sujet = f"Statut de commande changé - {equipement_nom}"
         else:
-            sujet = f"Commande {action} - {equipement.nom}"
+            sujet = f"Commande {action} - {equipement_nom}"
         
         # Construire le corps du message
         if action == 'changement_statut':
@@ -5396,8 +5397,8 @@ def envoyer_notification_commande(commande, action):
             
             **Détails de la commande :**
             - Site : {site.nom}
-            - Localisation : {localisation.nom}
-            - Équipement : {equipement.nom}
+            - Localisation : {localisation.nom if localisation else 'Non spécifiée'}
+            - Équipement : {equipement.nom if equipement else 'Non spécifié'}
             - Prix : {commande.prix}€
             - Imputation : {commande.imputation}
             - Description : {commande.description or 'Aucune description'}
@@ -5412,8 +5413,8 @@ def envoyer_notification_commande(commande, action):
             
             **Détails de la commande :**
             - Site : {site.nom}
-            - Localisation : {localisation.nom}
-            - Équipement : {equipement.nom}
+            - Localisation : {localisation.nom if localisation else 'Non spécifiée'}
+            - Équipement : {equipement.nom if equipement else 'Non spécifié'}
             - Prix : {commande.prix}€
             - Imputation : {commande.imputation}
             - Description : {commande.description or 'Aucune description'}

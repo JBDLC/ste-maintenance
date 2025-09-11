@@ -45,11 +45,15 @@
                                 <span class="badge bg-info">{{ commande.user.username }}</span>
                             </td>
                             <td>{{ commande.site.nom }}</td>
-                            <td>{{ commande.localisation.nom }}</td>
+                            <td>{{ commande.localisation.nom if commande.localisation else '-' }}</td>
                             <td>
-                                <strong>{{ commande.equipement.nom }}</strong>
-                                {% if commande.equipement.description %}
-                                <br><small class="text-muted">{{ commande.equipement.description[:50] }}{% if commande.equipement.description|length > 50 %}...{% endif %}</small>
+                                {% if commande.equipement %}
+                                    <strong>{{ commande.equipement.nom }}</strong>
+                                    {% if commande.equipement.description %}
+                                    <br><small class="text-muted">{{ commande.equipement.description[:50] }}{% if commande.equipement.description|length > 50 %}...{% endif %}</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
                                 {% endif %}
                             </td>
                             <td>
@@ -153,8 +157,8 @@
                         <div class="col-md-6">
                             <h6>Détails de la commande</h6>
                             <p><strong>Site :</strong> {{ commande.site.nom }}</p>
-                            <p><strong>Localisation :</strong> {{ commande.localisation.nom }}</p>
-                            <p><strong>Équipement :</strong> {{ commande.equipement.nom }}</p>
+                            <p><strong>Localisation :</strong> {{ commande.localisation.nom if commande.localisation else 'Non spécifiée' }}</p>
+                            <p><strong>Équipement :</strong> {{ commande.equipement.nom if commande.equipement else 'Non spécifié' }}</p>
                             <p><strong>Prix :</strong> <span class="badge bg-success">{{ "%.2f"|format(commande.prix) }}€</span></p>
                             <p><strong>Imputation :</strong> <code>{{ commande.imputation }}</code></p>
                         </div>

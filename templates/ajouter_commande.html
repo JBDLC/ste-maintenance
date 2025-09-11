@@ -43,12 +43,12 @@ ttend jejuste {% extends "base.html" %}
                             <!-- Localisation -->
                             <div class="col-md-6 mb-3">
                                 <label for="localisation_id" class="form-label">
-                                    <i class="fas fa-map-marker-alt text-primary"></i> Localisation <span class="text-danger">*</span>
+                                    <i class="fas fa-map-marker-alt text-primary"></i> Localisation
                                 </label>
-                                <select class="form-select" id="localisation_id" name="localisation_id" required disabled>
+                                <select class="form-select" id="localisation_id" name="localisation_id" disabled>
                                     <option value="">Sélectionner d'abord un site...</option>
                                 </select>
-                                <div class="form-text">Sélectionnez la localisation dans le site</div>
+                                <div class="form-text">Sélectionnez la localisation dans le site (optionnel)</div>
                             </div>
                         </div>
 
@@ -56,12 +56,12 @@ ttend jejuste {% extends "base.html" %}
                             <!-- Équipement -->
                             <div class="col-md-6 mb-3">
                                 <label for="equipement_id" class="form-label">
-                                    <i class="fas fa-cogs text-primary"></i> Équipement <span class="text-danger">*</span>
+                                    <i class="fas fa-cogs text-primary"></i> Équipement
                                 </label>
-                                <select class="form-select" id="equipement_id" name="equipement_id" required disabled>
+                                <select class="form-select" id="equipement_id" name="equipement_id" disabled>
                                     <option value="">Sélectionner d'abord une localisation...</option>
                                 </select>
-                                <div class="form-text">Sélectionnez l'équipement concerné</div>
+                                <div class="form-text">Sélectionnez l'équipement concerné (optionnel)</div>
                             </div>
 
                             <!-- Pièce de rechange -->
@@ -296,9 +296,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const pieceId = pieceSelect.value; // Ajouter la validation de la pièce
         const prix = document.getElementById('prix').value;
 
-        if (!siteId || !localisationId || !equipementId || !prix) {
+        if (!siteId || !prix) {
             e.preventDefault();
-            alert('Veuillez remplir tous les champs obligatoires (marqués d\'un *)');
+            alert('Veuillez remplir tous les champs obligatoires (Site et Prix)');
             return false;
         }
 
