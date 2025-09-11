@@ -1641,7 +1641,7 @@ def envoyer_calendrier_excel():
         Systeme de maintenance STE
         """
         
-        msg.attach(MIMEText(body, 'plain', 'ascii'))
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
         # Attacher le fichier Excel
         part = MIMEBase('application', 'octet-stream')
@@ -1785,7 +1785,7 @@ def envoyer_maintenance_curative_excel(maintenance_id):
         Systeme de maintenance STE
         """
         
-        msg.attach(MIMEText(body, 'plain', 'ascii'))
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
         # Attacher le fichier Excel
         part = MIMEBase('application', 'octet-stream')
@@ -5443,7 +5443,7 @@ def envoyer_notification_commande(commande, action):
         msg['To'] = email_dest
         msg['Subject'] = sujet
         
-        msg.attach(MIMEText(corps, 'plain', 'ascii'))
+        msg.attach(MIMEText(corps, 'plain', 'utf-8'))
         
         # Ajouter la pièce jointe si elle existe
         if commande.piece_jointe:
