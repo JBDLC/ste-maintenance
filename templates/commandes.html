@@ -83,9 +83,11 @@
                             </td>
                             <td>
                                 {% if commande.piece_jointe %}
-                                    <span class="badge bg-info">
-                                        <i class="fas fa-paperclip"></i> PJ
-                                    </span>
+                                    <a href="{{ url_for('telecharger_piece_jointe', commande_id=commande.id) }}" 
+                                       class="btn btn-sm btn-outline-info" 
+                                       title="Télécharger le document">
+                                        <i class="fas fa-download"></i> {{ commande.piece_jointe.split('_', 2)[2] if commande.piece_jointe.split('_', 2)|length > 2 else commande.piece_jointe }}
+                                    </a>
                                 {% else %}
                                     <span class="text-muted">-</span>
                                 {% endif %}
@@ -177,9 +179,14 @@
                         <h6>Pièce jointe</h6>
                         <div class="alert alert-info">
                             <i class="fas fa-paperclip"></i> 
-                            <strong>{{ commande.piece_jointe }}</strong>
+                            <strong>{{ commande.piece_jointe.split('_', 2)[2] if commande.piece_jointe.split('_', 2)|length > 2 else commande.piece_jointe }}</strong>
                             <br>
                             <small class="text-muted">Fichier joint lors de la création de la commande</small>
+                            <br>
+                            <a href="{{ url_for('telecharger_piece_jointe', commande_id=commande.id) }}" 
+                               class="btn btn-sm btn-primary mt-2">
+                                <i class="fas fa-download"></i> Télécharger le document
+                            </a>
                         </div>
                     </div>
                     {% endif %}

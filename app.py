@@ -5322,6 +5322,31 @@ def changer_statut_commande(commande_id):
     
     return redirect(url_for('commandes'))
 
+@app.route('/commandes/<int:commande_id>/telecharger-pj')
+@login_required
+def telecharger_piece_jointe(commande_id):
+    """Télécharger la pièce jointe d'une commande"""
+    if not has_permission(current_user.id, 'commandes'):
+        flash('Vous n\'avez pas accès à cette page', 'danger')
+        return redirect(url_for('index'))
+    
+    commande = Commande.query.get_or_404(commande_id)
+    
+    if not commande.piece_jointe:
+        flash('Aucune pièce jointe disponible pour cette commande', 'danger')
+        return redirect(url_for('commandes'))
+    
+    file_path = os.path.join(app.root_path, 'uploads', commande.piece_jointe)
+    
+    if not os.path.exists(file_path):
+        flash('Le fichier joint n\'existe plus sur le serveur', 'danger')
+        return redirect(url_for('commandes'))
+    
+    # Extraire le nom original du fichier (enlever le préfixe timestamp)
+    original_filename = commande.piece_jointe.split('_', 2)[2] if commande.piece_jointe.split('_', 2)|length > 2 else commande.piece_jointe
+    
+    return send_file(file_path, as_attachment=True, download_name=original_filename)
+
 @app.route('/api/site/<int:site_id>/localisations')
 def api_localisations_site(site_id):
     """API pour récupérer les localisations d'un site"""
@@ -5396,7 +5421,11 @@ def envoyer_notification_commande(commande, action):
         
         # Récupérer l'email de destination depuis les paramètres
         email_param = Parametre.query.filter_by(cle='email_rapport').first()
-        email_dest = email_param.valeur if email_param else app.config['MAIL_DEFAULT_SENDER']
+        if email_param and email_param.valeur:
+            email_dest = email_param.valeur
+        else:
+            # Si aucun paramètre n'est configuré, utiliser l'email de l'expéditeur comme destinataire par défaut
+            email_dest = app.config['MAIL_USERNAME']
         
         # Envoyer l'email
         msg = Message(
@@ -5413,9 +5442,12 @@ def envoyer_notification_commande(commande, action):
                     msg.attach(commande.piece_jointe, 'application/octet-stream', f.read())
         
         mail.send(msg)
+        print(f"✅ Email envoyé avec succès à {email_dest} pour la commande #{commande.id}")
         
     except Exception as e:
-        print(f"Erreur lors de l'envoi de l'email : {e}")
+        print(f"❌ Erreur lors de l'envoi de l'email pour la commande #{commande.id} : {e}")
+        print(f"   Destinataire : {email_dest}")
+        print(f"   Configuration SMTP : {app.config['MAIL_SERVER']}:{app.config['MAIL_PORT']}")
         # Ne pas faire échouer l'opération pour un problème d'email
 
 # Initialisation automatique au démarrage de l'application
