@@ -5473,7 +5473,9 @@ def envoyer_notification_commande(commande, action):
         server.starttls()
         server.login(app.config['MAIL_USERNAME'], app.config['MAIL_PASSWORD'])
         text = msg.as_string()
-        server.sendmail(app.config['MAIL_USERNAME'], email_dest, text)
+        # Encoder explicitement en UTF-8 pour éviter les problèmes d'ASCII
+        text_bytes = text.encode('utf-8')
+        server.sendmail(app.config['MAIL_USERNAME'], email_dest, text_bytes)
         server.quit()
         
         print(f"✅ Email envoyé avec succès à {email_dest} pour la commande #{commande.id}")
