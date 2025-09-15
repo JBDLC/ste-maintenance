@@ -27,11 +27,23 @@
                 <form method="POST">
                     <div class="mb-3">
                         <label class="form-label">Sélectionner les pièces à associer</label>
+                        
+                        <!-- Filtre de recherche -->
+                        <div class="mb-3">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="searchFilter" placeholder="Rechercher une pièce par nom, référence ou description...">
+                                <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                                    <i class="fas fa-times"></i> Effacer
+                                </button>
+                            </div>
+                        </div>
+                        
                         <div class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
                             {% if toutes_pieces %}
                                 <div class="row">
                                     {% for piece in toutes_pieces %}
-                                    <div class="col-md-6 mb-2">
+                                    <div class="col-md-6 mb-2 piece-item" data-piece-name="{{ piece.item|lower }}" data-piece-ref="{{ piece.reference_ste|lower }}" data-piece-desc="{{ piece.description|lower if piece.description else '' }}">
                                         <div class="form-check">
                                             <input class="form-check-input" type="checkbox" name="pieces_ids" 
                                                    value="{{ piece.id }}" id="piece_{{ piece.id }}"
@@ -237,9 +249,83 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Fonction de recherche
+    function filterPieces() {
+        const searchTerm = document.getElementById('searchFilter').value.toLowerCase();
+        const pieceItems = document.querySelectorAll('.piece-item');
+        let visibleCount = 0;
+        
+        pieceItems.forEach(item => {
+            const pieceName = item.getAttribute('data-piece-name') || '';
+            const pieceRef = item.getAttribute('data-piece-ref') || '';
+            const pieceDesc = item.getAttribute('data-piece-desc') || '';
+            
+            const isMatch = pieceName.includes(searchTerm) || 
+                           pieceRef.includes(searchTerm) || 
+                           pieceDesc.includes(searchTerm);
+            
+            if (isMatch) {
+                item.style.display = 'block';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        // Afficher un message si aucun résultat
+        let noResultsMsg = document.getElementById('noResultsMsg');
+        if (visibleCount === 0 && searchTerm.length > 0) {
+            if (!noResultsMsg) {
+                noResultsMsg = document.createElement('div');
+                noResultsMsg.id = 'noResultsMsg';
+                noResultsMsg.className = 'text-center text-muted py-3';
+                noResultsMsg.innerHTML = '<i class="fas fa-search"></i> Aucune pièce trouvée pour cette recherche';
+                document.querySelector('.row').appendChild(noResultsMsg);
+            }
+            noResultsMsg.style.display = 'block';
+        } else if (noResultsMsg) {
+            noResultsMsg.style.display = 'none';
+        }
+        
+        console.log(`Recherche: "${searchTerm}" - ${visibleCount} résultat(s) trouvé(s)`);
+    }
+    
+    // Fonction pour effacer la recherche
+    function clearSearch() {
+        document.getElementById('searchFilter').value = '';
+        filterPieces();
+        document.getElementById('searchFilter').focus();
+    }
+    
+    // Écouter les changements dans le champ de recherche
+    document.getElementById('searchFilter').addEventListener('input', filterPieces);
+    
     // Initialiser l'affichage
     updateAssociatedPieces();
 });
 </script>
+
+<style>
+.piece-item {
+    transition: opacity 0.3s ease;
+}
+
+.piece-item.hidden {
+    opacity: 0.3;
+}
+
+#searchFilter {
+    border-radius: 0.375rem 0 0 0.375rem;
+}
+
+.input-group .btn {
+    border-radius: 0 0.375rem 0.375rem 0;
+}
+
+#noResultsMsg {
+    grid-column: 1 / -1;
+    width: 100%;
+}
+</style>
 
 {% endblock %} 
