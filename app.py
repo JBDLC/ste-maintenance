@@ -5538,6 +5538,25 @@ with app.app_context():
                     print("✅ Colonne piece_id ajoutée avec succès!")
                 else:
                     print("✅ Colonne piece_id existe déjà")
+                
+                # Migration 3: Modifier la contrainte localisation_id pour permettre NULL
+                print("🔧 Vérification de la contrainte localisation_id...")
+                result = db.session.execute(text("""
+                    SELECT is_nullable 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'commande' AND column_name = 'localisation_id'
+                """)).fetchone()
+                
+                if result and result[0] == 'NO':
+                    print("🔧 Modification de la contrainte localisation_id pour permettre NULL...")
+                    db.session.execute(text("""
+                        ALTER TABLE commande 
+                        ALTER COLUMN localisation_id DROP NOT NULL
+                    """))
+                    db.session.commit()
+                    print("✅ Contrainte localisation_id modifiée avec succès!")
+                else:
+                    print("✅ Contrainte localisation_id permet déjà NULL")
                     
             except Exception as e:
                 print(f"❌ Erreur lors de la migration PostgreSQL: {e}")

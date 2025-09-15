@@ -91,3 +91,4 @@ if __name__ == "__main__":
     else:
         print("\n❌ Migration échouée!")
         print("   Vérifiez les logs ci-dessus")
+

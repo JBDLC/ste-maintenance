@@ -68,3 +68,4 @@ if __name__ == "__main__":
         print("\n✅ Configuration SMTP OK - Les mails devraient fonctionner")
     else:
         print("\n❌ Problème de configuration SMTP - Vérifiez vos paramètres")
+
