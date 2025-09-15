@@ -57,7 +57,6 @@
                                                 <th>Pièce</th>
                                                 <th>Référence</th>
                                                 <th>Stock</th>
-                                                <th>Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -74,11 +73,6 @@
                                                         <span class="badge bg-success">{{ piece_assoc.piece.quantite_stock }}</span>
                                                     {% endif %}
                                                 </td>
-                                                <td>
-                                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="supprimerPiece({{ piece_assoc.piece.id }})">
-                                                        <i class="fas fa-times"></i> Retirer
-                                                    </button>
-                                                </td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
@@ -88,16 +82,11 @@
                         </div>
                         {% endif %}
                         
-                        <!-- Ajouter de nouvelles pièces -->
+                        <!-- Sélection des pièces (mode création uniquement) -->
+                        {% if not edition %}
                         <div class="card">
-                            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0"><i class="fas fa-plus-circle"></i> Ajouter des pièces</h6>
-                                {% if equipement and equipement.id %}
-                                <a href="{{ url_for('gerer_pieces_equipement', equipement_id=equipement.id) }}" 
-                                   class="btn btn-sm btn-outline-light">
-                                    <i class="fas fa-cogs"></i> Gérer les pièces
-                                </a>
-                                {% endif %}
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0"><i class="fas fa-plus-circle"></i> Sélectionner des pièces de rechange</h6>
                             </div>
                             <div class="card-body">
                                 <div class="mb-3">
@@ -124,6 +113,25 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
+                        
+                        <!-- Gestion des pièces -->
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                <h6 class="mb-0"><i class="fas fa-cogs"></i> Gestion des pièces de rechange</h6>
+                            </div>
+                            <div class="card-body text-center">
+                                <p class="text-muted mb-3">Gérez les pièces de rechange associées à cet équipement</p>
+                                {% if equipement and equipement.id %}
+                                <a href="{{ url_for('gerer_pieces_equipement', equipement_id=equipement.id) }}" 
+                                   class="btn btn-primary">
+                                    <i class="fas fa-cogs"></i> Gérer les pièces
+                                </a>
+                                {% else %}
+                                <p class="text-muted small">Sauvegardez d'abord l'équipement pour gérer ses pièces</p>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
@@ -141,10 +149,9 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.querySelector('form');
-    const checkboxes = document.querySelectorAll('input[name="pieces_ids"]');
     const saveBtn = document.getElementById('saveBtn');
     
-    // Fonction pour filtrer les pièces
+    // Fonction pour filtrer les pièces (mode création uniquement)
     function filterPieces() {
         const searchTerm = document.getElementById('searchPiece').value.toLowerCase();
         const pieces = document.querySelectorAll('.piece-item');
@@ -161,112 +168,31 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Fonction pour supprimer une pièce
-    function supprimerPiece(pieceId) {
-        if (confirm('Êtes-vous sûr de vouloir retirer cette pièce de l\'équipement ?')) {
-            // Décocher la checkbox correspondante
-            const checkbox = document.getElementById('piece_' + pieceId);
-            if (checkbox) {
-                checkbox.checked = false;
-            }
-            
-            // Masquer visuellement la ligne dans le tableau
-            const row = event.target.closest('tr');
-            if (row) {
-                row.style.display = 'none';
-            }
-        }
-    }
-    
-    // Fonction pour mettre à jour dynamiquement l'affichage des pièces associées
-    function updateAssociatedPieces() {
-        const selectedCheckboxes = document.querySelectorAll('input[name="pieces_ids"]:checked');
-        const selectedIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
-        
-        console.log(`Pièces sélectionnées: ${selectedIds.length} - IDs:`, selectedIds);
-        
-        // Mettre à jour le tableau des pièces associées si il existe
-        const associatedTable = document.querySelector('table tbody');
-        if (associatedTable) {
-            // Ici on pourrait mettre à jour le tableau en temps réel
-            // Pour l'instant, on se contente de logger
-        }
-    }
-    
-    // Écouter les changements sur les checkboxes
-    checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateAssociatedPieces);
-    });
-    
-    // Gestion de la soumission du formulaire
+    // Validation du formulaire
     form.addEventListener('submit', function(e) {
-        e.preventDefault(); // Empêcher la soumission normale
+        // Validation basique
+        const nom = document.querySelector('input[name="nom"]').value.trim();
+        const localisation = document.querySelector('select[name="localisation_id"]').value;
         
-        const selectedPieces = document.querySelectorAll('input[name="pieces_ids"]:checked');
-        console.log(`Soumission avec ${selectedPieces.length} pièce(s) sélectionnée(s)`);
+        if (!nom) {
+            e.preventDefault();
+            alert('Le nom de l\'équipement est obligatoire');
+            return;
+        }
+        
+        if (!localisation) {
+            e.preventDefault();
+            alert('La localisation est obligatoire');
+            return;
+        }
         
         // Afficher un indicateur de chargement
-        const originalText = saveBtn.innerHTML;
         saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sauvegarde...';
         saveBtn.disabled = true;
-        
-        // Créer les données du formulaire
-        const formData = new FormData(form);
-        
-        // Envoyer la requête AJAX
-        fetch(form.action, {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => {
-            if (response.ok) {
-                // Succès - rediriger vers la liste des équipements
-                showNotification('Équipement sauvegardé avec succès!', 'success');
-                setTimeout(() => {
-                    window.location.href = '{{ url_for("equipements") }}';
-                }, 1500);
-            } else {
-                throw new Error('Erreur lors de la sauvegarde');
-            }
-        })
-        .catch(error => {
-            console.error('Erreur:', error);
-            showNotification('Erreur lors de la sauvegarde', 'danger');
-        })
-        .finally(() => {
-            // Restaurer le bouton
-            saveBtn.innerHTML = originalText;
-            saveBtn.disabled = false;
-        });
     });
     
-    // Fonction pour afficher des notifications
-    function showNotification(message, type) {
-        // Créer une notification toast
-        const toast = document.createElement('div');
-        toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-        toast.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
-        
-        document.body.appendChild(toast);
-        
-        // Supprimer automatiquement après 5 secondes
-        setTimeout(() => {
-            if (toast.parentNode) {
-                toast.parentNode.removeChild(toast);
-            }
-        }, 5000);
-    }
-    
-    // Initialiser l'affichage
-    updateAssociatedPieces();
-    
-    // Exposer les fonctions globalement pour les onclick
+    // Exposer la fonction globalement pour les onclick
     window.filterPieces = filterPieces;
-    window.supprimerPiece = supprimerPiece;
 });
 </script>
 {% endblock %} 
