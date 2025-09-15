@@ -2204,6 +2204,22 @@ def modifier_equipement(equipement_id):
         equipement.nom = request.form['nom']
         equipement.description = request.form['description']
         equipement.localisation_id = request.form['localisation_id']
+        
+        # Gérer les pièces associées
+        pieces_ids = request.form.getlist('pieces_ids')
+        
+        # Supprimer toutes les associations existantes
+        PieceEquipement.query.filter_by(equipement_id=equipement_id).delete()
+        
+        # Ajouter les nouvelles associations
+        for piece_id in pieces_ids:
+            if piece_id:
+                piece_equipement = PieceEquipement(
+                    equipement_id=equipement_id,
+                    piece_id=int(piece_id)
+                )
+                db.session.add(piece_equipement)
+        
         db.session.commit()
         flash('Équipement modifié avec succès!', 'success')
         return redirect(url_for('equipements'))
@@ -5557,6 +5573,25 @@ with app.app_context():
                     print("✅ Contrainte localisation_id modifiée avec succès!")
                 else:
                     print("✅ Contrainte localisation_id permet déjà NULL")
+                
+                # Migration 4: Modifier la contrainte equipement_id pour permettre NULL
+                print("🔧 Vérification de la contrainte equipement_id...")
+                result = db.session.execute(text("""
+                    SELECT is_nullable 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'commande' AND column_name = 'equipement_id'
+                """)).fetchone()
+                
+                if result and result[0] == 'NO':
+                    print("🔧 Modification de la contrainte equipement_id pour permettre NULL...")
+                    db.session.execute(text("""
+                        ALTER TABLE commande 
+                        ALTER COLUMN equipement_id DROP NOT NULL
+                    """))
+                    db.session.commit()
+                    print("✅ Contrainte equipement_id modifiée avec succès!")
+                else:
+                    print("✅ Contrainte equipement_id permet déjà NULL")
                     
             except Exception as e:
                 print(f"❌ Erreur lors de la migration PostgreSQL: {e}")
