@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Gérer les pièces - {{ equipement.nom }} - Gestion Maintenance Préventive{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Gérer les pièces de rechange - {{ equipement.nom }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('equipements') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-boxes"></i> Pièces de rechange associées</h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <p><strong>Équipement:</strong> {{ equipement.nom }}</p>
+                    <p><strong>Localisation:</strong> {{ equipement.localisation.nom }} ({{ equipement.localisation.site.nom }})</p>
+                </div>
+                
+                <form method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Sélectionner les pièces à associer</label>
+                        <div class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
+                            {% if toutes_pieces %}
+                                <div class="row">
+                                    {% for piece in toutes_pieces %}
+                                    <div class="col-md-6 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="pieces_ids" 
+                                                   value="{{ piece.id }}" id="piece_{{ piece.id }}"
+                                                   {% if piece.id in pieces_associees %}checked{% endif %}>
+                                            <label class="form-check-label" for="piece_{{ piece.id }}">
+                                                <strong>{{ piece.item }}</strong><br>
+                                                <small class="text-muted">
+                                                    {{ piece.reference_ste }} - Stock: 
+                                                    <span class="badge bg-{{ 'danger' if piece.quantite_stock <= piece.stock_mini else 'warning' if piece.quantite_stock <= piece.stock_mini + 2 else 'success' }}">
+                                                        {{ piece.quantite_stock }}
+                                                    </span>
+                                                </small>
+                                                {% if piece.description %}
+                                                <br><small class="text-muted">{{ piece.description }}</small>
+                                                {% endif %}
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                <!-- Debug info (à retirer en production) -->
+                                <div class="mt-3 p-2 bg-light rounded">
+                                    <small class="text-muted">
+                                        <strong>Debug:</strong> {{ pieces_associees|length }} pièce(s) actuellement associée(s)
+                                    </small>
+                                </div>
+                            {% else %}
+                                <p class="text-muted">Aucune pièce de rechange disponible. <a href="{{ url_for('ajouter_piece') }}">Ajouter des pièces</a></p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <a href="{{ url_for('equipements') }}" class="btn btn-secondary me-md-2">Annuler</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Enregistrer les associations
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6><i class="fas fa-info-circle"></i> Informations</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted">
+                    <strong>Comment ça marche :</strong><br>
+                    • Cochez les pièces que vous souhaitez associer à cet équipement<br>
+                    • Décochez celles que vous voulez retirer<br>
+                    • Les pièces associées apparaîtront dans les détails de l'équipement<br>
+                    • Elles seront disponibles lors des interventions de maintenance
+                </p>
+                
+                <hr>
+                
+                <h6>Pièces actuellement associées :</h6>
+                {% if pieces_associees %}
+                    <ul class="list-unstyled">
+                        {% for piece in toutes_pieces %}
+                            {% if piece.id in pieces_associees %}
+                            <li class="mb-1">
+                                <i class="fas fa-check text-success"></i> {{ piece.item }}
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="text-muted small">Aucune pièce associée</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const checkboxes = document.querySelectorAll('input[name="pieces_ids"]');
+    const debugInfo = document.querySelector('.bg-light');
+    
+    // Fonction pour mettre à jour l'affichage des pièces associées
+    function updateAssociatedPieces() {
+        const selectedCheckboxes = document.querySelectorAll('input[name="pieces_ids"]:checked');
+        const selectedIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+        
+        // Mettre à jour le compteur de debug
+        if (debugInfo) {
+            debugInfo.innerHTML = `<small class="text-muted"><strong>Debug:</strong> ${selectedIds.length} pièce(s) sélectionnée(s) actuellement</small>`;
+        }
+        
+        // Mettre à jour la liste des pièces associées dans la sidebar
+        const associatedList = document.querySelector('.list-unstyled');
+        if (associatedList) {
+            associatedList.innerHTML = '';
+            selectedCheckboxes.forEach(checkbox => {
+                const pieceId = checkbox.id.replace('piece_', '');
+                const pieceLabel = checkbox.nextElementSibling.querySelector('strong').textContent;
+                const li = document.createElement('li');
+                li.className = 'mb-1';
+                li.innerHTML = `<i class="fas fa-check text-success"></i> ${pieceLabel}`;
+                associatedList.appendChild(li);
+            });
+            
+            // Si aucune pièce sélectionnée
+            if (selectedCheckboxes.length === 0) {
+                const li = document.createElement('li');
+                li.innerHTML = '<span class="text-muted small">Aucune pièce sélectionnée</span>';
+                associatedList.appendChild(li);
+            }
+        }
+        
+        console.log(`Pièces sélectionnées: ${selectedIds.length} - IDs:`, selectedIds);
+    }
+    
+    // Écouter les changements sur les checkboxes
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateAssociatedPieces);
+    });
+    
+    // Validation du formulaire avec mise à jour dynamique via AJAX
+    form.addEventListener('submit', function(e) {
+        e.preventDefault(); // Empêcher la soumission normale
+        
+        const selectedPieces = document.querySelectorAll('input[name="pieces_ids"]:checked');
+        console.log(`Soumission AJAX avec ${selectedPieces.length} pièce(s) sélectionnée(s)`);
+        
+        // Afficher un indicateur de chargement
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sauvegarde...';
+        submitBtn.disabled = true;
+        
+        // Créer les données du formulaire
+        const formData = new FormData();
+        selectedPieces.forEach(checkbox => {
+            formData.append('pieces_ids', checkbox.value);
+        });
+        
+        // Envoyer la requête AJAX
+        fetch(`/equipement/{{ equipement.id }}/pieces/update`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Afficher le message de succès
+                showNotification(data.message, 'success');
+                
+                // Mettre à jour l'interface
+                updateAssociatedPieces();
+                
+                // Mettre à jour le badge PDR dans la liste des équipements (si visible)
+                updatePDRBadge(data.associations_count);
+                
+            } else {
+                showNotification(data.message, 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Erreur AJAX:', error);
+            showNotification('Erreur lors de la sauvegarde', 'danger');
+        })
+        .finally(() => {
+            // Restaurer le bouton
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        });
+    });
+    
+    // Fonction pour afficher des notifications
+    function showNotification(message, type) {
+        // Créer une notification toast
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        toast.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        // Supprimer automatiquement après 5 secondes
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 5000);
+    }
+    
+    // Fonction pour mettre à jour le badge PDR (si on est sur la page des équipements)
+    function updatePDRBadge(count) {
+        // Chercher le badge PDR de cet équipement dans la page
+        const pdrBadge = document.querySelector(`[data-equipement-id="{{ equipement.id }}"] .badge.bg-info`);
+        if (pdrBadge) {
+            pdrBadge.textContent = count;
+        }
+    }
+    
+    // Initialiser l'affichage
+    updateAssociatedPieces();
+});
+</script>
+
+{% endblock %} 
