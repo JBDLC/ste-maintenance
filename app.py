@@ -2205,20 +2205,21 @@ def modifier_equipement(equipement_id):
         equipement.description = request.form['description']
         equipement.localisation_id = request.form['localisation_id']
         
-        # Gérer les pièces associées
+        # Gérer les pièces associées (seulement si des pièces sont sélectionnées)
         pieces_ids = request.form.getlist('pieces_ids')
         
-        # Supprimer toutes les associations existantes
-        PieceEquipement.query.filter_by(equipement_id=equipement_id).delete()
-        
-        # Ajouter les nouvelles associations
-        for piece_id in pieces_ids:
-            if piece_id:
-                piece_equipement = PieceEquipement(
-                    equipement_id=equipement_id,
-                    piece_id=int(piece_id)
-                )
-                db.session.add(piece_equipement)
+        if pieces_ids:  # Seulement si des pièces sont sélectionnées (mode création)
+            # Supprimer toutes les associations existantes
+            PieceEquipement.query.filter_by(equipement_id=equipement_id).delete()
+            
+            # Ajouter les nouvelles associations
+            for piece_id in pieces_ids:
+                if piece_id:
+                    piece_equipement = PieceEquipement(
+                        equipement_id=equipement_id,
+                        piece_id=int(piece_id)
+                    )
+                    db.session.add(piece_equipement)
         
         db.session.commit()
         flash('Équipement modifié avec succès!', 'success')
