@@ -5361,7 +5361,8 @@ def telecharger_piece_jointe(commande_id):
         return redirect(url_for('commandes'))
     
     # Extraire le nom original du fichier (enlever le préfixe timestamp)
-    original_filename = commande.piece_jointe.split('_', 2)[2] if commande.piece_jointe.split('_', 2)|length > 2 else commande.piece_jointe
+    parts = commande.piece_jointe.split('_', 2)
+    original_filename = parts[2] if len(parts) > 2 else commande.piece_jointe
     
     return send_file(file_path, as_attachment=True, download_name=original_filename)
 
